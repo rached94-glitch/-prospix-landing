@@ -1223,20 +1223,20 @@ Bien cordialement,
                 <Stars rating={lead.google.rating} size={10} />
                 <span style={{ fontSize: 11, fontWeight: 600, color: '#f1f5f9', fontFamily: 'var(--font-mono)' }}>{lead.google.rating}</span>
                 <span style={{ fontSize: 10, color: '#475569' }}>({lead.google.totalReviews ?? 0})</span>
-                {lead.isActiveOwner && (
-                  <span style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: '#10b981',
-                    background: 'rgba(16,185,129,0.08)',
-                    border: '1px solid rgba(16,185,129,0.20)',
-                    borderRadius: 6,
-                    padding: '3px 9px',
-                    marginLeft: 8,
-                  }}>
-                    Gérant actif ✓
-                  </span>
-                )}
+              </span>
+            )}
+            {lead.isActiveOwner && (
+              <span style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: '#10b981',
+                background: 'rgba(16,185,129,0.08)',
+                border: '1px solid rgba(16,185,129,0.20)',
+                borderRadius: 6,
+                padding: '3px 9px',
+                marginLeft: 8,
+              }}>
+                Gérant actif ✓
               </span>
             )}
             {lead.distance > 0 && (
