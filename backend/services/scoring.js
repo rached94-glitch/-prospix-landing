@@ -69,6 +69,9 @@ function opportunityScore(website, social) {
   return 15  // 2+ réseaux
 }
 
+// ── Module-level constants ────────────────────────────────────────────────────
+const SIX_MONTHS_MS = 180 * 24 * 3600 * 1000
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 function calculateScore(placeData, socialPresence, reviewAnalysis, weights = DEFAULT_WEIGHTS, pappersData = null, googleAudit = null) {
   const w = { ...DEFAULT_WEIGHTS, ...weights }
@@ -92,7 +95,6 @@ function calculateScore(placeData, socialPresence, reviewAnalysis, weights = DEF
   }
 
   // ── newBusinessBadge detection ───────────────────────────────────────────────
-  const SIX_MONTHS_MS = 180 * 24 * 3600 * 1000
   let newBusinessBadge = null
   if (pappersData?.dateCreation) {
     const d = new Date(pappersData.dateCreation)
@@ -105,8 +107,8 @@ function calculateScore(placeData, socialPresence, reviewAnalysis, weights = DEF
   }
 
   let total = Math.max(googleRating + reviewVolume + digitalPresence + opportunity, 0)
-  if (placeData.isActiveOwner) total += 5
-  if (newBusinessBadge)        total += 15
+  if (placeData.isActiveOwner) total += 5   // Feature 2 : Gérant actif
+  if (newBusinessBadge)        total += 15  // Feature 3 : Nouveau business ('confirmed'|'probable' → truthy)
   total = Math.min(100, total)
 
   return {
