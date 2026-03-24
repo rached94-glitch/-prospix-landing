@@ -85,24 +85,26 @@ function buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersD
 }
 
 function applyPostProcessing(leads, { city, domain }) {
+  if (!leads.length) return;
+
   // Feature 1 — Comparaison Concurrents
-  const scores = leads.map(l => l.score?.total ?? 0)
+  const scores = leads.map(l => l.score?.total ?? 0);
   const avg = scores.length > 1
     ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
-    : null
+    : null;
   for (const lead of leads) {
-    lead.competitorAvg   = avg
-    lead.competitorDelta = avg !== null ? (lead.score?.total ?? 0) - avg : null
+    lead.competitorAvg   = avg;
+    lead.competitorDelta = avg !== null ? (lead.score?.total ?? 0) - avg : null;
   }
 
   // Feature 4 — Benchmark Sectoriel (2 passes)
-  const d = domain ?? ''
-  const c = city   ?? ''
+  const d = domain ?? '';
+  const c = city   ?? '';
   for (const lead of leads) {
-    benchmarkService.addScore(d, c, lead.score?.total ?? 0)
+    benchmarkService.addScore(d, c, lead.score?.total ?? 0);
   }
   for (const lead of leads) {
-    lead.benchmarkPercentile = benchmarkService.getPercentile(d, c, lead.score?.total ?? 0)
+    lead.benchmarkPercentile = benchmarkService.getPercentile(d, c, lead.score?.total ?? 0);
   }
 }
 
