@@ -283,7 +283,9 @@ async function enrichBatch(places, onProgress) {
 
         const totalRatings    = details.user_ratings_total ?? place.user_ratings_total ?? 0
         const repliedCount    = (details.reviews ?? []).filter(r => r.author_reply).length
+        // 3/5 visible reviews = 60% effective threshold; condition impossible if < 3 reviews visible
         const isActiveOwner   = totalRatings >= 5 && repliedCount >= 3
+        // Ratio sur les 5 avis retournés par l'API (pas le taux de réponse global)
         const ownerReplyRatio = totalRatings > 0 ? repliedCount / Math.min(totalRatings, 5) : 0
 
         return {
