@@ -73,7 +73,7 @@ function buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersD
     googleAudit,
     chatbotDetection: socialPresence.chatbotDetection ?? null,
     pappers:          pappersData ?? null,
-    score,
+    score: { total: score.total, breakdown: score.breakdown },
     reviewAnalysis,
     status:  'new',
     domain:  domain || null,
