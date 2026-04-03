@@ -102,55 +102,120 @@ function LoadingOverlay({ isLoading, progress, leadsCount }) {
   return (
     <div style={{
       position: 'absolute', inset: 0, zIndex: 50,
-      background: 'rgba(10,10,15,0.82)',
-      backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 28,
+      background: 'rgba(14,28,18,0.7)',
+      backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
     }}>
+
       {/* Top progress bar */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2 }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'rgba(255,255,255,0.04)' }}>
         <div style={{
           height: '100%', width: `${pct}%`,
-          background: 'linear-gradient(90deg, #00d4ff, #8b5cf6)',
-          boxShadow: '0 0 14px rgba(0,212,255,0.7)',
+          background: 'linear-gradient(90deg, #1d6e55, #4ade80)',
+          boxShadow: '0 0 10px rgba(29,110,85,0.6)',
           transition: 'width 0.25s ease',
+          borderRadius: '0 2px 2px 0',
         }} />
       </div>
 
-      {/* Spinner */}
+      {/* Ellipse décorative haut-gauche */}
       <div style={{
-        width: 52, height: 52, borderRadius: '50%',
-        border: '2px solid rgba(0,212,255,0.12)',
-        borderTopColor: '#00d4ff', borderRightColor: '#8b5cf6',
-        animation: 'spin 0.85s linear infinite',
+        position: 'absolute', top: -80, left: -80,
+        width: 320, height: 320, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(29,110,85,0.18) 0%, transparent 70%)',
+        pointerEvents: 'none',
       }} />
 
-      {/* Message */}
-      <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 360 }}>
-        <span style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>
-          {LOADING_MESSAGES[msgIdx]}
-        </span>
-        {progress?.message && (
-          <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-            {progress.message}
-          </span>
-        )}
-      </div>
+      {/* Ellipse décorative bas-droite */}
+      <div style={{
+        position: 'absolute', bottom: -100, right: -60,
+        width: 380, height: 380, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(29,110,85,0.12) 0%, transparent 70%)',
+        pointerEvents: 'none',
+      }} />
 
-      {/* Stats */}
-      <div style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700, color: '#00d4ff', lineHeight: 1 }}>
-            {leadsCount}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-body)', marginTop: 3 }}>leads trouvés</div>
+      {/* Loading Card */}
+      <div style={{
+        width: 420, height: 320,
+        background: 'rgba(255,255,255,0.06)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: 20,
+        boxShadow: '0px 20px 60px rgba(0,0,0,0.5)',
+        display: 'flex', flexDirection: 'column',
+        overflow: 'hidden', position: 'relative',
+      }}>
+
+        {/* Ligne décorative top */}
+        <div style={{
+          height: 2, flexShrink: 0,
+          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+        }} />
+
+        {/* Contenu centré */}
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          gap: 10, padding: '20px 32px 0',
+        }}>
+
+          {/* Spinner */}
+          <div style={{
+            width: 44, height: 44, borderRadius: '50%',
+            border: '2px solid rgba(29,110,85,0.15)',
+            borderTopColor: '#1d6e55', borderRightColor: '#4ade80',
+            animation: 'spin 0.85s linear infinite',
+            flexShrink: 0,
+          }} />
+
+          {/* Étoile décorative */}
+          <span style={{ fontSize: 18, lineHeight: 1 }}>⭐</span>
+
+          {/* Message principal */}
+          <span style={{
+            fontFamily: 'var(--font-body)', fontSize: 18, fontWeight: 600,
+            color: '#f5f5f0', textAlign: 'center', lineHeight: 1.3,
+          }}>
+            {LOADING_MESSAGES[msgIdx]}
+          </span>
+
+          {/* Texte progression */}
+          {progress?.message && (
+            <span style={{
+              fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 400,
+              color: 'rgba(255,255,255,0.38)', textAlign: 'center',
+            }}>
+              {progress.message}
+            </span>
+          )}
         </div>
-        <div style={{ width: 1, height: 32, background: 'rgba(255,255,255,0.08)' }} />
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700, color: '#8b5cf6', lineHeight: 1 }}>
-            {pct}%
+
+        {/* Séparateur */}
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '16px 32px 0' }} />
+
+        {/* Stats */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '16px 32px 24px', gap: 0,
+        }}>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 36, fontWeight: 700, color: '#1d6e55', lineHeight: 1 }}>
+              {progress?.current ?? leadsCount}
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)', fontFamily: 'var(--font-body)', marginTop: 4 }}>
+              leads trouvés
+            </div>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-body)', marginTop: 3 }}>complété</div>
+          <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 36, fontWeight: 700, color: '#edfa36', lineHeight: 1 }}>
+              {pct}%
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)', fontFamily: 'var(--font-body)', marginTop: 4 }}>
+              complété
+            </div>
+          </div>
         </div>
+
       </div>
     </div>
   )
@@ -232,7 +297,7 @@ function Sidebar({ children }) {
     <div style={{
       width: 260, flexShrink: 0,
       height: '100vh',
-      background: '#111827',
+      background: 'rgba(17,24,20,0.75)',
       borderRight: '1px solid rgba(255,255,255,0.06)',
       display: 'flex', flexDirection: 'column',
       overflow: 'hidden',

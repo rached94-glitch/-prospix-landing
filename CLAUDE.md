@@ -73,3 +73,11 @@ The frontend proxies all `/api/*` requests to `localhost:3001` via Vite's dev pr
 - `2026-04-03 18:14:48` — modifié `frontend/src/components/ScoringProfileDrawer.jsx`
 - `2026-04-03 18:14:43` — modifié `frontend/src/components/ScoringProfileDrawer.jsx`
 
+
+## Dernières modifications
+- `2026-04-03 22:06:26` — modifié `frontend/src/components/LeadDetail.jsx`
+- `2026-04-03 22:01:58` — modifié `frontend/src/components/LeadDetail.jsx`
+- `2026-04-03 21:59:23` — modifié `frontend/src/components/LeadDetail.jsx`
+- `2026-04-03 21:57:40` — modifié `frontend/src/components/LeadDetail.jsx`
+- `2026-04-03 21:52:45` — modifié `frontend/src/components/LeadDetail.jsx`
+

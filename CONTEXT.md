@@ -16,14 +16,18 @@
 - services/visualAnalysisService.js — capture Puppeteer + analyse Claude Vision (designer/photographe/copywriter)
 - services/benchmarkService.js — cache percentile sectoriel cross-recherches (domain:city → scores[])
 - cache/pagespeedCache.js — cache mémoire 24h (vidé au démarrage)
+- cache/searchCache.js — factory cache TTL générique (createCache/getAllStats) — NEW
 - routes/leads.js — endpoints leads + analyse IA + génération email + applyPostProcessing (4 signaux)
 - routes/profiles.js — profils de scoring
 - routes/export.js — export PDF
 - routes/visualAnalysis.js — POST /api/leads/visual-analysis
+- routes/cache.js — GET /api/cache/stats (stats hit/miss tous les caches) — NEW
 
 ## Structure frontend/src/
 - App.jsx — état global, routing
-- components/SearchPanel.jsx — panneau gauche recherche + liste leads
+- theme-new.css — tokens de référence redesign vert/jaune (documentation)
+- components/SidebarSearch.jsx — panneau gauche recherche (⚠️ PAS SearchPanel.jsx — inutilisé)
+- components/SearchPanel.jsx — FICHIER NON UTILISÉ dans App.jsx (remplacé par SidebarSearch)
 - components/LeadDetail.jsx — panneau droit détail lead + score + analyse
 - components/ScoringProfileDrawer.jsx — drawer profils de scoring
 - components/Map.jsx — carte interactive react-map-gl
@@ -64,9 +68,11 @@ OPPORTUNITÉ (photographe) : photoCount=0→100 | ≤5→85 | ≤15→65 | ≤30
 - APIFY_API_TOKEN
 
 ## Design
-- Dark mode, violet #6366f1, rouge #ef4444
+- Dark mode, accent vert #1D6E55, accent jaune #EDFA36
+- Background #0D1410, surface #111813, texte #F5F5F0
 - Style Linear/Notion/Slack
 - Navbar 52px icônes
+- Redesign complet 2026-04-03 : branche redesign-ui-vert-jaune mergée dans master
 
 ## Fonctionnalités actives
 - Carte interactive react-map-gl + MapLibre
@@ -126,6 +132,38 @@ Kill ports : taskkill /F /IM node.exe
 - Ne lire que les fichiers strictement nécessaires à la tâche
 - Toujours montrer les lignes avant/après chaque modification
 - Ne jamais modifier plus de fichiers que nécessaire
+
+---
+
+## Session 2026-04-03 — Modifications
+
+### Redesign UI — branche redesign-ui-vert-jaune (mergée dans master)
+- Palette complète : cyan #00d4ff → vert #1D6E55 | violet #6366f1/#8b5cf6 → vert #1D6E55 / jaune #EDFA36
+- Nouveau fichier `frontend/src/theme-new.css` — tokens de référence documentés
+- `App.css` — tokens :root redessinés, scrollbar, orbs, gradient-text, inputs, sliders, boutons, lead-cards
+- `NavBar.jsx` — fond #0D1410, logo gradient vert→jaune, bouton actif vert
+- `SidebarLeads.jsx` — pills tri vert, badge filtres jaune
+- `SearchPanel.jsx` — S.panel rgba(17,24,20,0.95)+radius 16, S.block, chips h:22 radius:11, bouton #EDFA36 h:52
+- `ScoringProfileDrawer.jsx` — toutes les couleurs cyan→vert
+- `LeadDetail.jsx` — toutes les couleurs violet→vert/jaune (#0d0d1a/#1a1830/#1e1b4b→tokens verts)
+- `LeadCard.jsx` — couleurs sélection vert
+
+### ⚠️ SearchPanel.jsx vs SidebarSearch.jsx
+- `SearchPanel.jsx` est un fichier **non utilisé** — App.jsx importe `SidebarSearch.jsx`
+- Les modifications de style dans SearchPanel.jsx n'ont aucun effet en browser
+- Appliquer les changements de style dans `SidebarSearch.jsx` pour voir le résultat
+
+### Système de cache backend (createCache)
+- `backend/cache/searchCache.js` créé — factory TTL générique avec registry et stats
+  - `createCache(name)` → { get, set, has, delete, clear, stats }
+  - `getAllStats()` → stats de tous les caches enregistrés
+- `googlePlaces.js` — 3 caches : `search` 6h | `placeDetails` 24h | `localRank` 24h
+  - Inline `searchCache = new Map()` remplacé par `createCache('search')`
+- `socialEnrichment.js` — cache `social` 48h, `placeId` optionnel dans `enrichSocial`
+- `pagespeedService.js` — cache `nap` 24h, `placeId` 5e paramètre optionnel de `checkNAP`
+- `routes/leads.js` — passe `place.place_id` à `enrichSocial` et `placeId` à `checkNAP`
+- `routes/cache.js` — `GET /api/cache/stats` retourne hit/miss/hitRate de tous les caches
+- `server.js` — monte `/api/cache`
 
 ---
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { ScoreBadge } from './LeadCard'
 import { exportLeadPDF } from '../utils/exportPDF'
+import { FaFacebookF, FaLinkedinIn, FaYoutube, FaTiktok, FaInstagram } from 'react-icons/fa'
 
 const SOCIAL_CONFIG = [
   { key: 'linkedin',  label: 'LinkedIn',  icon: '💼' },
@@ -97,8 +98,9 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
   const [reviewsData,  setReviewsData]    = useState(null)
 
   // AI analysis state
-  const [aiState,      setAiState]        = useState('idle') // idle | loading | done
+  const [aiState,      setAiState]        = useState('idle') // idle | loading | done | error
   const [aiReport,     setAiReport]       = useState(null)
+  const [aiError,      setAiError]        = useState(null)
 
   // AI-generated email state
   const [aiEmailState, setAiEmailState]   = useState('idle') // idle | loading | done | error
@@ -428,6 +430,7 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
 
     setAiState('loading')
     setAiReport(null)
+    setAiError(null)
     try {
       const res  = await fetch(`${API}/api/leads/analyze/${placeId}`, {
         method: 'POST',
@@ -457,7 +460,8 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
       setWide(true)
     } catch (e) {
       console.error('AI analyze error:', e)
-      setAiState('idle')
+      setAiError(e.message || 'Erreur lors de l\'analyse IA')
+      setAiState('error')
     }
   }
 
@@ -1348,14 +1352,14 @@ Bien cordialement,
         position: 'absolute',
         bottom: 16,
         right: 16,
-        width: wide ? 520 : 360,
-        height: 'calc(100vh - 32px)',
+        width: wide ? 520 : 340,
+        height: 'calc(100% - 32px)',
         display: 'flex',
         flexDirection: 'column',
-        background: '#0D1410',
-        border: '1px solid rgba(29,110,85,0.15)',
+        background: 'rgba(17,24,20,0.96)',
+        border: '1px solid rgba(29,110,85,0.35)',
         borderRadius: 16,
-        boxShadow: '0 24px 64px rgba(0,0,0,0.85)',
+        boxShadow: '0px 8px 32px rgba(29,110,85,0.28)',
         animation: 'ld-slidein 0.22s cubic-bezier(0.4,0,0.2,1)',
         transition: 'width 0.25s cubic-bezier(0.4,0,0.2,1)',
         zIndex: 1000,
@@ -1364,96 +1368,85 @@ Bien cordialement,
       }}>
 
         {/* ══ HEADER ══ */}
-        <div style={{ padding: '14px 16px 0', flexShrink: 0, borderBottom: '1px solid rgba(29,110,85,0.10)' }}>
+        <div style={{ padding: 14, flexShrink: 0, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.08)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
 
-          {/* Row 1 : name + utility buttons */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 3 }}>
-            <div style={{ fontSize: 15, fontWeight: 500, color: '#f1f5f9', letterSpacing: '-0.01em', lineHeight: 1.3, flex: 1, minWidth: 0, marginRight: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {lead.name}
+          {/* Top row: score circle + name/address/tags + buttons */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+
+            {/* Score circle */}
+            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'radial-gradient(circle at 40% 35%, #f89e1e, #c97000)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(248,158,30,0.35)' }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: '#edfa36', fontFamily: 'var(--font-body)' }}>{score}</span>
             </div>
+
+            {/* Name + address + tags */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {/* Name + Ouvert/Fermé on same line */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#f5f5f0', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+                  {lead.name}
+                </span>
+                {lead.google?.openNow !== undefined && (
+                  <span style={{ fontSize: 9, fontWeight: 600, flexShrink: 0, color: lead.google.openNow ? '#22c55e' : '#ef4444', background: lead.google.openNow ? 'rgba(34,197,94,0.10)' : 'rgba(239,68,68,0.12)', border: `1px solid ${lead.google.openNow ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.35)'}`, borderRadius: 9, padding: '2px 7px' }}>
+                    {lead.google.openNow ? 'Ouvert' : 'Fermé'}
+                  </span>
+                )}
+              </div>
+              {/* Address */}
+              {lead.address && (
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {lead.address}
+                </div>
+              )}
+              {/* Bottom row: profile badge + distance + stars pushed right */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', marginTop: 6 }}>
+                {activeProfile && (
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#1d6e55', background: 'rgba(29,110,85,0.15)', border: '1px solid rgba(29,110,85,0.4)', borderRadius: 9, padding: '5px 12px' }}>
+                    {activeProfile.name}
+                  </span>
+                )}
+                {lead.isActiveOwner && (
+                  <span style={{ fontSize: 9, fontWeight: 600, color: '#10b981', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.20)', borderRadius: 9, padding: '2px 7px' }}>Gérant actif ✓</span>
+                )}
+                {lead.distance > 0 && (
+                  <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.38)' }}>
+                    {lead.distance >= 1000 ? `${(lead.distance / 1000).toFixed(1)} km` : `${lead.distance} m`}
+                  </span>
+                )}
+                {lead.google?.rating > 0 && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
+                    <Stars rating={lead.google.rating} size={14} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9', fontFamily: 'var(--font-mono)' }}>{lead.google.rating}</span>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)' }}>({lead.google.totalReviews ?? 0})</span>
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Utility buttons */}
             <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-              <button className="ld-btn" onClick={() => setWide(w => !w)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#475569', borderRadius: 7, width: 26, height: 26, cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button className="ld-btn" onClick={() => setWide(w => !w)} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.5)', borderRadius: 12, width: 24, height: 24, cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {wide ? '⇥' : '↔'}
               </button>
-              <button className="ld-btn" onClick={onClose} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#475569', borderRadius: 7, width: 26, height: 26, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button className="ld-btn" onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.5)', borderRadius: 12, width: 24, height: 24, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 ✕
               </button>
             </div>
           </div>
 
-          {/* Row 2 : address */}
-          {lead.address && (
-            <div style={{ fontSize: 11, color: '#475569', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {lead.address}
-            </div>
-          )}
-
-          {/* Row 3 : meta badges */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginBottom: 8 }}>
-            {activeProfile && (
-              <span style={{ fontSize: 10, fontWeight: 600, color: '#EDFA36', background: 'rgba(29,110,85,0.15)', border: '1px solid rgba(29,110,85,0.28)', borderRadius: 4, padding: '2px 7px', letterSpacing: '0.03em' }}>
-                {activeProfile.name}
-              </span>
-            )}
-            {lead.google?.openNow !== undefined && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, color: lead.google.openNow ? '#22c55e' : '#ef4444' }}>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: lead.google.openNow ? '#22c55e' : '#ef4444', boxShadow: lead.google.openNow ? '0 0 5px #22c55e88' : 'none', display: 'inline-block' }} />
-                {lead.google.openNow ? 'Ouvert' : 'Fermé'}
-              </span>
-            )}
-            {lead.google?.rating > 0 && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Stars rating={lead.google.rating} size={10} />
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#f1f5f9', fontFamily: 'var(--font-mono)' }}>{lead.google.rating}</span>
-                <span style={{ fontSize: 10, color: '#475569' }}>({lead.google.totalReviews ?? 0})</span>
-              </span>
-            )}
-            {lead.isActiveOwner && (
-              <span style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: '#10b981',
-                background: 'rgba(16,185,129,0.08)',
-                border: '1px solid rgba(16,185,129,0.20)',
-                borderRadius: 6,
-                padding: '3px 9px',
-                marginLeft: 8,
-              }}>
-                Gérant actif ✓
-              </span>
-            )}
-            {lead.distance > 0 && (
-              <span style={{ fontSize: 10, color: '#475569' }}>
-                {lead.distance >= 1000 ? `${(lead.distance / 1000).toFixed(1)} km` : `${lead.distance} m`}
-              </span>
-            )}
-          </div>
-
-          {/* Opportunity bar */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, background: oppBar.bg, border: `1px solid ${oppBar.border}`, borderRadius: 8, padding: '7px 10px', marginBottom: 12, lineHeight: 1.45 }}>
-            <span style={{ fontSize: 13, flexShrink: 0, marginTop: 1 }}>⚡</span>
-            <span style={{ fontSize: 11, color: '#cbd5e1' }}>{oppBar.text}</span>
-          </div>
         </div>
 
         {/* ══ CRM ACTIONS ══ */}
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', flexShrink: 0, justifyContent: 'center' }}>
           <button className="ld-btn" onClick={handleContact}
-            style={{ flex: 1, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: '#94a3b8', fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, transition: 'color 0.15s, border-color 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#22c55e'; e.currentTarget.style.borderColor = 'rgba(34,197,94,0.2)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}>
+            style={{ width: 98, height: 36, borderRadius: 10, border: '1px solid rgba(29,110,85,0.4)', background: 'rgba(29,110,85,0.25)', color: '#1d6e55', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
             {contactedConfirm ? '✓ Contacté !' : 'Contacter'}
           </button>
           <button className="ld-btn" onClick={handleFavorite}
-            style={{ flex: 1, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: '#94a3b8', fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, transition: 'color 0.15s, border-color 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#f59e0b'; e.currentTarget.style.borderColor = 'rgba(245,158,11,0.2)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}>
+            style={{ width: 98, height: 36, borderRadius: 10, border: '1px solid rgba(237,250,54,0.25)', background: 'rgba(237,250,54,0.1)', color: '#edfa36', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
             {isFavorite ? '★ Favori' : '☆ Favori'}
           </button>
           <button className="ld-btn" onClick={handleIgnore}
-            style={{ flex: 1, height: 36, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: '#94a3b8', fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, transition: 'color 0.15s, border-color 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#64748b' }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8' }}>
+            style={{ width: 98, height: 36, borderRadius: 10, border: '1px solid rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
             Ignorer
           </button>
         </div>
@@ -1462,8 +1455,10 @@ Bien cordialement,
         <div ref={scrollRef} className="ld-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 16px 80px', scrollbarWidth: 'thin', scrollbarColor: '#2d3748 #0D1410' }}>
 
           {/* ── CONTACT & PRÉSENCE ── */}
-          <div style={{ paddingTop: 4, marginBottom: 16 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#1D6E55', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(29,110,85,0.12)' }}>
+          <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, marginBottom: 12, overflow: 'hidden' }}>
+            <div style={{ height: 2, background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent)' }} />
+            <div style={{ padding: '12px 14px' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', marginBottom: 10 }}>
               Contact &amp; Présence
             </div>
 
@@ -1484,7 +1479,7 @@ Bien cordialement,
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '9px 11px' }}>
                 <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 5 }}>Site web</div>
                 {lead.website && !['null', 'undefined', ''].includes(String(lead.website))
-                  ? <a href={lead.website} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: '#1D6E55', textDecoration: 'none', wordBreak: 'break-all', lineHeight: 1.3, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  ? <a href={lead.website} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: '#f5f5f0', textDecoration: 'none', wordBreak: 'break-all', lineHeight: 1.3, display: 'flex', alignItems: 'center', gap: 8 }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
                         <circle cx="12" cy="12" r="10" stroke="#94a3b8" strokeWidth="1.5"/>
                         <path d="M2 12h20M12 2c-2.5 3-4 6.5-4 10s1.5 7 4 10M12 2c2.5 3 4 6.5 4 10s-1.5 7-4 10" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round"/>
@@ -1496,63 +1491,17 @@ Bien cordialement,
               </div>
             </div>
 
-            {/* Social 4-col strip */}
-            {(() => {
-              const SocialIcon = ({ id, active }) => {
-                const c = active ? {
-                  facebook:  '#1877f2',
-                  instagram: '#E1306C',
-                  linkedin:  '#0A66C2',
-                  tiktok:    '#ffffff',
-                }[id] : '#475569'
-                if (id === 'facebook') return (
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill={c}><path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.267h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg>
-                )
-                if (id === 'instagram') return (
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill={c}><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
-                )
-                if (id === 'linkedin') return (
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill={c}><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-                )
-                if (id === 'tiktok') return (
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill={c}><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
-                )
-                return null
-              }
-              return (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 5, marginBottom: 8 }}>
-                  {[
-                    { key: 'facebook',  label: 'Facebook'  },
-                    { key: 'instagram', label: 'Instagram' },
-                    { key: 'linkedin',  label: 'LinkedIn'  },
-                    { key: 'tiktok',    label: 'TikTok'    },
-                  ].map(({ key, label }) => {
-                    const url = lead.social?.[key]
-                    const has = !!url
-                    return (
-                      <a key={key} href={has ? url : undefined} target={has ? '_blank' : undefined} rel={has ? 'noreferrer' : undefined}
-                        className="ld-social-dot"
-                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.02)', border: `1px solid ${has ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)'}`, borderRadius: 8, padding: '8px 4px', textDecoration: 'none', cursor: has ? 'pointer' : 'default', transition: 'border-color 0.15s', opacity: has ? 1 : 0.45 }}>
-                        <SocialIcon id={key} active={has} />
-                        <span style={{ fontSize: 9.5, color: has ? '#94a3b8' : '#475569', fontWeight: 500, textAlign: 'center' }}>{label}</span>
-                      </a>
-                    )
-                  })}
-                </div>
-              )
-            })()}
-
             {/* Find decision maker */}
             {dmState === 'idle' && (
-              <button className="ld-btn" onClick={handleFindDecisionMaker} style={{ width: '100%', height: 34, borderRadius: 8, border: '1px solid rgba(29,110,85,0.28)', background: 'transparent', color: '#EDFA36', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <button className="ld-btn" onClick={handleFindDecisionMaker} style={{ width: '100%', height: 34, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 8 }}>
                 Trouver le décideur
               </button>
             )}
             {dmState === 'loading' && (
-              <div style={{ height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#64748b' }}>Recherche en cours…</div>
+              <div style={{ height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#64748b', marginBottom: 8 }}>Recherche en cours…</div>
             )}
             {dmState === 'not_found' && (
-              <div style={{ fontSize: 11, color: '#475569', padding: '7px 0', textAlign: 'center' }}>
+              <div style={{ fontSize: 11, color: '#475569', padding: '7px 0', textAlign: 'center', marginBottom: 8 }}>
                 Décideur non trouvé —{' '}
                 <a href={`https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(lead.name)}`} target="_blank" rel="noreferrer" style={{ color: '#1D6E55', textDecoration: 'none' }}>chercher sur LinkedIn</a>
               </div>
@@ -1560,7 +1509,7 @@ Bien cordialement,
             {dmState === 'found' && lead.decisionMaker && (() => {
               const dm = lead.decisionMaker
               return (
-                <div style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.22)', borderRadius: 9, padding: '10px 13px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.22)', borderRadius: 9, padding: '10px 13px', display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#10b981' }}>
                     {dm.name || 'Décideur trouvé'}{dm.title ? ` — ${dm.title}` : ''}
                   </div>
@@ -1575,7 +1524,41 @@ Bien cordialement,
                 </div>
               )
             })()}
-          </div>
+
+            {/* Social 5-col strip */}
+            {(() => {
+              const SOCIAL_DEFS = [
+                { key: 'facebook',  Icon: FaFacebookF,  size: 11, activeBg: '#1877F2',  activeBorder: 'transparent' },
+                { key: 'instagram', Icon: FaInstagram,  size: 11, activeBg: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)', activeBorder: 'transparent' },
+                { key: 'linkedin',  Icon: FaLinkedinIn, size: 11, activeBg: '#0A66C2',  activeBorder: 'transparent' },
+                { key: 'tiktok',    Icon: FaTiktok,     size: 11, activeBg: '#010101',  activeBorder: 'rgba(255,255,255,0.2)' },
+                { key: 'youtube',   Icon: FaYoutube,    size: 11, activeBg: '#FF0000',  activeBorder: 'transparent' },
+              ]
+              return (
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                  {SOCIAL_DEFS.map(({ key, Icon, size, activeBg, activeBorder }) => {
+                    const url = lead.social?.[key]
+                    const has = !!url
+                    return (
+                      <a key={key} href={has ? url : undefined} target={has ? '_blank' : undefined} rel={has ? 'noreferrer' : undefined}
+                        className="ld-social-dot"
+                        style={{
+                          width: 26, height: 26, borderRadius: 6, flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: has ? activeBg : 'rgba(255,255,255,0.06)',
+                          border: `1px solid ${has ? activeBorder : 'rgba(255,255,255,0.08)'}`,
+                          color: has ? 'white' : 'rgba(255,255,255,0.2)',
+                          textDecoration: 'none', cursor: has ? 'pointer' : 'default',
+                        }}>
+                        <Icon size={size} />
+                      </a>
+                    )
+                  })}
+                </div>
+              )
+            })()}
+            </div>{/* /padding */}
+          </div>{/* /Contact block */}
 
           {/* ── DONNÉES CLÉS ── */}
           <div style={{ marginBottom: 20 }}>
@@ -1637,7 +1620,7 @@ Bien cordialement,
 
               const CARD  = { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }
               const ROW   = (last) => ({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: last ? 'none' : '1px solid rgba(255,255,255,0.04)' })
-              const LBL   = { fontSize: 11, color: '#475569', display: 'flex', alignItems: 'center', gap: 7 }
+              const LBL   = { fontSize: 11, color: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', gap: 7 }
               const VAL   = (color) => ({ fontSize: 12, fontWeight: 500, color: color || '#e2e8f0' })
               const BADGE = { fontSize: 10, color: '#475569', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 7px' }
               const BTN   = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: 'pointer', color: '#1D6E55', fontSize: 12, fontWeight: 500, background: 'transparent', border: 'none', borderTop: '1px solid rgba(255,255,255,0.04)', width: '100%', textAlign: 'left' }
@@ -2063,7 +2046,7 @@ Bien cordialement,
                     if (kpi.type === 'cms') {
                       return (
                         <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
                           <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0', lineHeight: 1.1 }}>{kpi.value}</div>
                           {kpi.cmsBadge && <div style={{ marginTop: 5, display: 'inline-block', fontSize: 9.5, fontWeight: 700, color: kpi.cmsBadge.color, background: `${kpi.cmsBadge.color}18`, border: `1px solid ${kpi.cmsBadge.color}40`, borderRadius: 4, padding: '2px 7px', letterSpacing: '0.5px' }}>{kpi.cmsBadge.text}</div>}
                         </div>
@@ -2075,7 +2058,7 @@ Bien cordialement,
                       const note  = !da ? null : da.ageYears >= 5 ? 'Domaine établi' : da.ageYears >= 2 ? 'Domaine récent' : 'Très récent'
                       return (
                         <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
                           {da
                             ? <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{da.ageLabel}</div>
                             : <div style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>Non disponible</div>
@@ -2090,7 +2073,7 @@ Bien cordialement,
                       const note  = !ip ? null : ip.signal === 'good' ? 'Bon volume de contenu' : ip.signal === 'weak' ? 'Contenu insuffisant' : 'Site quasi invisible'
                       return (
                         <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
                           {ip
                             ? <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{ip.label}</div>
                             : <div style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>Non disponible</div>
@@ -2115,7 +2098,7 @@ Bien cordialement,
                         : 'Commerce absent de PagesJaunes'
                       return (
                         <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px', gridColumn: nap?.found && nap?.issues?.length > 0 ? '1 / -1' : undefined }}>
-                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
                           {nap
                             ? <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{label}</div>
                             : <div style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>Non vérifié</div>
@@ -2153,7 +2136,7 @@ Bien cordialement,
                       const note  = kpi.detected ? 'Angle différentiel requis' : 'Opportunité directe'
                       return (
                         <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
                           <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{label}</div>
                           <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>{note}</div>
                         </div>
@@ -2163,7 +2146,7 @@ Bien cordialement,
                       const color = kpi.platform ? '#a78bfa' : '#475569'
                       return (
                         <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
                           {kpi.platform
                             ? <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{kpi.platform}</div>
                             : <div style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>Aucune</div>
@@ -2176,7 +2159,7 @@ Bien cordialement,
                       const color = kpi.detected ? '#22c55e' : '#475569'
                       return (
                         <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
                           <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{kpi.detected ? 'Oui' : 'Non'}</div>
                           {kpi.detected && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>Base de contenu disponible</div>}
                         </div>
@@ -2186,7 +2169,7 @@ Bien cordialement,
                       const color = kpi.detected ? '#22c55e' : '#475569'
                       return (
                         <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
                           <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{kpi.detected ? 'Présent' : 'Absent'}</div>
                           {kpi.detected && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>Remplacement ou complément chatbot</div>}
                         </div>
@@ -2196,7 +2179,7 @@ Bien cordialement,
                       const color = kpi.detected ? '#f97316' : '#22c55e'
                       return (
                         <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
                           <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{kpi.detected ? 'Oui' : 'Non'}</div>
                           {kpi.detected && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>Serveur local recommandé</div>}
                         </div>
@@ -2204,7 +2187,7 @@ Bien cordialement,
                     }
                     return (
                       <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
-                        <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                        <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
                         <div style={{ fontSize: 16, fontWeight: 700, color: STATUS_COLOR[kpi.status] || '#64748b', lineHeight: 1.1 }}>{kpi.value}</div>
                         {kpi.note && <div style={{ fontSize: 8.5, color: '#f59e0b', marginTop: 4, lineHeight: 1.35 }}>{kpi.note}</div>}
                         {kpi.tooltip && (
@@ -2228,7 +2211,7 @@ Bien cordialement,
                   if (auditState === 'idle' && !lead.website)
                     return <div style={{ fontSize: 11, color: '#475569', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, padding: '7px 12px', marginBottom: 10, textAlign: 'center' }}>{isChatbotProfile ? 'Pas de site web — analyse impossible' : 'Pas de site web — audit SEO impossible'}</div>
                   if (auditState === 'idle')
-                    return <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ width: '100%', height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#64748b', fontSize: 10.5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 10 }}>{isChatbotProfile ? '🤖 Analyser le site — détection chatbot' : '🚀 Analyser les performances — 1 crédit'}</button>
+                    return <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ width: '100%', height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#64748b', fontSize: 10.5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 10 }}>{isChatbotProfile ? 'Analyser le site — détection chatbot' : 'Analyser les performances — 1 crédit'}</button>
                   if (auditState === 'loading')
                     return <div style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, color: '#64748b', marginBottom: 10 }}>Analyse en cours…</div>
                   if (auditState === 'done' && auditData?.pagespeed?.timeout)
@@ -2356,7 +2339,7 @@ Bien cordialement,
 
                 {/* Bouton lancer */}
                 <button onClick={handleVisualAnalysis} disabled={visualLoading}
-                  style={{ width: '100%', height: 38, borderRadius: 9, border: '1px solid rgba(29,110,85,0.2)', background: visualLoading ? 'rgba(29,110,85,0.04)' : 'rgba(29,110,85,0.08)', color: visualLoading ? '#475569' : '#1D6E55', fontSize: 12.5, fontWeight: 600, cursor: visualLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginBottom: 8 }}>
+                  style={{ width: '100%', height: 40, borderRadius: 10, border: '1px solid rgba(29,110,85,0.25)', background: visualLoading ? 'rgba(29,110,85,0.04)' : 'rgba(29,110,85,0.12)', color: visualLoading ? '#64748b' : '#1d6e55', fontSize: 12, fontWeight: 500, cursor: visualLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 8 }}>
                   {visualLoading ? (
                     <>
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ animation: 'spin 1s linear infinite' }}>
@@ -2413,36 +2396,40 @@ Bien cordialement,
           })()}
 
           {/* ── SCORE DÉTAILLÉ ── */}
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#1D6E55', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(29,110,85,0.12)' }}>
+          <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, marginBottom: 12, overflow: 'hidden' }}>
+            <div style={{ height: 2, background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent)' }} />
+            <div style={{ padding: '12px 14px' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', marginBottom: 10 }}>
               Score Détaillé
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-              {SCORE_BREAKDOWN.filter(({ key }) => key !== 'financialCapacity').map(({ key, label, color }) => {
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {SCORE_BREAKDOWN.filter(({ key }) => key !== 'financialCapacity').map(({ key, label }) => {
                 const max = activeWeights[key] || 0
                 const val = breakdown[key] || 0
+                const ratio = max > 0 ? val / max : 0
+                const c = ratio >= 0.7 ? '#1d6e55' : ratio >= 0.4 ? '#f97316' : '#ef4444'
                 return (
                   <div key={key}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 5 }}>
-                      <span>{label}</span>
-                      <span style={{ fontFamily: 'var(--font-mono)', color }}>{val}/{max} pts</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                      <span style={{ color: 'rgba(255,255,255,0.4)' }}>{label}</span>
+                      <span style={{ fontWeight: 600, color: c }}>{val}/{max} pts</span>
                     </div>
-                    <Bar value={val} max={max} color={color} />
+                    <div style={{ height: 3, background: 'rgba(255,255,255,0.07)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${Math.min(ratio * 100, 100)}%`, background: c, borderRadius: 2 }} />
+                    </div>
                   </div>
                 )
               })}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 13, paddingTop: 11, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Score total</span>
-              {(() => {
-                const c = score >= 70 ? '#22c55e' : score >= 40 ? '#f59e0b' : '#ef4444'
-                return <span style={{ fontSize: 22, fontWeight: 700, color: c, fontFamily: 'var(--font-mono)' }}>{score}<span style={{ fontSize: 12, color: '#475569', fontWeight: 400 }}>/100</span></span>
-              })()}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, padding: '10px 12px', background: 'rgba(29,110,85,0.1)', border: '1px solid rgba(29,110,85,0.28)', borderRadius: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#f5f5f0' }}>Score total</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#edfa36', fontFamily: 'var(--font-mono)' }}>{score}<span style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', fontWeight: 400 }}>/100</span></span>
             </div>
             {activeProfile?.id === 'photographe' && (
               <div style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>Score basé sur les données publiques</div>
             )}
-          </div>
+            </div>{/* /padding */}
+          </div>{/* /Score block */}
 
           {/* ── POSITIONNEMENT ── */}
           {(lead.competitorAvg != null || lead.benchmarkPercentile != null) && (
@@ -2540,56 +2527,32 @@ Bien cordialement,
             </div>
 
             {/* AI results */}
-            {aiState === 'done' && aiReport && (() => {
-              const pos        = aiReport.sentiment?.positive ?? aiReport.positivePct ?? null
-              const neg        = aiReport.sentiment?.negative ?? aiReport.negativePct ?? null
-              const posTags    = aiReport.keywords?.positive || aiReport.positiveTags || []
-              const negTags    = aiReport.keywords?.negative || aiReport.negativeTags || []
-              const bestReview = aiReport.bestReview
-                || reviewsData?.reviews?.reduce((b, r) => (!b || r.rating > b.rating) ? r : b, null)
-                || lead.google?.reviews?.[0]
-              return (
-                <div>
-                  {pos != null && neg != null && (
-                    <div style={{ marginBottom: 10 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, marginBottom: 5 }}>
-                        <span style={{ color: '#22c55e', fontWeight: 600 }}>✓ Positif {Math.round(pos)}%</span>
-                        <span style={{ color: '#ef4444', fontWeight: 600 }}>✗ Négatif {Math.round(neg)}%</span>
-                      </div>
-                      <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
-                        <div style={{ width: `${Math.min(Math.round(pos), 100)}%`, height: '100%', background: 'linear-gradient(90deg,#22c55e,#10b981)', borderRadius: 3 }} />
-                      </div>
-                    </div>
-                  )}
-                  {(posTags.length > 0 || negTags.length > 0) && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 10 }}>
-                      {posTags.slice(0, 4).map((tag, i) => (
-                        <span key={`p${i}`} style={{ fontSize: 10.5, padding: '3px 8px', borderRadius: 4, background: 'rgba(34,197,94,0.10)', border: '1px solid rgba(34,197,94,0.25)', color: '#22c55e' }}>{tag}</span>
-                      ))}
-                      {negTags.slice(0, 3).map((tag, i) => (
-                        <span key={`n${i}`} style={{ fontSize: 10.5, padding: '3px 8px', borderRadius: 4, background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>{tag}</span>
-                      ))}
-                    </div>
-                  )}
-                  {bestReview && (
-                    <div style={{ borderLeft: '3px solid #1D6E55', borderRadius: '0 8px 8px 0', background: 'rgba(29,110,85,0.07)', padding: '9px 11px', marginBottom: 8 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                        <Stars rating={bestReview.rating ?? 5} size={10} />
-                        {bestReview.author && <span style={{ fontSize: 10.5, color: '#64748b' }}>{bestReview.author}</span>}
-                      </div>
-                      <div style={{ fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.55, fontStyle: 'italic' }}>
-                        "{bestReview.text?.substring(0, 160)}{(bestReview.text?.length || 0) > 160 ? '…' : ''}"
-                      </div>
-                    </div>
-                  )}
-                  {typeof aiReport.summary === 'string' && aiReport.summary && (
-                    <div style={{ fontSize: 11.5, color: '#94a3b8', lineHeight: 1.65, marginTop: 6 }}>
-                      <ReactMarkdown>{aiReport.summary}</ReactMarkdown>
-                    </div>
-                  )}
+            {aiState === 'done' && aiReport && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ background: 'rgba(29,110,85,0.12)', border: '1px solid rgba(29,110,85,0.35)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#1d6e55', fontFamily: 'var(--font-body)' }}>
+                    ✅ Analyse terminée — consultez le rapport PDF pour voir les résultats détaillés.
+                  </span>
                 </div>
-              )
-            })()}
+                <button
+                  className="ld-btn"
+                  onClick={handleExportPDF}
+                  disabled={pdfLoading}
+                  style={{ width: '100%', height: 32, borderRadius: 9, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: pdfLoading ? '#475569' : 'rgba(255,255,255,0.48)', fontSize: 12, fontWeight: 500, cursor: pdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
+                  onMouseEnter={e => { if (!pdfLoading) { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' } }}
+                  onMouseLeave={e => { e.currentTarget.style.color = pdfLoading ? '#475569' : 'rgba(255,255,255,0.48)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}>
+                  {pdfLoading ? '⏳ Génération en cours…' : '↓ Télécharger le rapport PDF'}
+                </button>
+              </div>
+            )}
+
+            {/* Error message */}
+            {aiState === 'error' && aiError && (
+              <div style={{ fontSize: 11, color: '#ef4444', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 7, padding: '8px 10px', marginBottom: 8 }}>
+                ⚠ {aiError}
+                <button onClick={() => setAiState('idle')} style={{ marginLeft: 8, fontSize: 10, color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Réessayer</button>
+              </div>
+            )}
 
             {/* Load / analyze button */}
             {aiState !== 'done' && (
@@ -2597,10 +2560,10 @@ Bien cordialement,
                 className="ld-btn"
                 onClick={reviewsState === 'done' ? handleAnalyzeAI : handleLoadReviews}
                 disabled={reviewsState === 'loading' || aiState === 'loading'}
-                style={{ width: '100%', height: 36, borderRadius: 8, border: '1px solid rgba(29,110,85,0.28)', background: 'rgba(29,110,85,0.08)', color: reviewsState === 'loading' || aiState === 'loading' ? '#64748b' : '#EDFA36', fontSize: 12, fontWeight: 600, cursor: reviewsState === 'loading' || aiState === 'loading' ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 10 }}>
+                style={{ width: '100%', height: 40, borderRadius: 10, border: '1px solid rgba(29,110,85,0.25)', background: 'rgba(29,110,85,0.12)', color: reviewsState === 'loading' || aiState === 'loading' ? '#64748b' : '#1d6e55', fontSize: 12, fontWeight: 500, cursor: reviewsState === 'loading' || aiState === 'loading' ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 10 }}>
                 {reviewsState === 'loading' && '⏳ Chargement des avis…'}
                 {aiState === 'loading' && '✨ Analyse IA en cours…'}
-                {reviewsState !== 'loading' && aiState !== 'loading' && (reviewsState === 'done' ? "✨ Analyser avec l'IA" : '📥 Charger et analyser les avis IA (100 max) — 1 crédit')}
+                {reviewsState !== 'loading' && aiState !== 'loading' && (reviewsState === 'done' ? "Analyser avec l'IA" : 'Charger et analyser les avis IA (100 max) — 1 crédit')}
               </button>
             )}
 
@@ -2628,8 +2591,8 @@ Bien cordialement,
               Données Financières
             </div>
             {pappersState === 'idle' && (
-              <button className="ld-btn" onClick={handleLoadPappers} style={{ width: '100%', height: 34, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#64748b', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                📊 Charger les données Pappers — 1 crédit
+              <button className="ld-btn" onClick={handleLoadPappers} style={{ width: '100%', height: 40, borderRadius: 10, border: '1px solid rgba(29,110,85,0.25)', background: 'rgba(29,110,85,0.12)', color: '#1d6e55', fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                Charger les données Pappers — 1 crédit
               </button>
             )}
             {pappersState === 'loading' && (
@@ -2658,8 +2621,8 @@ Bien cordialement,
           {/* Perf audit on-demand */}
           {!['seo', 'consultant-seo', 'dev-web', 'pub-google', 'photographe', 'chatbot', 'dev-chatbot'].includes(activeProfile?.id) && auditState === 'idle' && (lead.website || lead.social?.facebook || lead.social?.instagram) && (
             <div style={{ marginBottom: 20 }}>
-              <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ width: '100%', height: 34, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#64748b', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                🚀 Analyser les performances digitales — 1 crédit
+              <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ width: '100%', height: 40, borderRadius: 10, border: '1px solid rgba(29,110,85,0.25)', background: 'rgba(29,110,85,0.12)', color: '#1d6e55', fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                Analyser les performances digitales — 1 crédit
               </button>
             </div>
           )}
@@ -2708,7 +2671,8 @@ Bien cordialement,
                     className="ld-btn"
                     onClick={emailReady ? handleGenerateAIEmail : undefined}
                     disabled={emailDisabled}
-                    style={{ width: '100%', height: 40, borderRadius: 10, border: emailDisabled ? '1px solid rgba(255,255,255,0.08)' : 'none', background: emailDisabled ? 'rgba(255,255,255,0.03)' : 'linear-gradient(135deg,#1D6E55 0%,#EDFA36 100%)', color: emailDisabled ? '#475569' : '#fff', fontSize: 13, fontWeight: 700, cursor: emailDisabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: !emailDisabled ? '0 4px 20px rgba(29,110,85,0.35)' : 'none', transition: 'all 0.15s' }}>
+                    style={{ width: '100%', height: 48, borderRadius: 14, border: emailDisabled ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(255,255,255,0.28)', background: emailDisabled ? 'rgba(255,255,255,0.03)' : 'linear-gradient(to bottom, rgba(29,110,85,0.92), rgba(29,110,85,0.72))', color: emailDisabled ? '#475569' : '#edfa36', fontSize: 13, fontWeight: 700, cursor: emailDisabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: !emailDisabled ? '0px 6px 20px rgba(29,110,85,0.55)' : 'none', position: 'relative', overflow: 'hidden', transition: 'all 0.15s' }}>
+                    {!emailDisabled && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 20, background: 'linear-gradient(to bottom, rgba(255,255,255,0.2), transparent)', borderRadius: '14px 14px 0 0', pointerEvents: 'none' }} />}
                     {emailLabel}
                   </button>
                   {visualBlocked && (
@@ -2725,9 +2689,9 @@ Bien cordialement,
               className="ld-btn"
               onClick={handleExportPDF}
               disabled={pdfLoading}
-              style={{ width: '100%', height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,0.10)', background: 'transparent', color: pdfLoading ? '#475569' : '#64748b', fontSize: 12, fontWeight: 600, cursor: pdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
-              onMouseEnter={e => { if (!pdfLoading) { e.currentTarget.style.color = '#f1f5f9'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)' } }}
-              onMouseLeave={e => { e.currentTarget.style.color = pdfLoading ? '#475569' : '#64748b'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)' }}>
+              style={{ width: '100%', height: 32, borderRadius: 9, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: pdfLoading ? '#475569' : 'rgba(255,255,255,0.48)', fontSize: 12, fontWeight: 500, cursor: pdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
+              onMouseEnter={e => { if (!pdfLoading) { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' } }}
+              onMouseLeave={e => { e.currentTarget.style.color = pdfLoading ? '#475569' : 'rgba(255,255,255,0.48)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}>
               {pdfLoading ? '⏳ Génération en cours…' : '↓ Exporter fiche PDF'}
             </button>
           </div>

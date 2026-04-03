@@ -154,16 +154,16 @@ const SOURCES = [
 
 const sectionLabel = {
   fontFamily: 'var(--font-body)',
-  fontSize: 10, fontWeight: 700,
-  letterSpacing: '0.12em', textTransform: 'uppercase',
-  color: 'var(--muted)', marginBottom: 8, display: 'block',
+  fontSize: 9, fontWeight: 700,
+  letterSpacing: '1.2px', textTransform: 'uppercase',
+  color: 'rgba(255,255,255,0.28)', marginBottom: 8, display: 'block',
 }
 
 const tag = {
   display: 'inline-flex', alignItems: 'center', gap: 4,
-  background: 'rgba(0,212,255,0.10)',
-  border: '1px solid rgba(0,212,255,0.25)',
-  borderRadius: 4, padding: '2px 7px',
+  background: 'rgba(29,110,85,0.12)',
+  border: '1px solid rgba(29,110,85,0.30)',
+  borderRadius: 11, padding: '2px 7px',
   fontSize: 11, fontFamily: 'var(--font-body)', color: 'var(--accent)',
 }
 
@@ -350,6 +350,7 @@ export default function SidebarSearch({
     <form onSubmit={handleSubmit} style={{
       height: '100%', display: 'flex', flexDirection: 'column',
       overflowY: 'auto', gap: 18, padding: '14px 14px 18px',
+      background: 'transparent',
     }}>
 
       {/* Credits */}
@@ -373,8 +374,11 @@ export default function SidebarSearch({
         )
       })()}
 
+      {/* Localisation */}
+      <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0 }}>
+
       {/* Pays */}
-      <div ref={countryWrapperRef} style={{ position: 'relative', flexShrink: 0 }}>
+      <div ref={countryWrapperRef} style={{ position: 'relative' }}>
         <span style={sectionLabel}>Pays</span>
         <input
           className="input-premium"
@@ -425,7 +429,7 @@ export default function SidebarSearch({
                 onMouseEnter={() => setCountryActiveIdx(i)}
                 style={{
                   padding: '8px 11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 9,
-                  background: i === countryActiveIdx ? 'rgba(0,212,255,0.09)' : 'transparent',
+                  background: i === countryActiveIdx ? 'rgba(29,110,85,0.09)' : 'transparent',
                   borderBottom: i < countrySugg.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
                 }}
               >
@@ -461,7 +465,7 @@ export default function SidebarSearch({
             {suggestions.map((s, i) => (
               <div key={i} onMouseDown={() => selectSuggestion(s)} onMouseEnter={() => setActiveIdx(i)} style={{
                 padding: '8px 11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-                background: i === activeIdx ? 'rgba(0,212,255,0.09)' : 'transparent',
+                background: i === activeIdx ? 'rgba(29,110,85,0.09)' : 'transparent',
                 borderBottom: i < suggestions.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
               }}>
                 <span style={{ fontSize: 12, opacity: 0.45, flexShrink: 0 }}>📍</span>
@@ -494,8 +498,10 @@ export default function SidebarSearch({
         <input type="range" min={1} max={50} value={radius} onChange={e => setRadius(Number(e.target.value))} className="slider-premium" />
       </div>
 
+      </div>{/* /Localisation */}
+
       {/* Domaines */}
-      <div style={{ flexShrink: 0 }}>
+      <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 14, flexShrink: 0 }}>
         <span style={sectionLabel}>Domaine</span>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           {DOMAINS.map(d => (
@@ -504,12 +510,12 @@ export default function SidebarSearch({
               onClick={() => setDomain(d.value)}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
-                padding: '3px 9px', borderRadius: 20, fontSize: 11,
+                padding: '0 9px', borderRadius: 11, height: 22, fontSize: 11,
                 fontFamily: 'var(--font-body)', fontWeight: 500,
                 cursor: 'pointer', userSelect: 'none',
-                border: `1px solid ${domain === d.value ? 'rgba(0,212,255,0.45)' : 'rgba(255,255,255,0.07)'}`,
-                background: domain === d.value ? 'rgba(0,212,255,0.10)' : 'rgba(255,255,255,0.02)',
-                color: domain === d.value ? 'var(--accent)' : 'var(--muted)',
+                border: `1px solid ${domain === d.value ? 'rgba(29,110,85,0.40)' : 'rgba(255,255,255,0.07)'}`,
+                background: domain === d.value ? 'rgba(29,110,85,0.15)' : 'rgba(255,255,255,0.05)',
+                color: domain === d.value ? '#1D6E55' : 'rgba(255,255,255,0.55)',
               }}
             >
               {d.icon}{d.label}
@@ -544,7 +550,7 @@ export default function SidebarSearch({
       </div>
 
       {/* Sources */}
-      <div style={{ flexShrink: 0 }}>
+      <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 14, flexShrink: 0 }}>
         <span style={sectionLabel}>Sources</span>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           {SOURCES.map(src => (
@@ -570,11 +576,11 @@ export default function SidebarSearch({
       </div>
 
       {/* Profil actif */}
-      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 9px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 7 }}>
-        <span style={{ fontSize: 11, fontFamily: 'var(--font-body)', color: 'var(--muted)' }}>
-          Profil : <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{activeProfile?.name ?? 'Défaut'}</span>
+      <div style={{ flexShrink: 0, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 14, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12 }}>
+        <span style={{ fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-body)', color: 'var(--muted)' }}>
+          Profil : <span style={{ color: 'var(--accent)' }}>{activeProfile?.name ?? 'Défaut'}</span>
         </span>
-        <button type="button" onClick={onOpenScoring} style={{ background: 'none', border: '1px solid rgba(0,212,255,0.25)', borderRadius: 5, color: 'var(--accent)', fontSize: 10, fontFamily: 'var(--font-mono)', padding: '2px 7px', cursor: 'pointer' }}>
+        <button type="button" onClick={onOpenScoring} style={{ background: 'rgba(29,110,85,0.10)', border: '1px solid rgba(29,110,85,0.30)', borderRadius: 8, color: 'var(--accent)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-body)', padding: '8px 16px', cursor: 'pointer' }}>
           Modifier
         </button>
       </div>
@@ -593,7 +599,7 @@ export default function SidebarSearch({
               width: progressPct !== null ? `${progressPct}%` : '100%',
               animation: progressPct === null ? 'progressIndeterminate 1.5s ease infinite' : 'none',
               transition: 'width 0.35s ease',
-              boxShadow: '0 0 8px rgba(0,212,255,0.4)',
+              boxShadow: '0 0 8px rgba(29,110,85,0.4)',
             }} />
           </div>
         </div>
@@ -606,23 +612,27 @@ export default function SidebarSearch({
         disabled={isDisabled}
         style={{
           flexShrink: 0,
-          width: '100%', padding: '10px',
-          borderRadius: 9, border: 'none',
+          width: '100%', height: 52,
+          borderRadius: 14, border: '1px solid rgba(255,255,255,0.15)',
           background: isDisabled
             ? 'rgba(255,255,255,0.05)'
-            : 'linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%)',
-          color: isDisabled ? 'var(--faint)' : '#0a0a0f',
-          fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13,
+            : 'linear-gradient(to right, #338c66, #1D6E55)',
+          color: isDisabled ? 'var(--faint)' : '#EDFA36',
+          fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
           letterSpacing: '0.02em',
           cursor: isDisabled ? 'not-allowed' : 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
           opacity: isDisabled ? 0.5 : 1,
-          boxShadow: isDisabled ? 'none' : '0 0 20px rgba(0,212,255,0.22), 0 4px 14px rgba(0,0,0,0.4)',
+          boxShadow: isDisabled ? 'none' : '0 8px 24px rgba(29,110,85,0.55)',
+          position: 'relative', overflow: 'hidden',
         }}
       >
+        {!isDisabled && (
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '40%', background: 'rgba(255,255,255,0.06)', borderRadius: '14px 14px 0 0', pointerEvents: 'none' }} />
+        )}
         {isLoading
-          ? <><Loader size={13} style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} />Génération en cours...</>
-          : <><Zap size={13} style={{ flexShrink: 0 }} />⚡ Générer les leads</>
+          ? <><Loader size={13} style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} /><span style={{ fontFamily: 'var(--font-body)', fontWeight: 600 }}>Génération en cours...</span></>
+          : <><Zap size={13} style={{ flexShrink: 0 }} /><span style={{ fontFamily: 'var(--font-body)', fontWeight: 600 }}>Générer les leads</span></>
         }
       </button>
 

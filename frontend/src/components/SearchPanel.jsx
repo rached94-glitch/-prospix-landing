@@ -74,23 +74,31 @@ const SOURCES = [
 
 const S = {
   panel: {
-    background: 'var(--surface)',
-    borderBottom: '1px solid var(--border)',
-    padding: '18px 16px',
+    background: 'red',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+    padding: '15px',
     display: 'flex',
     flexDirection: 'column',
-    gap: 20,
+    gap: 12,
     overflowY: 'auto',
     flexShrink: 0,
     maxHeight: '60vh',
   },
+  block: {
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.06)',
+    borderRadius: 12,
+    padding: 14,
+  },
   sectionLabel: {
     fontFamily: 'var(--font-body)',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 700,
-    letterSpacing: '0.12em',
+    letterSpacing: '1.2px',
     textTransform: 'uppercase',
-    color: 'var(--muted)',
+    color: 'rgba(255,255,255,0.28)',
     marginBottom: 9,
     display: 'block',
   },
@@ -130,7 +138,7 @@ const S = {
     transition: 'border-color 0.2s',
   },
   checkbox: {
-    accentColor: 'var(--accent)',
+    accentColor: '#1D6E55',
     width: 14,
     height: 14,
     cursor: 'pointer',
@@ -420,7 +428,7 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
       })()}
 
       {/* 1. Ville */}
-      <div ref={cityWrapperRef} style={{ position: 'relative' }}>
+      <div ref={cityWrapperRef} style={{ ...S.block, position: 'relative' }}>
         <span style={S.sectionLabel}>Ville</span>
         <input
           className="input-premium"
@@ -492,7 +500,7 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
       </div>
 
       {/* 2. Rayon */}
-      <div>
+      <div style={S.block}>
         <span style={S.sectionLabel}>Rayon de recherche</span>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, marginBottom: 10 }}>
           <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 30, color: 'var(--accent)', letterSpacing: '-0.03em', lineHeight: 1 }}>
@@ -513,7 +521,7 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
       </div>
 
       {/* 3. Domaines */}
-      <div>
+      <div style={S.block}>
         <span style={S.sectionLabel}>Domaine</span>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
           {DOMAINS.map(d => (
@@ -525,16 +533,17 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 5,
-                padding: '4px 10px',
-                borderRadius: 20,
-                fontSize: 12,
+                padding: '0 9px',
+                height: 22,
+                borderRadius: 11,
+                fontSize: 11,
                 fontFamily: 'var(--font-body)',
-                fontWeight: 500,
+                fontWeight: domain === d.value ? 600 : 500,
                 cursor: 'pointer',
                 userSelect: 'none',
-                border: `1px solid ${domain === d.value ? 'rgba(29,110,85,0.45)' : 'rgba(255,255,255,0.08)'}`,
-                background: domain === d.value ? 'rgba(29,110,85,0.10)' : 'rgba(255,255,255,0.02)',
-                color: domain === d.value ? 'var(--accent)' : 'var(--muted)',
+                border: `1px solid ${domain === d.value ? 'rgba(29,110,85,0.45)' : 'rgba(255,255,255,0.10)'}`,
+                background: domain === d.value ? 'rgba(29,110,85,0.15)' : 'rgba(255,255,255,0.05)',
+                color: domain === d.value ? '#1D6E55' : 'rgba(255,255,255,0.55)',
                 boxShadow: domain === d.value ? '0 0 10px rgba(29,110,85,0.12)' : 'none',
               }}
             >
@@ -571,7 +580,7 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
       </div>
 
       {/* 5. Sources */}
-      <div>
+      <div style={S.block}>
         <span style={S.sectionLabel}>Sources</span>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {SOURCES.map(src => (
@@ -869,13 +878,13 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '8px 10px',
-        background: 'rgba(255,255,255,0.03)',
+        background: 'rgba(255,255,255,0.04)',
         border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: 8,
+        borderRadius: 9,
       }}>
         <span style={{ fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--muted)' }}>
           Profil :{' '}
-          <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
+          <span style={{ color: '#1D6E55', fontWeight: 600 }}>
             {activeProfile?.name ?? 'Défaut'}
           </span>
         </span>
@@ -883,8 +892,8 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
           type="button"
           onClick={onOpenScoringDrawer}
           style={{
-            background: 'none',
-            border: '1px solid rgba(29,110,85,0.3)',
+            background: 'rgba(29,110,85,0.10)',
+            border: '1px solid rgba(29,110,85,0.30)',
             borderRadius: 6,
             color: 'var(--accent)',
             fontSize: 11,
@@ -904,13 +913,13 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
         disabled={isDisabled}
         style={{
           width: '100%',
-          padding: '11px',
-          borderRadius: 10,
-          border: 'none',
+          height: 52,
+          borderRadius: 14,
+          border: isDisabled ? 'none' : '1px solid rgba(255,255,255,0.15)',
           background: isDisabled
             ? 'rgba(255,255,255,0.05)'
-            : 'linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%)',
-          color: isDisabled ? 'var(--faint)' : '#0a0a0f',
+            : 'linear-gradient(to right, #338c66, #1D6E55)',
+          color: isDisabled ? 'var(--faint)' : '#EDFA36',
           fontFamily: 'var(--font-display)',
           fontWeight: 700,
           fontSize: 14,
@@ -921,10 +930,20 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
           justifyContent: 'center',
           gap: 8,
           opacity: isDisabled ? 0.5 : 1,
-          boxShadow: isDisabled ? 'none' : '0 0 20px rgba(29,110,85,0.25), 0 4px 14px rgba(0,0,0,0.4)',
+          boxShadow: isDisabled ? 'none' : '0 8px 24px rgba(29,110,85,0.55)',
           transition: 'opacity 0.2s, box-shadow 0.2s',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
+        {/* Reflet haut */}
+        {!isDisabled && (
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: '40%',
+            background: 'linear-gradient(to bottom, rgba(255,255,255,0.10), transparent)',
+            pointerEvents: 'none', borderRadius: '14px 14px 0 0',
+          }} />
+        )}
         {isLoading ? (
           <>
             <Loader size={14} style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} />

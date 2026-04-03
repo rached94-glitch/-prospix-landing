@@ -13,9 +13,9 @@ const SOCIAL = {
 }
 
 function scoreColor(score) {
-  if (score > 80) return 'var(--success)'
-  if (score >= 60) return 'var(--warning)'
-  return 'var(--danger)'
+  if (score >= 70) return '#1d6e55'
+  if (score >= 40) return '#f97316'
+  return '#ef4444'
 }
 
 export function ScoreBadge({ score }) {
@@ -81,29 +81,36 @@ export default function LeadCard({ lead, isSelected, onClick, index = 0 }) {
         pointerEvents: lead.status === 'ignored' ? 'none' : 'auto',
       }}
     >
-      {/* Row 1 : nom + favori + score */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6, marginBottom: 5 }}>
-        <span style={{
-          fontFamily: 'var(--font-body)',
-          fontWeight: 700,
-          fontSize: 13,
-          lineHeight: 1.3,
-          flex: 1,
-          color: 'var(--text)',
-        }}>
-          {lead.name}
-        </span>
-
-        {/* Favorite star */}
-        {isFavorite && (
+      {/* Row 1 : nom + score */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6, marginBottom: 4 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{
+            fontFamily: 'var(--font-body)',
+            fontWeight: 700,
             fontSize: 13,
-            lineHeight: 1,
-            flexShrink: 0,
-            alignSelf: 'flex-start',
-            filter: 'drop-shadow(0 0 5px rgba(245,166,35,0.7))',
-          }}>⭐</span>
-        )}
+            lineHeight: 1.3,
+            color: 'var(--text)',
+            display: 'block',
+          }}>
+            {isFavorite && <span style={{ fontSize: 13, marginRight: 4, filter: 'drop-shadow(0 0 5px rgba(245,166,35,0.7))' }}>⭐</span>}
+            {lead.name}
+          </span>
+          {/* Badge statut juste sous le nom */}
+          <span style={{
+            display: 'inline-block',
+            marginTop: 4,
+            fontSize: 9.5,
+            fontWeight: 700,
+            color: status.color,
+            background: `${status.color}14`,
+            border: `1px solid ${status.color}33`,
+            borderRadius: 4,
+            padding: '1px 6px',
+            fontFamily: 'var(--font-body)',
+          }}>
+            {status.label}
+          </span>
+        </div>
 
         {/* Score orb */}
         <div style={{ flexShrink: 0, textAlign: 'right' }}>
@@ -118,7 +125,7 @@ export default function LeadCard({ lead, isSelected, onClick, index = 0 }) {
           }}>
             {score}
           </div>
-          <div style={{ fontSize: 8, color: 'var(--faint)', textAlign: 'center', fontFamily: 'var(--font-mono)', marginTop: 1 }}>
+          <div style={{ fontSize: 8, color: '#f5f5f0', textAlign: 'center', fontFamily: 'var(--font-mono)', marginTop: 1 }}>
             /100
           </div>
         </div>
@@ -144,35 +151,25 @@ export default function LeadCard({ lead, isSelected, onClick, index = 0 }) {
         />
       </div>
 
-      {/* Row 2 : adresse */}
+      {/* Adresse */}
       <div style={{
         fontSize: 11,
         color: 'var(--muted)',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
-        marginBottom: 7,
+        marginBottom: 6,
         fontFamily: 'var(--font-body)',
       }}>
         <span style={{ opacity: 0.5 }}>📍</span> {lead.address}
       </div>
 
-      {/* Row 3 : étoiles + sentiment + distance */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7, flexWrap: 'wrap' }}>
+      {/* Étoiles + note + avis — ligne dédiée */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
         <Stars rating={lead.google?.rating} />
         <span style={{ fontSize: 10.5, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '-0.01em' }}>
           {lead.google?.rating ?? '—'} ({lead.google?.totalReviews ?? 0})
         </span>
-        {lead.reviewAnalysis?.total > 0 && (
-          <>
-            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--success)', fontFamily: 'var(--font-mono)' }}>
-              😊 {lead.reviewAnalysis.positiveScore}%
-            </span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--danger)', fontFamily: 'var(--font-mono)' }}>
-              😠 {lead.reviewAnalysis.negativeScore}%
-            </span>
-          </>
-        )}
         {lead.distance != null && (
           <span style={{ marginLeft: 'auto', fontSize: 10.5, color: 'var(--faint)', fontFamily: 'var(--font-mono)' }}>
             {lead.distance.toFixed(1)} km
@@ -180,8 +177,55 @@ export default function LeadCard({ lead, isSelected, onClick, index = 0 }) {
         )}
       </div>
 
-      {/* Row 4 : réseaux + statut + badge avis */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', width: '100%', overflow: 'hidden' }}>
+      {/* Sentiment positif / négatif — même ligne */}
+      {lead.reviewAnalysis?.total > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981', fontFamily: 'var(--font-mono)' }}>
+            {lead.reviewAnalysis.positiveScore}%
+          </span>
+          <span style={{ color: 'rgba(255,255,255,0.2)', margin: '0 6px' }}>·</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#ef4444', fontFamily: 'var(--font-mono)' }}>
+            {lead.reviewAnalysis.negativeScore}%
+          </span>
+        </div>
+      )}
+
+      {/* Badges divers */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
+        {lead.isActiveOwner && (
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#10b981', background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 4, padding: '1px 5px', fontFamily: 'var(--font-body)' }}>
+            Gérant actif ✓
+          </span>
+        )}
+        {lead.newBusinessBadge === 'confirmed' && (
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#f97316', background: 'rgba(249,115,22,0.10)', border: '1px solid rgba(249,115,22,0.25)', borderRadius: 4, padding: '1px 5px', fontFamily: 'var(--font-body)' }}>
+            Nouveau business
+          </span>
+        )}
+        {lead.newBusinessBadge === 'probable' && (
+          <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted)', background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.20)', borderRadius: 4, padding: '1px 5px', fontFamily: 'var(--font-body)' }}>
+            Potentiel nouveau
+          </span>
+        )}
+        {lead.chatbotDetection?.hasChatbot && (
+          <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 4, padding: '1px 5px', fontFamily: 'var(--font-body)' }}>
+            🤖 Déjà équipé
+          </span>
+        )}
+        {lead.decisionMaker && (
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#10b981', background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 4, padding: '1px 5px', fontFamily: 'var(--font-body)' }}>
+            👤 Décideur identifié
+          </span>
+        )}
+        {(lead.reviewAnalysis?.negative?.unanswered ?? 0) > 5 && (
+          <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--danger)', background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 4, padding: '1px 5px', fontFamily: 'var(--font-body)' }}>
+            💬 {lead.reviewAnalysis.negative.unanswered} sans réponse
+          </span>
+        )}
+      </div>
+
+      {/* Icônes réseaux sociaux — tout en bas */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         {Object.entries(SOCIAL).map(([key, cfg]) => {
           const active = !!lead.social?.[key]
           return (
@@ -202,127 +246,12 @@ export default function LeadCard({ lead, isSelected, onClick, index = 0 }) {
                 color: active ? '#fff' : 'rgba(255,255,255,0.2)',
                 letterSpacing: 0,
                 flexShrink: 0,
-                transition: 'opacity 0.15s',
               }}
             >
               {cfg.abbr}
             </span>
           )
         })}
-
-        {(lead.reviewAnalysis?.negative?.unanswered ?? 0) > 5 && (
-          <span style={{
-            fontSize: 9.5, fontWeight: 700,
-            color: 'var(--danger)',
-            background: 'rgba(239,68,68,0.10)',
-            border: '1px solid rgba(239,68,68,0.25)',
-            borderRadius: 4,
-            padding: '1px 5px',
-            marginLeft: 3,
-            fontFamily: 'var(--font-body)',
-          }}>
-            💬 {lead.reviewAnalysis.negative.unanswered} sans réponse
-          </span>
-        )}
-
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '100%' }}>
-          {lead.isActiveOwner && (
-            <span style={{
-              fontSize: 9,
-              fontWeight: 700,
-              color: '#10b981',
-              background: 'rgba(16,185,129,0.10)',
-              border: '1px solid rgba(16,185,129,0.25)',
-              borderRadius: 4,
-              padding: '1px 5px',
-              fontFamily: 'var(--font-body)',
-            }}>
-              Gérant actif ✓
-            </span>
-          )}
-          {lead.newBusinessBadge === 'confirmed' && (
-            <span style={{
-              fontSize: 9,
-              fontWeight: 700,
-              color: '#f97316',
-              background: 'rgba(249,115,22,0.10)',
-              border: '1px solid rgba(249,115,22,0.25)',
-              borderRadius: 4,
-              padding: '1px 5px',
-              fontFamily: 'var(--font-body)',
-            }}>
-              Nouveau business
-            </span>
-          )}
-          {lead.newBusinessBadge === 'probable' && (
-            <span style={{
-              fontSize: 9,
-              fontWeight: 700,
-              color: 'var(--muted)',
-              background: 'rgba(148,163,184,0.08)',
-              border: '1px solid rgba(148,163,184,0.20)',
-              borderRadius: 4,
-              padding: '1px 5px',
-              fontFamily: 'var(--font-body)',
-            }}>
-              Potentiel nouveau
-            </span>
-          )}
-          {lead.chatbotDetection && (
-            <span style={{
-              fontSize: 9,
-              fontWeight: 700,
-              color:      lead.chatbotDetection.hasChatbot ? 'rgba(255,255,255,0.35)' : '#10b981',
-              background: lead.chatbotDetection.hasChatbot ? 'rgba(255,255,255,0.05)' : 'rgba(16,185,129,0.10)',
-              border:     `1px solid ${lead.chatbotDetection.hasChatbot ? 'rgba(255,255,255,0.10)' : 'rgba(16,185,129,0.25)'}`,
-              borderRadius: 4,
-              padding: '1px 5px',
-              fontFamily: 'var(--font-body)',
-            }}>
-              {lead.chatbotDetection.hasChatbot ? '🤖 Déjà équipé' : '🎯 Sans chatbot'}
-            </span>
-          )}
-          {lead.decisionMaker && (
-            <span style={{
-              fontSize: 9,
-              fontWeight: 700,
-              color: '#10b981',
-              background: 'rgba(16,185,129,0.10)',
-              border: '1px solid rgba(16,185,129,0.25)',
-              borderRadius: 4,
-              padding: '1px 5px',
-              fontFamily: 'var(--font-body)',
-            }}>
-              👤 Décideur identifié
-            </span>
-          )}
-          {isFavorite && (
-            <span style={{
-              fontSize: 9,
-              fontWeight: 700,
-              color: 'var(--success)',
-              background: 'rgba(16,185,129,0.10)',
-              border: '1px solid rgba(16,185,129,0.25)',
-              borderRadius: 4,
-              padding: '1px 5px',
-              fontFamily: 'var(--font-mono)',
-            }}>
-              Sheets ✓
-            </span>
-          )}
-          <span style={{
-            fontSize: 9.5,
-            fontWeight: 700,
-            color: status.color,
-            background: `${status.color}14`,
-            border: `1px solid ${status.color}33`,
-            borderRadius: 4,
-            padding: '1px 6px',
-            fontFamily: 'var(--font-body)',
-          }}>
-            {status.label}
-          </span>
-        </div>
       </div>
 
     </div>
