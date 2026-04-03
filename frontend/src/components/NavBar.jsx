@@ -23,12 +23,12 @@ function NavItem({ icon, label, active, disabled, badge, onClick }) {
         style={{
           width: 38, height: 38, borderRadius: 9,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: active ? 'rgba(99,102,241,0.9)' : 'transparent',
+          background: active ? 'rgba(29,110,85,0.9)' : 'transparent',
           border: 'none',
           cursor: disabled ? 'not-allowed' : 'pointer',
           color: disabled ? 'rgba(255,255,255,0.18)' : active ? 'white' : 'rgba(255,255,255,0.38)',
           transition: 'background 0.15s, color 0.15s',
-          boxShadow: active ? '0 0 14px rgba(99,102,241,0.45)' : 'none',
+          boxShadow: active ? '0 0 14px rgba(29,110,85,0.50)' : 'none',
           position: 'relative',
         }}
         onMouseEnter={e => { if (!active && !disabled) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
@@ -56,7 +56,7 @@ export default function NavBar({ activeTab, onTabChange }) {
       width: 52,
       flexShrink: 0,
       height: '100vh',
-      background: '#0c0c18',
+      background: '#0D1410',
       borderRight: '1px solid rgba(255,255,255,0.05)',
       display: 'flex',
       flexDirection: 'column',
@@ -69,11 +69,11 @@ export default function NavBar({ activeTab, onTabChange }) {
       {/* Logo */}
       <div style={{
         width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+        background: 'linear-gradient(135deg, #1D6E55 0%, #EDFA36 100%)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 14,
         color: 'white', marginBottom: 14,
-        boxShadow: '0 0 18px rgba(99,102,241,0.45)',
+        boxShadow: '0 0 18px rgba(29,110,85,0.50)',
         userSelect: 'none',
       }}>
         L
