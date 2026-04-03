@@ -67,9 +67,9 @@ Each lead contains: place metadata (id, name, address, phone, website, lat/lng, 
 The frontend proxies all `/api/*` requests to `localhost:3001` via Vite's dev proxy (`vite.config.js`). In production, you'd need a reverse proxy or env-based URL configuration.
 
 ## Dernières modifications
-- `2026-04-02 07:33:13` — modifié `backend/server.js`
-- `2026-04-02 07:33:08` — modifié `backend/server.js`
-- `2026-04-02 07:33:03` — créé/réécrit `backend/routes/cache.js`
-- `2026-04-02 07:32:57` — modifié `backend/routes/leads.js`
-- `2026-04-02 07:32:53` — modifié `backend/routes/leads.js`
+- `2026-04-03 18:15:00` — modifié `frontend/src/components/ScoringProfileDrawer.jsx`
+- `2026-04-03 18:14:56` — modifié `frontend/src/components/ScoringProfileDrawer.jsx`
+- `2026-04-03 18:14:52` — modifié `frontend/src/components/ScoringProfileDrawer.jsx`
+- `2026-04-03 18:14:48` — modifié `frontend/src/components/ScoringProfileDrawer.jsx`
+- `2026-04-03 18:14:43` — modifié `frontend/src/components/ScoringProfileDrawer.jsx`
 

@@ -2,6 +2,37 @@
 
 | Date | Action | Fichier |
 |------|--------|---------|
+| 2026-04-03 18:15:00 | modifié | `frontend/src/components/ScoringProfileDrawer.jsx` |
+| 2026-04-03 18:14:56 | modifié | `frontend/src/components/ScoringProfileDrawer.jsx` |
+| 2026-04-03 18:14:52 | modifié | `frontend/src/components/ScoringProfileDrawer.jsx` |
+| 2026-04-03 18:14:48 | modifié | `frontend/src/components/ScoringProfileDrawer.jsx` |
+| 2026-04-03 18:14:43 | modifié | `frontend/src/components/ScoringProfileDrawer.jsx` |
+| 2026-04-03 18:14:38 | modifié | `frontend/src/components/ScoringProfileDrawer.jsx` |
+| 2026-04-03 18:14:32 | modifié | `frontend/src/components/ScoringProfileDrawer.jsx` |
+| 2026-04-03 18:14:27 | modifié | `frontend/src/components/ScoringProfileDrawer.jsx` |
+| 2026-04-03 18:14:22 | modifié | `frontend/src/components/ScoringProfileDrawer.jsx` |
+| 2026-04-03 18:14:17 | modifié | `frontend/src/components/ScoringProfileDrawer.jsx` |
+| 2026-04-03 18:12:21 | modifié | `frontend/src/components/SearchPanel.jsx` |
+| 2026-04-03 18:12:17 | modifié | `frontend/src/components/SearchPanel.jsx` |
+| 2026-04-03 18:12:13 | modifié | `frontend/src/components/SearchPanel.jsx` |
+| 2026-04-03 18:12:09 | modifié | `frontend/src/components/SearchPanel.jsx` |
+| 2026-04-03 18:12:04 | modifié | `frontend/src/components/SearchPanel.jsx` |
+| 2026-04-03 18:11:58 | modifié | `frontend/src/components/SearchPanel.jsx` |
+| 2026-04-03 18:11:53 | modifié | `frontend/src/components/SearchPanel.jsx` |
+| 2026-04-03 18:11:47 | modifié | `frontend/src/components/SearchPanel.jsx` |
+| 2026-04-03 18:11:42 | modifié | `frontend/src/components/SearchPanel.jsx` |
+| 2026-04-03 18:11:36 | modifié | `frontend/src/components/SearchPanel.jsx` |
+| 2026-04-03 18:11:31 | modifié | `frontend/src/components/SearchPanel.jsx` |
+| 2026-04-03 18:10:04 | modifié | `frontend/src/components/LeadCard.jsx` |
+| 2026-04-03 18:02:50 | modifié | `frontend/src/components/SidebarLeads.jsx` |
+| 2026-04-03 18:02:44 | modifié | `frontend/src/components/SidebarLeads.jsx` |
+| 2026-04-03 17:53:34 | modifié | `frontend/src/components/NavBar.jsx` |
+| 2026-04-03 17:53:31 | modifié | `frontend/src/components/NavBar.jsx` |
+| 2026-04-03 17:53:27 | modifié | `frontend/src/components/NavBar.jsx` |
+| 2026-04-03 17:53:24 | modifié | `frontend/src/components/NavBar.jsx` |
+| 2026-04-03 17:53:20 | modifié | `frontend/src/components/NavBar.jsx` |
+| 2026-04-03 17:48:47 | créé/réécrit | `frontend/src/App.css` |
+| 2026-04-03 17:48:09 | créé/réécrit | `frontend/src/theme-new.css` |
 | 2026-04-02 07:33:13 | modifié | `backend/server.js` |
 | 2026-04-02 07:33:08 | modifié | `backend/server.js` |
 | 2026-04-02 07:33:03 | créé/réécrit | `backend/routes/cache.js` |
