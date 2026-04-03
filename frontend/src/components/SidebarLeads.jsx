@@ -64,8 +64,8 @@ export default function SidebarLeads({ leads = [], selectedLead, onSelectLead, o
           {SORT_OPTIONS.map(opt => (
             <button key={opt.value} onClick={() => setSortBy(opt.value)} style={{
               flex: 1, padding: '4px 0', borderRadius: 5,
-              border: `1px solid ${sortBy === opt.value ? 'rgba(0,212,255,0.4)' : 'rgba(255,255,255,0.07)'}`,
-              background: sortBy === opt.value ? 'rgba(0,212,255,0.09)' : 'transparent',
+              border: `1px solid ${sortBy === opt.value ? 'rgba(29,110,85,0.4)' : 'rgba(255,255,255,0.07)'}`,
+              background: sortBy === opt.value ? 'rgba(29,110,85,0.09)' : 'transparent',
               color: sortBy === opt.value ? 'var(--accent)' : 'var(--muted)',
               fontSize: 10, fontFamily: 'var(--font-body)', fontWeight: 600,
               cursor: 'pointer', transition: 'all 0.15s',
@@ -106,7 +106,7 @@ export default function SidebarLeads({ leads = [], selectedLead, onSelectLead, o
           <span style={{ ...sectionLabel, display: 'flex', alignItems: 'center', gap: 6 }}>
             Filtres
             {activeFiltersCount > 0 && (
-              <span style={{ fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)', background: 'rgba(139,92,246,0.18)', border: '1px solid rgba(139,92,246,0.35)', color: '#a78bfa', borderRadius: 4, padding: '1px 5px' }}>
+              <span style={{ fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)', background: 'rgba(237,250,54,0.12)', border: '1px solid rgba(237,250,54,0.30)', color: '#EDFA36', borderRadius: 4, padding: '1px 5px' }}>
                 {activeFiltersCount}
               </span>
             )}
