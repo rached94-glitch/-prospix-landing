@@ -136,9 +136,9 @@ function ProfileCard({ profile, isActive, onActivate, onDelete }) {
         marginBottom: 5,
         borderRadius: 10,
         cursor: isActive ? 'default' : 'pointer',
-        background: isActive ? 'rgba(0,212,255,0.07)' : 'rgba(255,255,255,0.025)',
-        border: `1px solid ${isActive ? 'rgba(0,212,255,0.38)' : 'rgba(255,255,255,0.07)'}`,
-        boxShadow: isActive ? '0 0 14px rgba(0,212,255,0.07)' : 'none',
+        background: isActive ? 'rgba(29,110,85,0.07)' : 'rgba(255,255,255,0.025)',
+        border: `1px solid ${isActive ? 'rgba(29,110,85,0.38)' : 'rgba(255,255,255,0.07)'}`,
+        boxShadow: isActive ? '0 0 14px rgba(29,110,85,0.07)' : 'none',
         transition: 'background 0.2s, border-color 0.2s, box-shadow 0.2s',
       }}
       onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
@@ -170,8 +170,8 @@ function ProfileCard({ profile, isActive, onActivate, onDelete }) {
           {isActive ? (
             <span style={{
               fontSize: 9, fontWeight: 700, letterSpacing: 0.6,
-              color: 'var(--accent)', background: 'rgba(0,212,255,0.12)',
-              border: '1px solid rgba(0,212,255,0.28)', borderRadius: 4,
+              color: 'var(--accent)', background: 'rgba(29,110,85,0.12)',
+              border: '1px solid rgba(29,110,85,0.28)', borderRadius: 4,
               padding: '2px 6px', textTransform: 'uppercase', fontFamily: 'var(--font-mono)',
             }}>
               Actif
@@ -182,12 +182,12 @@ function ProfileCard({ profile, isActive, onActivate, onDelete }) {
               onClick={e => { e.stopPropagation(); onActivate(profile) }}
               style={{
                 fontSize: 10, padding: '2px 7px', borderRadius: 5,
-                border: '1px solid rgba(0,212,255,0.28)',
+                border: '1px solid rgba(29,110,85,0.28)',
                 background: 'none', color: 'var(--accent)',
                 fontFamily: 'var(--font-mono)', cursor: 'pointer',
                 transition: 'background 0.15s',
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,212,255,0.09)')}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(29,110,85,0.09)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'none')}
             >
               Activer
@@ -386,8 +386,8 @@ export default function ScoringProfileDrawer({
               justifyContent: 'space-between',
               padding: '10px 14px',
               borderRadius: showCreate ? '8px 8px 0 0' : 8,
-              border: '1px solid rgba(0,212,255,0.22)',
-              background: showCreate ? 'rgba(0,212,255,0.07)' : 'rgba(0,212,255,0.04)',
+              border: '1px solid rgba(29,110,85,0.22)',
+              background: showCreate ? 'rgba(29,110,85,0.07)' : 'rgba(29,110,85,0.04)',
               color: 'var(--accent)',
               fontFamily: 'var(--font-body)',
               fontSize: 13,
@@ -396,8 +396,8 @@ export default function ScoringProfileDrawer({
               transition: 'background 0.2s, border-radius 0.2s',
               textAlign: 'left',
             }}
-            onMouseEnter={e => { if (!showCreate) e.currentTarget.style.background = 'rgba(0,212,255,0.09)' }}
-            onMouseLeave={e => { if (!showCreate) e.currentTarget.style.background = 'rgba(0,212,255,0.04)' }}
+            onMouseEnter={e => { if (!showCreate) e.currentTarget.style.background = 'rgba(29,110,85,0.09)' }}
+            onMouseLeave={e => { if (!showCreate) e.currentTarget.style.background = 'rgba(29,110,85,0.04)' }}
           >
             <span>+ Créer un profil</span>
             <span style={{
@@ -418,10 +418,10 @@ export default function ScoringProfileDrawer({
           }}>
             <div style={{
               padding: '14px',
-              border: '1px solid rgba(0,212,255,0.22)',
+              border: '1px solid rgba(29,110,85,0.22)',
               borderTop: 'none',
               borderRadius: '0 0 8px 8px',
-              background: 'rgba(0,212,255,0.03)',
+              background: 'rgba(29,110,85,0.03)',
             }}>
 
               {/* Name input */}
@@ -452,7 +452,7 @@ export default function ScoringProfileDrawer({
                     boxSizing: 'border-box',
                     transition: 'border-color 0.15s',
                   }}
-                  onFocus={e => (e.target.style.borderColor = 'rgba(0,212,255,0.5)')}
+                  onFocus={e => (e.target.style.borderColor = 'rgba(29,110,85,0.5)')}
                   onBlur={e => (e.target.style.borderColor = 'var(--border)')}
                 />
               </div>
@@ -549,12 +549,12 @@ export default function ScoringProfileDrawer({
                 disabled={!isValid || saving}
                 style={{
                   width: '100%', padding: '9px 0', borderRadius: 7, border: 'none',
-                  background: isValid && !saving ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.05)',
+                  background: isValid && !saving ? 'rgba(29,110,85,0.15)' : 'rgba(255,255,255,0.05)',
                   color: isValid && !saving ? 'var(--accent)' : 'var(--muted)',
                   fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
                   cursor: isValid && !saving ? 'pointer' : 'not-allowed',
                   transition: 'background 0.2s, color 0.2s',
-                  border: `1px solid ${isValid && !saving ? 'rgba(0,212,255,0.3)' : 'transparent'}`,
+                  border: `1px solid ${isValid && !saving ? 'rgba(29,110,85,0.3)' : 'transparent'}`,
                 }}
               >
                 {saving ? 'Sauvegarde…' : 'Sauvegarder les poids'}

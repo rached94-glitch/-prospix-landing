@@ -65,15 +65,15 @@ export default function LeadCard({ lead, isSelected, onClick, index = 0 }) {
         borderRadius: 12,
         cursor: 'pointer',
         background: isSelected
-          ? 'rgba(0,212,255,0.06)'
+          ? 'rgba(29,110,85,0.06)'
           : isFavorite ? 'rgba(245,166,35,0.04)' : 'rgba(19,19,26,0.85)',
         border: `1px solid ${
-          isSelected   ? 'rgba(0,212,255,0.35)'
+          isSelected   ? 'rgba(29,110,85,0.35)'
           : isFavorite ? 'rgba(245,166,35,0.30)'
           : 'rgba(255,255,255,0.05)'
         }`,
         boxShadow: isSelected
-          ? '0 0 0 1px rgba(0,212,255,0.12), 0 4px 20px rgba(0,0,0,0.5)'
+          ? '0 0 0 1px rgba(29,110,85,0.12), 0 4px 20px rgba(0,0,0,0.5)'
           : isFavorite ? '0 0 0 1px rgba(245,166,35,0.08), 0 2px 12px rgba(0,0,0,0.35)'
           : '0 1px 4px rgba(0,0,0,0.35)',
         animationDelay: `${index * 38}ms`,

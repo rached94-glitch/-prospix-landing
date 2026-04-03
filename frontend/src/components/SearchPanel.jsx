@@ -98,8 +98,8 @@ const S = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 4,
-    background: 'rgba(0,212,255,0.10)',
-    border: '1px solid rgba(0,212,255,0.25)',
+    background: 'rgba(29,110,85,0.10)',
+    border: '1px solid rgba(29,110,85,0.25)',
     borderRadius: 4,
     padding: '2px 7px',
     fontSize: 12,
@@ -460,7 +460,7 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
                   display: 'flex',
                   alignItems: 'center',
                   gap: 9,
-                  background: i === activeIdx ? 'rgba(0,212,255,0.09)' : 'transparent',
+                  background: i === activeIdx ? 'rgba(29,110,85,0.09)' : 'transparent',
                   borderBottom: i < suggestions.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
                   transition: 'background 0.1s',
                 }}
@@ -532,10 +532,10 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
                 fontWeight: 500,
                 cursor: 'pointer',
                 userSelect: 'none',
-                border: `1px solid ${domain === d.value ? 'rgba(0,212,255,0.45)' : 'rgba(255,255,255,0.08)'}`,
-                background: domain === d.value ? 'rgba(0,212,255,0.10)' : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${domain === d.value ? 'rgba(29,110,85,0.45)' : 'rgba(255,255,255,0.08)'}`,
+                background: domain === d.value ? 'rgba(29,110,85,0.10)' : 'rgba(255,255,255,0.02)',
                 color: domain === d.value ? 'var(--accent)' : 'var(--muted)',
-                boxShadow: domain === d.value ? '0 0 10px rgba(0,212,255,0.12)' : 'none',
+                boxShadow: domain === d.value ? '0 0 10px rgba(29,110,85,0.12)' : 'none',
               }}
             >
               {d.icon}{d.label}
@@ -624,8 +624,8 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
             {activeFiltersCount > 0 && (
               <span style={{
                 fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                background: 'rgba(139,92,246,0.18)', border: '1px solid rgba(139,92,246,0.35)',
-                color: '#a78bfa', borderRadius: 5, padding: '1px 6px',
+                background: 'rgba(237,250,54,0.12)', border: '1px solid rgba(237,250,54,0.30)',
+                color: '#EDFA36', borderRadius: 5, padding: '1px 6px',
               }}>
                 {activeFiltersCount} actif{activeFiltersCount > 1 ? 's' : ''}
               </span>
@@ -740,10 +740,10 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
               : 'Épingler cette recherche'
             }
             style={{
-              background: isCurrentPinned ? 'rgba(139,92,246,0.12)' : 'none',
-              border: `1px solid ${isCurrentPinned ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.12)'}`,
+              background: isCurrentPinned ? 'rgba(29,110,85,0.12)' : 'none',
+              border: `1px solid ${isCurrentPinned ? 'rgba(29,110,85,0.4)' : 'rgba(255,255,255,0.12)'}`,
               borderRadius: 6,
-              color: !cityValidated ? 'var(--faint)' : isCurrentPinned ? '#a78bfa' : 'var(--muted)',
+              color: !cityValidated ? 'var(--faint)' : isCurrentPinned ? 'var(--accent)' : 'var(--muted)',
               fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 600,
               padding: '3px 8px', cursor: cityValidated ? 'pointer' : 'not-allowed',
               transition: 'all 0.15s',
@@ -764,18 +764,18 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
             {sortedSearches.map(s => (
               <div key={s.id} style={{
                 display: 'flex', alignItems: 'center', gap: 8,
-                background: s.pinned ? 'rgba(139,92,246,0.05)' : 'rgba(255,255,255,0.025)',
-                border: `1px solid ${s.pinned ? 'rgba(139,92,246,0.20)' : 'rgba(255,255,255,0.06)'}`,
+                background: s.pinned ? 'rgba(29,110,85,0.05)' : 'rgba(255,255,255,0.025)',
+                border: `1px solid ${s.pinned ? 'rgba(29,110,85,0.20)' : 'rgba(255,255,255,0.06)'}`,
                 borderRadius: 9, padding: '8px 10px',
                 transition: 'border-color 0.15s, background 0.15s',
               }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = s.pinned ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.14)'
-                  e.currentTarget.style.background  = s.pinned ? 'rgba(139,92,246,0.09)' : 'rgba(255,255,255,0.04)'
+                  e.currentTarget.style.borderColor = s.pinned ? 'rgba(29,110,85,0.35)' : 'rgba(255,255,255,0.14)'
+                  e.currentTarget.style.background  = s.pinned ? 'rgba(29,110,85,0.09)' : 'rgba(255,255,255,0.04)'
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = s.pinned ? 'rgba(139,92,246,0.20)' : 'rgba(255,255,255,0.06)'
-                  e.currentTarget.style.background  = s.pinned ? 'rgba(139,92,246,0.05)' : 'rgba(255,255,255,0.025)'
+                  e.currentTarget.style.borderColor = s.pinned ? 'rgba(29,110,85,0.20)' : 'rgba(255,255,255,0.06)'
+                  e.currentTarget.style.background  = s.pinned ? 'rgba(29,110,85,0.05)' : 'rgba(255,255,255,0.025)'
                 }}
               >
                 {/* Icône */}
@@ -857,7 +857,7 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
               width: progressPct !== null ? `${progressPct}%` : '100%',
               animation: progressPct === null ? 'progressIndeterminate 1.5s ease infinite' : 'none',
               transition: 'width 0.35s ease',
-              boxShadow: '0 0 8px rgba(0,212,255,0.4)',
+              boxShadow: '0 0 8px rgba(29,110,85,0.4)',
             }} />
           </div>
         </div>
@@ -884,7 +884,7 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
           onClick={onOpenScoringDrawer}
           style={{
             background: 'none',
-            border: '1px solid rgba(0,212,255,0.3)',
+            border: '1px solid rgba(29,110,85,0.3)',
             borderRadius: 6,
             color: 'var(--accent)',
             fontSize: 11,
@@ -921,7 +921,7 @@ export default function SearchPanel({ onSearch, isLoading, progress, activeProfi
           justifyContent: 'center',
           gap: 8,
           opacity: isDisabled ? 0.5 : 1,
-          boxShadow: isDisabled ? 'none' : '0 0 20px rgba(0,212,255,0.25), 0 4px 14px rgba(0,0,0,0.4)',
+          boxShadow: isDisabled ? 'none' : '0 0 20px rgba(29,110,85,0.25), 0 4px 14px rgba(0,0,0,0.4)',
           transition: 'opacity 0.2s, box-shadow 0.2s',
         }}
       >
