@@ -1,0 +1,43 @@
+/* ============================================================
+   THEME-NEW — LeadGen Pro "Vert & Jaune"
+   Tokens de référence pour le redesign UI.
+   Ce fichier documente les valeurs sources — App.css les applique.
+   ============================================================ */
+
+/*
+  BACKGROUNDS
+  --bg            : #0D1410   fond principal (quasi noir, teinte verte)
+  --surface       : #111813   surfaces cards / panneaux
+  --card          : #161D18   cartes légèrement plus claires
+
+  BORDERS
+  --border        : rgba(255,255,255,0.08)   séparateurs discrets
+  --border-strong : rgba(255,255,255,0.13)   bordures affirmées
+  --border-glow   : rgba(29,110,85,0.35)    lueur accent vert
+
+  ACCENTS
+  --accent        : #1D6E55   vert principal (CTAs, liens, focus)
+  --accent-yellow : #EDFA36   jaune vif (score élevé, highlights, badge)
+  --accent2       : #EDFA36   alias accent secondaire (gradient, etc.)
+  --accent-dim    : rgba(29,110,85,0.14)   fond teinté vert (inputs focus)
+
+  SEMANTIC
+  --success       : #22c55e   succès (vert vif)
+  --warning       : #f59e0b   avertissement
+  --danger        : #ef4444   erreur
+
+  TEXT
+  --text          : #F5F5F0   texte principal (blanc chaud)
+  --muted         : rgba(245,245,240,0.40)
+  --faint         : rgba(245,245,240,0.18)
+
+  TYPOGRAPHY
+  --font-display  : 'Clash Display', sans-serif
+  --font-body     : 'Cabinet Grotesk', sans-serif
+  --font-mono     : 'DM Mono', monospace
+
+  USAGE ACCENT vs ACCENT-YELLOW
+  • Boutons primaires / CTA / focus ring / liens   → --accent (#1D6E55)
+  • Score élevé / badges / highlights texte / orb  → --accent-yellow (#EDFA36)
+  • Gradient titres                                → vert → jaune
+*/

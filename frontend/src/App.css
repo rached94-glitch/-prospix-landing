@@ -2,21 +2,22 @@
    DESIGN TOKENS
    ============================================================ */
 :root {
-  --bg:            #060608;
-  --surface:       #0d0d12;
-  --card:          #13131a;
-  --border:        rgba(255,255,255,0.06);
-  --border-strong: rgba(255,255,255,0.10);
-  --border-glow:   rgba(0,212,255,0.30);
-  --accent:        #00d4ff;
-  --accent2:       #8b5cf6;
-  --accent-dim:    rgba(0,212,255,0.12);
-  --success:       #10b981;
+  --bg:            #0D1410;
+  --surface:       #111813;
+  --card:          #161D18;
+  --border:        rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.13);
+  --border-glow:   rgba(29,110,85,0.35);
+  --accent:        #1D6E55;
+  --accent-yellow: #EDFA36;
+  --accent2:       #EDFA36;
+  --accent-dim:    rgba(29,110,85,0.14);
+  --success:       #22c55e;
   --warning:       #f59e0b;
   --danger:        #ef4444;
-  --text:          #f0f0f8;
-  --muted:         rgba(240,240,248,0.38);
-  --faint:         rgba(240,240,248,0.18);
+  --text:          #F5F5F0;
+  --muted:         rgba(245,245,240,0.40);
+  --faint:         rgba(245,245,240,0.18);
 
   --font-display: 'Clash Display', sans-serif;
   --font-body:    'Cabinet Grotesk', sans-serif;
@@ -42,8 +43,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-image:
-    linear-gradient(rgba(0,212,255,0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,212,255,0.018) 1px, transparent 1px);
+    linear-gradient(rgba(29,110,85,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(29,110,85,0.025) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
@@ -59,9 +60,9 @@ ul, ol { list-style: none; }
    ============================================================ */
 ::-webkit-scrollbar { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.18); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.35); }
-* { scrollbar-width: thin; scrollbar-color: rgba(0,212,255,0.18) transparent; }
+::-webkit-scrollbar-thumb { background: rgba(29,110,85,0.30); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(29,110,85,0.55); }
+* { scrollbar-width: thin; scrollbar-color: rgba(29,110,85,0.30) transparent; }
 
 /* ============================================================
    SIDEBAR — scrollable zone
@@ -80,7 +81,7 @@ ul, ol { list-style: none; }
   width: 600px;
   height: 600px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(139,92,246,0.07) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(237,250,54,0.05) 0%, transparent 70%);
   top: -200px;
   right: -200px;
   pointer-events: none;
@@ -91,7 +92,7 @@ ul, ol { list-style: none; }
   width: 600px;
   height: 600px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(0,212,255,0.045) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(29,110,85,0.07) 0%, transparent 70%);
   bottom: -200px;
   left: -200px;
   pointer-events: none;
@@ -106,7 +107,7 @@ ul, ol { list-style: none; }
 .muted   { color: var(--muted); }
 
 .gradient-text {
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  background: linear-gradient(90deg, var(--accent), var(--accent-yellow));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -128,11 +129,11 @@ ul, ol { list-style: none; }
   transition: border-color 200ms, box-shadow 200ms, background 200ms;
 }
 .input-premium:focus {
-  border-color: rgba(0,212,255,0.40);
-  background: rgba(0,212,255,0.025);
-  box-shadow: 0 0 0 3px rgba(0,212,255,0.08);
+  border-color: rgba(29,110,85,0.55);
+  background: rgba(29,110,85,0.05);
+  box-shadow: 0 0 0 3px rgba(29,110,85,0.12);
 }
-.input-premium::placeholder { color: rgba(240,240,248,0.18); }
+.input-premium::placeholder { color: rgba(245,245,240,0.18); }
 
 /* ============================================================
    SLIDER PREMIUM
@@ -153,12 +154,12 @@ ul, ol { list-style: none; }
   height: 16px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0,212,255,0.18), 0 0 12px rgba(0,212,255,0.55);
+  box-shadow: 0 0 0 3px rgba(29,110,85,0.22), 0 0 12px rgba(29,110,85,0.55);
   cursor: pointer;
   transition: box-shadow 200ms, transform 200ms;
 }
 .slider-premium::-webkit-slider-thumb:hover {
-  box-shadow: 0 0 0 5px rgba(0,212,255,0.22), 0 0 20px rgba(0,212,255,0.75);
+  box-shadow: 0 0 0 5px rgba(29,110,85,0.28), 0 0 20px rgba(29,110,85,0.75);
   transform: scale(1.1);
 }
 .slider-premium::-moz-range-thumb {
@@ -167,7 +168,7 @@ ul, ol { list-style: none; }
   border: none;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0,212,255,0.18), 0 0 12px rgba(0,212,255,0.55);
+  box-shadow: 0 0 0 3px rgba(29,110,85,0.22), 0 0 12px rgba(29,110,85,0.55);
 }
 
 /* ============================================================
@@ -186,7 +187,7 @@ ul, ol { list-style: none; }
   transition: none;
 }
 .btn-shimmer:hover::after { animation: shimmerSlide 0.5s ease forwards; }
-.btn-shimmer:hover { box-shadow: 0 8px 30px rgba(0,212,255,0.30) !important; }
+.btn-shimmer:hover { box-shadow: 0 8px 30px rgba(29,110,85,0.35) !important; }
 
 /* ============================================================
    LEAD CARD
@@ -202,9 +203,9 @@ ul, ol { list-style: none; }
 }
 .lead-card:hover {
   transform: translateX(4px);
-  border-color: rgba(0,212,255,0.25) !important;
-  box-shadow: 0 0 0 1px rgba(0,212,255,0.08), 0 8px 32px rgba(0,0,0,0.4);
-  background: rgba(0,212,255,0.025) !important;
+  border-color: rgba(29,110,85,0.35) !important;
+  box-shadow: 0 0 0 1px rgba(29,110,85,0.10), 0 8px 32px rgba(0,0,0,0.4);
+  background: rgba(29,110,85,0.04) !important;
 }
 
 /* ============================================================
