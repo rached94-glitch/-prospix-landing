@@ -17,7 +17,7 @@ const auditCache = {} // { [website]: auditData } — évite les appels PageSpee
 const SCORE_BREAKDOWN = [
   { key: 'googleRating',      label: 'Note Google',        color: '#f59e0b' },
   { key: 'reviewVolume',      label: 'Volume avis',         color: '#10b981' },
-  { key: 'digitalPresence',   label: 'Présence digitale',   color: '#8b5cf6' },
+  { key: 'digitalPresence',   label: 'Présence digitale',   color: '#EDFA36' },
   { key: 'opportunity',       label: 'Opportunité',         color: '#00d4ff' },
   { key: 'financialCapacity', label: 'Capacité financière', color: '#f97316' },
 ]
@@ -61,10 +61,10 @@ function Section({ title, children }) {
         fontWeight: 700,
         letterSpacing: '0.12em',
         textTransform: 'uppercase',
-        color: '#6366f1',
+        color: '#1D6E55',
         marginBottom: 10,
         paddingBottom: 6,
-        borderBottom: '1px solid rgba(99,102,241,0.12)',
+        borderBottom: '1px solid rgba(29,110,85,0.12)',
       }}>
         {title}
       </div>
@@ -1335,12 +1335,12 @@ Bien cordialement,
     <>
       <style>{`
         .ld-scroll::-webkit-scrollbar { width: 4px; }
-        .ld-scroll::-webkit-scrollbar-track { background: #0d0d1a; }
+        .ld-scroll::-webkit-scrollbar-track { background: #0D1410; }
         .ld-scroll::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 2px; }
         @keyframes ld-slidein { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
         .ld-btn { transition: all 0.15s ease; cursor: pointer; }
         .ld-btn:hover { filter: brightness(1.15); }
-        .ld-social-dot:hover { border-color: rgba(99,102,241,0.40) !important; }
+        .ld-social-dot:hover { border-color: rgba(29,110,85,0.40) !important; }
       `}</style>
 
       {/* ── MAIN PANEL ── */}
@@ -1352,8 +1352,8 @@ Bien cordialement,
         height: 'calc(100vh - 32px)',
         display: 'flex',
         flexDirection: 'column',
-        background: '#0d0d1a',
-        border: '1px solid rgba(99,102,241,0.15)',
+        background: '#0D1410',
+        border: '1px solid rgba(29,110,85,0.15)',
         borderRadius: 16,
         boxShadow: '0 24px 64px rgba(0,0,0,0.85)',
         animation: 'ld-slidein 0.22s cubic-bezier(0.4,0,0.2,1)',
@@ -1364,7 +1364,7 @@ Bien cordialement,
       }}>
 
         {/* ══ HEADER ══ */}
-        <div style={{ padding: '14px 16px 0', flexShrink: 0, borderBottom: '1px solid rgba(99,102,241,0.10)' }}>
+        <div style={{ padding: '14px 16px 0', flexShrink: 0, borderBottom: '1px solid rgba(29,110,85,0.10)' }}>
 
           {/* Row 1 : name + utility buttons */}
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 3 }}>
@@ -1391,7 +1391,7 @@ Bien cordialement,
           {/* Row 3 : meta badges */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginBottom: 8 }}>
             {activeProfile && (
-              <span style={{ fontSize: 10, fontWeight: 600, color: '#a5b4fc', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.28)', borderRadius: 4, padding: '2px 7px', letterSpacing: '0.03em' }}>
+              <span style={{ fontSize: 10, fontWeight: 600, color: '#EDFA36', background: 'rgba(29,110,85,0.15)', border: '1px solid rgba(29,110,85,0.28)', borderRadius: 4, padding: '2px 7px', letterSpacing: '0.03em' }}>
                 {activeProfile.name}
               </span>
             )}
@@ -1459,11 +1459,11 @@ Bien cordialement,
         </div>
 
         {/* ══ SCROLLABLE CONTENT ══ */}
-        <div ref={scrollRef} className="ld-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 16px 80px', scrollbarWidth: 'thin', scrollbarColor: '#2d3748 #0d0d1a' }}>
+        <div ref={scrollRef} className="ld-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 16px 80px', scrollbarWidth: 'thin', scrollbarColor: '#2d3748 #0D1410' }}>
 
           {/* ── CONTACT & PRÉSENCE ── */}
           <div style={{ paddingTop: 4, marginBottom: 16 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#6366f1', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(99,102,241,0.12)' }}>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#1D6E55', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(29,110,85,0.12)' }}>
               Contact &amp; Présence
             </div>
 
@@ -1484,7 +1484,7 @@ Bien cordialement,
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '9px 11px' }}>
                 <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 5 }}>Site web</div>
                 {lead.website && !['null', 'undefined', ''].includes(String(lead.website))
-                  ? <a href={lead.website} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: '#6366f1', textDecoration: 'none', wordBreak: 'break-all', lineHeight: 1.3, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  ? <a href={lead.website} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: '#1D6E55', textDecoration: 'none', wordBreak: 'break-all', lineHeight: 1.3, display: 'flex', alignItems: 'center', gap: 8 }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
                         <circle cx="12" cy="12" r="10" stroke="#94a3b8" strokeWidth="1.5"/>
                         <path d="M2 12h20M12 2c-2.5 3-4 6.5-4 10s1.5 7 4 10M12 2c2.5 3 4 6.5 4 10s-1.5 7-4 10" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round"/>
@@ -1544,7 +1544,7 @@ Bien cordialement,
 
             {/* Find decision maker */}
             {dmState === 'idle' && (
-              <button className="ld-btn" onClick={handleFindDecisionMaker} style={{ width: '100%', height: 34, borderRadius: 8, border: '1px solid rgba(99,102,241,0.28)', background: 'transparent', color: '#a5b4fc', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <button className="ld-btn" onClick={handleFindDecisionMaker} style={{ width: '100%', height: 34, borderRadius: 8, border: '1px solid rgba(29,110,85,0.28)', background: 'transparent', color: '#EDFA36', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 Trouver le décideur
               </button>
             )}
@@ -1554,7 +1554,7 @@ Bien cordialement,
             {dmState === 'not_found' && (
               <div style={{ fontSize: 11, color: '#475569', padding: '7px 0', textAlign: 'center' }}>
                 Décideur non trouvé —{' '}
-                <a href={`https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(lead.name)}`} target="_blank" rel="noreferrer" style={{ color: '#6366f1', textDecoration: 'none' }}>chercher sur LinkedIn</a>
+                <a href={`https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(lead.name)}`} target="_blank" rel="noreferrer" style={{ color: '#1D6E55', textDecoration: 'none' }}>chercher sur LinkedIn</a>
               </div>
             )}
             {dmState === 'found' && lead.decisionMaker && (() => {
@@ -1579,7 +1579,7 @@ Bien cordialement,
 
           {/* ── DONNÉES CLÉS ── */}
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#6366f1', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(99,102,241,0.12)' }}>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#1D6E55', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(29,110,85,0.12)' }}>
               Données clés — {profileName}
             </div>
 
@@ -1640,7 +1640,7 @@ Bien cordialement,
               const LBL   = { fontSize: 11, color: '#475569', display: 'flex', alignItems: 'center', gap: 7 }
               const VAL   = (color) => ({ fontSize: 12, fontWeight: 500, color: color || '#e2e8f0' })
               const BADGE = { fontSize: 10, color: '#475569', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 7px' }
-              const BTN   = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: 'pointer', color: '#6366f1', fontSize: 12, fontWeight: 500, background: 'transparent', border: 'none', borderTop: '1px solid rgba(255,255,255,0.04)', width: '100%', textAlign: 'left' }
+              const BTN   = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: 'pointer', color: '#1D6E55', fontSize: 12, fontWeight: 500, background: 'transparent', border: 'none', borderTop: '1px solid rgba(255,255,255,0.04)', width: '100%', textAlign: 'left' }
 
               const VERDICT_COLOR = { 'Professionnelles':'#22c55e','Correctes':'#f59e0b','Amateur':'#ef4444','Génériques':'#ef4444','Mixte':'#f59e0b','Non analysable':'#475569','Aucune photo':'#475569' }
               const obsOrder = { red:0, orange:1, green:2 }
@@ -1672,12 +1672,12 @@ Bien cordialement,
                 if (error === 'tiktok_restricted') return (
                   <div style={{ padding: '8px 14px', fontSize: 11, color: '#f59e0b', borderTop: SEP }}>
                     Analyse TikTok indisponible — plateforme restreinte{' '}
-                    <a href={url} target="_blank" rel="noreferrer" style={{ color: '#6366f1', textDecoration: 'none' }}>Voir le compte →</a>
+                    <a href={url} target="_blank" rel="noreferrer" style={{ color: '#1D6E55', textDecoration: 'none' }}>Voir le compte →</a>
                   </div>
                 )
                 if (error)   return <div style={{ padding: '8px 14px', fontSize: 11, color: '#f59e0b', borderTop: SEP }}>{error}</div>
                 return (
-                  <button onClick={() => handleNetworkVisual(network, url)} onMouseEnter={e => e.currentTarget.style.background='rgba(99,102,241,0.06)'} onMouseLeave={e => e.currentTarget.style.background='transparent'} style={BTN}>
+                  <button onClick={() => handleNetworkVisual(network, url)} onMouseEnter={e => e.currentTarget.style.background='rgba(29,110,85,0.06)'} onMouseLeave={e => e.currentTarget.style.background='transparent'} style={BTN}>
                     {network === 'instagram' ? 'Qualité des photos' : 'Analyser la qualité visuelle'}
                     <span style={BADGE}>1 crédit</span>
                   </button>
@@ -1746,7 +1746,7 @@ Bien cordialement,
                     {pCount > 0 && !photoQuality && (
                       photoQualityLoading
                         ? <div style={{ padding: '10px 14px', fontSize: 11, color: '#64748b', borderTop: '1px solid rgba(255,255,255,0.04)' }}>Analyse en cours…</div>
-                        : <button onClick={handleAnalyzePhotoQuality} onMouseEnter={e => e.currentTarget.style.background='rgba(99,102,241,0.06)'} onMouseLeave={e => e.currentTarget.style.background='transparent'} style={BTN}>
+                        : <button onClick={handleAnalyzePhotoQuality} onMouseEnter={e => e.currentTarget.style.background='rgba(29,110,85,0.06)'} onMouseLeave={e => e.currentTarget.style.background='transparent'} style={BTN}>
                             Analyser la qualité des photos
                             <span style={BADGE}>1 crédit</span>
                           </button>
@@ -1799,7 +1799,7 @@ Bien cordialement,
                       <div style={{ padding: '8px 14px', fontSize: 11, color: '#475569', fontStyle: 'italic', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
                         Analyse visuelle des photos non disponible — politique Meta
                         {hasFb && lead.social?.facebook && (
-                          <>{' '}<a href={lead.social.facebook} target="_blank" rel="noreferrer" style={{ color: '#6366f1', fontStyle: 'normal', textDecoration: 'none' }}>Voir la page →</a></>
+                          <>{' '}<a href={lead.social.facebook} target="_blank" rel="noreferrer" style={{ color: '#1D6E55', fontStyle: 'normal', textDecoration: 'none' }}>Voir la page →</a></>
                         )}
                       </div>
                     </div>
@@ -1927,7 +1927,7 @@ Bien cordialement,
                       {tkStatsError   && (
                         <div style={{ padding: '8px 14px', fontSize: 11, color: '#f59e0b', borderTop: SEP }}>
                           {tkStatsError}{' '}
-                          <a href={lead.social.tiktok} target="_blank" rel="noreferrer" style={{ color: '#6366f1', fontStyle: 'normal', textDecoration: 'none' }}>Voir le compte TikTok →</a>
+                          <a href={lead.social.tiktok} target="_blank" rel="noreferrer" style={{ color: '#1D6E55', fontStyle: 'normal', textDecoration: 'none' }}>Voir le compte TikTok →</a>
                         </div>
                       )}
                       {!tkStats && !tkStatsLoading && !tkStatsError && (
@@ -1952,7 +1952,7 @@ Bien cordialement,
                       </div>
                       <div style={{ padding: '8px 14px', fontSize: 11, color: '#475569', fontStyle: 'italic', borderTop: SEP }}>
                         Analyse visuelle non disponible — plateforme restreinte{' '}
-                        <a href={lead.social.pinterest} target="_blank" rel="noreferrer" style={{ color: '#6366f1', fontStyle: 'normal', textDecoration: 'none' }}>Voir le compte →</a>
+                        <a href={lead.social.pinterest} target="_blank" rel="noreferrer" style={{ color: '#1D6E55', fontStyle: 'normal', textDecoration: 'none' }}>Voir le compte →</a>
                       </div>
                     </div>
                   )}
@@ -1969,7 +1969,7 @@ Bien cordialement,
                       </div>
                       <div style={{ padding: '8px 14px', fontSize: 11, color: '#475569', fontStyle: 'italic', borderTop: SEP }}>
                         Analyse visuelle non disponible — plateforme restreinte{' '}
-                        <a href={lead.social.youtube} target="_blank" rel="noreferrer" style={{ color: '#6366f1', fontStyle: 'normal', textDecoration: 'none' }}>Voir le compte →</a>
+                        <a href={lead.social.youtube} target="_blank" rel="noreferrer" style={{ color: '#1D6E55', fontStyle: 'normal', textDecoration: 'none' }}>Voir le compte →</a>
                       </div>
                     </div>
                   )}
@@ -1995,7 +1995,7 @@ Bien cordialement,
                   {(lead.website || lead.social?.facebook || lead.social?.instagram) && auditState !== 'done' && (
                     <div style={CARD}>
                       {auditState === 'idle' && (
-                        <button onClick={handleAnalyzePerformance} onMouseEnter={e => e.currentTarget.style.background='rgba(99,102,241,0.06)'} onMouseLeave={e => e.currentTarget.style.background='transparent'} style={{ ...BTN, borderTop: 'none' }}>
+                        <button onClick={handleAnalyzePerformance} onMouseEnter={e => e.currentTarget.style.background='rgba(29,110,85,0.06)'} onMouseLeave={e => e.currentTarget.style.background='transparent'} style={{ ...BTN, borderTop: 'none' }}>
                           Analyser les performances digitales
                           <span style={BADGE}>1 crédit</span>
                         </button>
@@ -2011,7 +2011,7 @@ Bien cordialement,
                     <div style={{ ...CARD, marginTop: 4 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderBottom: SEP }}>
                         <span style={{ ...LBL, gap: 6 }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="#6366f1"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="#1D6E55"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                           Score visuel global
                         </span>
                         <span style={{ fontSize: 13, fontWeight: 700, color: globalColor }}>{globalVisualScore}/100</span>
@@ -2235,7 +2235,7 @@ Bien cordialement,
                     return (
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10.5, color: '#f59e0b', padding: '4px 0 10px' }}>
                         <span>⏱ Analyse expirée — site trop lent à répondre</span>
-                        <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ fontSize: 10, color: '#a5b4fc', background: 'none', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 5, padding: '2px 8px', cursor: 'pointer', flexShrink: 0, marginLeft: 8 }}>Réessayer</button>
+                        <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ fontSize: 10, color: '#EDFA36', background: 'none', border: '1px solid rgba(29,110,85,0.25)', borderRadius: 5, padding: '2px 8px', cursor: 'pointer', flexShrink: 0, marginLeft: 8 }}>Réessayer</button>
                       </div>
                     )
                   if (auditState === 'error' || (auditState === 'done' && !auditData?.pagespeed))
@@ -2289,9 +2289,9 @@ Bien cordialement,
               ]
 
               return (
-                <div style={{ marginTop: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(99,102,241,0.12)', borderRadius: 8, overflow: 'hidden' }}>
+                <div style={{ marginTop: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(29,110,85,0.12)', borderRadius: 8, overflow: 'hidden' }}>
                   <div style={{ padding: '7px 11px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: '#6366f1' }}>Performances réelles — vécues par vos clients</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: '#1D6E55' }}>Performances réelles — vécues par vos clients</span>
                     <span style={{ fontSize: 8.5, color: '#334155', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 6px' }}>Source : Chrome UX Report</span>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
@@ -2327,7 +2327,7 @@ Bien cordialement,
 
             return (
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#6366f1', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(99,102,241,0.12)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#1D6E55', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(29,110,85,0.12)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>Analyse Visuelle IA</span>
                   <span style={{ fontSize: 9, fontWeight: 400, color: '#475569', letterSpacing: 0 }}>{MOCK_CREDITS} crédits</span>
                 </div>
@@ -2338,9 +2338,9 @@ Bien cordialement,
                     const sel = selectedZone === z.id
                     return (
                       <div key={z.id} onClick={() => !visualLoading && setSelectedZone(z.id)}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 8, background: sel ? 'rgba(99,102,241,0.06)' : 'rgba(255,255,255,0.02)', border: `1px solid ${sel ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.06)'}`, marginBottom: 6, cursor: visualLoading ? 'default' : 'pointer', transition: 'all .15s' }}>
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 8, background: sel ? 'rgba(29,110,85,0.06)' : 'rgba(255,255,255,0.02)', border: `1px solid ${sel ? 'rgba(29,110,85,0.3)' : 'rgba(255,255,255,0.06)'}`, marginBottom: 6, cursor: visualLoading ? 'default' : 'pointer', transition: 'all .15s' }}>
                         <div>
-                          <div style={{ fontSize: 13, fontWeight: 500, color: sel ? '#a5b4fc' : '#e2e8f0', marginBottom: 2 }}>{z.label}</div>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: sel ? '#EDFA36' : '#e2e8f0', marginBottom: 2 }}>{z.label}</div>
                           <div style={{ fontSize: 11, color: '#475569' }}>{z.desc}</div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
@@ -2356,12 +2356,12 @@ Bien cordialement,
 
                 {/* Bouton lancer */}
                 <button onClick={handleVisualAnalysis} disabled={visualLoading}
-                  style={{ width: '100%', height: 38, borderRadius: 9, border: '1px solid rgba(99,102,241,0.2)', background: visualLoading ? 'rgba(99,102,241,0.04)' : 'rgba(99,102,241,0.08)', color: visualLoading ? '#475569' : '#6366f1', fontSize: 12.5, fontWeight: 600, cursor: visualLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginBottom: 8 }}>
+                  style={{ width: '100%', height: 38, borderRadius: 9, border: '1px solid rgba(29,110,85,0.2)', background: visualLoading ? 'rgba(29,110,85,0.04)' : 'rgba(29,110,85,0.08)', color: visualLoading ? '#475569' : '#1D6E55', fontSize: 12.5, fontWeight: 600, cursor: visualLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginBottom: 8 }}>
                   {visualLoading ? (
                     <>
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ animation: 'spin 1s linear infinite' }}>
-                        <circle cx="7" cy="7" r="5.5" stroke="rgba(99,102,241,0.3)" strokeWidth="2"/>
-                        <path d="M7 1.5A5.5 5.5 0 0 1 12.5 7" stroke="#6366f1" strokeWidth="2" strokeLinecap="round"/>
+                        <circle cx="7" cy="7" r="5.5" stroke="rgba(29,110,85,0.3)" strokeWidth="2"/>
+                        <path d="M7 1.5A5.5 5.5 0 0 1 12.5 7" stroke="#1D6E55" strokeWidth="2" strokeLinecap="round"/>
                       </svg>
                       Analyse en cours…
                     </>
@@ -2414,7 +2414,7 @@ Bien cordialement,
 
           {/* ── SCORE DÉTAILLÉ ── */}
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#6366f1', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(99,102,241,0.12)' }}>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#1D6E55', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(29,110,85,0.12)' }}>
               Score Détaillé
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -2447,12 +2447,12 @@ Bien cordialement,
           {/* ── POSITIONNEMENT ── */}
           {(lead.competitorAvg != null || lead.benchmarkPercentile != null) && (
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#6366f1', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(99,102,241,0.12)' }}>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#1D6E55', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(29,110,85,0.12)' }}>
                 Positionnement
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {lead.competitorAvg != null && (
-                  <div style={{ background: '#1a1830', border: '0.5px solid rgba(99,102,241,0.25)', borderRadius: 8, padding: '10px 12px' }}>
+                  <div style={{ background: '#111813', border: '0.5px solid rgba(29,110,85,0.25)', borderRadius: 8, padding: '10px 12px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
                       <span style={{ fontSize: 10, color: '#64748b', letterSpacing: '0.04em' }}>Moyenne secteur</span>
                       <span style={{ fontSize: 14, fontWeight: 700, color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>{lead.competitorAvg}</span>
@@ -2480,7 +2480,7 @@ Bien cordialement,
                     .slice(0, 5)
                   const peerCount = (leads || []).length
                   return (
-                    <div style={{ background: '#1a1830', border: '0.5px solid rgba(99,102,241,0.25)', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ background: '#111813', border: '0.5px solid rgba(29,110,85,0.25)', borderRadius: 8, padding: '10px 12px' }}>
                       {/* Header */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
                         <span style={{ fontSize: 10, color: '#64748b', letterSpacing: '0.04em' }}>Benchmark sectoriel</span>
@@ -2493,7 +2493,7 @@ Bien cordialement,
                       {/* Texte principal */}
                       <div style={{ fontSize: 10.5, color: '#94a3b8', marginBottom: 8 }}>Meilleur que {pct}% des {label}</div>
                       {/* Bloc explicatif */}
-                      <div style={{ background: 'rgba(255,255,255,0.03)', borderLeft: '2px solid rgba(99,102,241,0.4)', borderRadius: '0 4px 4px 0', padding: '7px 10px', marginBottom: 10 }}>
+                      <div style={{ background: 'rgba(255,255,255,0.03)', borderLeft: '2px solid rgba(29,110,85,0.4)', borderRadius: '0 4px 4px 0', padding: '7px 10px', marginBottom: 10 }}>
                         <span style={{ fontSize: 10, color: '#64748b', lineHeight: 1.5 }}>
                           Sur les {peerCount} établissements similaires analysés dans cette ville, celui-ci {tierText}
                         </span>
@@ -2511,10 +2511,10 @@ Bien cordialement,
                               ? Math.round((peers.filter(p => (p.score?.total ?? 0) < peerScore).length / (peers.length)) * 100)
                               : null
                             return (
-                              <div key={peer.id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: isCurrent ? '4px 7px' : '2px 0', borderRadius: isCurrent ? 5 : 0, background: isCurrent ? 'rgba(99,102,241,0.12)' : 'transparent' }}>
+                              <div key={peer.id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: isCurrent ? '4px 7px' : '2px 0', borderRadius: isCurrent ? 5 : 0, background: isCurrent ? 'rgba(29,110,85,0.12)' : 'transparent' }}>
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ fontSize: 9.5, color: isCurrent ? '#a5b4fc' : '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: isCurrent ? 600 : 400 }}>
-                                    {peer.name}{isCurrent && <span style={{ color: '#6366f1', marginLeft: 4, fontSize: 8.5 }}>← vous</span>}
+                                  <div style={{ fontSize: 9.5, color: isCurrent ? '#EDFA36' : '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: isCurrent ? 600 : 400 }}>
+                                    {peer.name}{isCurrent && <span style={{ color: '#1D6E55', marginLeft: 4, fontSize: 8.5 }}>← vous</span>}
                                   </div>
                                   <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 2, height: 3, marginTop: 3, overflow: 'hidden' }}>
                                     <div style={{ width: `${peerScore}%`, height: '100%', borderRadius: 2, background: peerColor }} />
@@ -2535,7 +2535,7 @@ Bien cordialement,
 
           {/* ── ANALYSE DES AVIS ── */}
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#6366f1', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(99,102,241,0.12)' }}>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#1D6E55', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(29,110,85,0.12)' }}>
               Analyse des Avis
             </div>
 
@@ -2572,7 +2572,7 @@ Bien cordialement,
                     </div>
                   )}
                   {bestReview && (
-                    <div style={{ borderLeft: '3px solid #6366f1', borderRadius: '0 8px 8px 0', background: 'rgba(99,102,241,0.07)', padding: '9px 11px', marginBottom: 8 }}>
+                    <div style={{ borderLeft: '3px solid #1D6E55', borderRadius: '0 8px 8px 0', background: 'rgba(29,110,85,0.07)', padding: '9px 11px', marginBottom: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                         <Stars rating={bestReview.rating ?? 5} size={10} />
                         {bestReview.author && <span style={{ fontSize: 10.5, color: '#64748b' }}>{bestReview.author}</span>}
@@ -2597,7 +2597,7 @@ Bien cordialement,
                 className="ld-btn"
                 onClick={reviewsState === 'done' ? handleAnalyzeAI : handleLoadReviews}
                 disabled={reviewsState === 'loading' || aiState === 'loading'}
-                style={{ width: '100%', height: 36, borderRadius: 8, border: '1px solid rgba(99,102,241,0.28)', background: 'rgba(99,102,241,0.08)', color: reviewsState === 'loading' || aiState === 'loading' ? '#64748b' : '#a5b4fc', fontSize: 12, fontWeight: 600, cursor: reviewsState === 'loading' || aiState === 'loading' ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 10 }}>
+                style={{ width: '100%', height: 36, borderRadius: 8, border: '1px solid rgba(29,110,85,0.28)', background: 'rgba(29,110,85,0.08)', color: reviewsState === 'loading' || aiState === 'loading' ? '#64748b' : '#EDFA36', fontSize: 12, fontWeight: 600, cursor: reviewsState === 'loading' || aiState === 'loading' ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 10 }}>
                 {reviewsState === 'loading' && '⏳ Chargement des avis…'}
                 {aiState === 'loading' && '✨ Analyse IA en cours…'}
                 {reviewsState !== 'loading' && aiState !== 'loading' && (reviewsState === 'done' ? "✨ Analyser avec l'IA" : '📥 Charger et analyser les avis IA (100 max) — 1 crédit')}
@@ -2624,7 +2624,7 @@ Bien cordialement,
 
           {/* ── DONNÉES FINANCIÈRES ── */}
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#6366f1', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(99,102,241,0.12)' }}>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#1D6E55', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(29,110,85,0.12)' }}>
               Données Financières
             </div>
             {pappersState === 'idle' && (
@@ -2672,15 +2672,15 @@ Bien cordialement,
 
             {/* Generated email display */}
             {aiEmailState === 'done' && aiEmail && (
-              <div style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.20)', borderRadius: 10, padding: '13px 14px', marginBottom: 2 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: '#6366f1', marginBottom: 9 }}>Email généré</div>
+              <div style={{ background: 'rgba(29,110,85,0.06)', border: '1px solid rgba(29,110,85,0.20)', borderRadius: 10, padding: '13px 14px', marginBottom: 2 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: '#1D6E55', marginBottom: 9 }}>Email généré</div>
                 {aiEmail.subject && (
                   <div style={{ fontSize: 11.5, fontWeight: 600, color: '#f1f5f9', marginBottom: 7, lineHeight: 1.4 }}>Objet : {aiEmail.subject}</div>
                 )}
                 <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.65, maxHeight: 180, overflowY: 'auto', whiteSpace: 'pre-wrap', marginBottom: 9, scrollbarWidth: 'thin', scrollbarColor: '#2d3748 transparent' }}>
                   {aiEmail.body}
                 </div>
-                <button className="ld-btn" onClick={() => { navigator.clipboard.writeText(`${aiEmail.subject}\n\n${aiEmail.body}`); setCopiedEmail(true); setTimeout(() => setCopiedEmail(false), 2000) }} style={{ width: '100%', height: 30, borderRadius: 6, border: '1px solid rgba(99,102,241,0.25)', background: 'transparent', color: copiedEmail ? '#22c55e' : '#a5b4fc', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
+                <button className="ld-btn" onClick={() => { navigator.clipboard.writeText(`${aiEmail.subject}\n\n${aiEmail.body}`); setCopiedEmail(true); setTimeout(() => setCopiedEmail(false), 2000) }} style={{ width: '100%', height: 30, borderRadius: 6, border: '1px solid rgba(29,110,85,0.25)', background: 'transparent', color: copiedEmail ? '#22c55e' : '#EDFA36', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
                   {copiedEmail ? '✓ Copié !' : '📋 Copier'}
                 </button>
               </div>
@@ -2708,7 +2708,7 @@ Bien cordialement,
                     className="ld-btn"
                     onClick={emailReady ? handleGenerateAIEmail : undefined}
                     disabled={emailDisabled}
-                    style={{ width: '100%', height: 40, borderRadius: 10, border: emailDisabled ? '1px solid rgba(255,255,255,0.08)' : 'none', background: emailDisabled ? 'rgba(255,255,255,0.03)' : 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)', color: emailDisabled ? '#475569' : '#fff', fontSize: 13, fontWeight: 700, cursor: emailDisabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: !emailDisabled ? '0 4px 20px rgba(99,102,241,0.35)' : 'none', transition: 'all 0.15s' }}>
+                    style={{ width: '100%', height: 40, borderRadius: 10, border: emailDisabled ? '1px solid rgba(255,255,255,0.08)' : 'none', background: emailDisabled ? 'rgba(255,255,255,0.03)' : 'linear-gradient(135deg,#1D6E55 0%,#EDFA36 100%)', color: emailDisabled ? '#475569' : '#fff', fontSize: 13, fontWeight: 700, cursor: emailDisabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: !emailDisabled ? '0 4px 20px rgba(29,110,85,0.35)' : 'none', transition: 'all 0.15s' }}>
                     {emailLabel}
                   </button>
                   {visualBlocked && (
@@ -2738,12 +2738,12 @@ Bien cordialement,
       {/* ── DESCRIPTION MODAL ── */}
       {showDescriptionModal && lead.googleAudit?.descriptionText && (
         <div onClick={() => setShowDescriptionModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#1e1b4b', border: '1px solid #6366f1', borderRadius: 12, padding: 20, maxWidth: 560, width: '100%', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#111813', border: '1px solid #1D6E55', borderRadius: 12, padding: 20, maxWidth: 560, width: '100%', display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9' }}>📝 Description</span>
               <button onClick={() => setShowDescriptionModal(false)} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 16, cursor: 'pointer' }}>✕</button>
             </div>
-            <div style={{ fontSize: 14, lineHeight: 1.7, color: '#e2e8f0', overflowY: 'auto', maxHeight: '60vh', paddingRight: 6, scrollbarWidth: 'thin', scrollbarColor: '#4338ca #1e1b4b' }}>
+            <div style={{ fontSize: 14, lineHeight: 1.7, color: '#e2e8f0', overflowY: 'auto', maxHeight: '60vh', paddingRight: 6, scrollbarWidth: 'thin', scrollbarColor: '#4338ca #111813' }}>
               {lead.googleAudit.descriptionText}
             </div>
             {lead.googleAudit?.descriptionSource && (
