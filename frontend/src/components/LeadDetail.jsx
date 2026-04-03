@@ -78,7 +78,7 @@ function saveStatus(id, status) { localStorage.setItem(STATUS_KEY(id), status) }
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-export default function LeadDetail({ lead, onClose, onStatusChange, onDecisionMakerFound, activeProfile }) {
+export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDecisionMakerFound, activeProfile }) {
   const [contactedConfirm, setContactedConfirm] = useState(false)
   const [savedToSheets,    setSavedToSheets]    = useState(false)
   const [wide,             setWide]             = useState(false)
@@ -111,6 +111,27 @@ export default function LeadDetail({ lead, onClose, onStatusChange, onDecisionMa
   // Digital audit state (PageSpeed + social activity) — loaded on lead select
   const [auditData,  setAuditData]  = useState(null)  // { pagespeed, socialActivity }
   const [auditState, setAuditState] = useState('idle') // idle | loading | done | error
+
+  // Instagram deep analysis — profil photographe uniquement
+  const [igDeep,        setIgDeep]        = useState(null)
+  const [igDeepLoading, setIgDeepLoading] = useState(false)
+  const [igDeepError,   setIgDeepError]   = useState(null)
+
+  // Facebook stats on-demand (profil photographe)
+  const [fbStats,        setFbStats]        = useState(null)
+  const [fbStatsLoading, setFbStatsLoading] = useState(false)
+  const [fbStatsError,   setFbStatsError]   = useState(null)
+
+  // TikTok stats on-demand (profil photographe)
+  const [tkStats,        setTkStats]        = useState(null)
+  const [tkStatsLoading, setTkStatsLoading] = useState(false)
+  const [tkStatsError,   setTkStatsError]   = useState(null)
+
+
+  // Network visual quality — profil photographe (instagram/facebook/tiktok/pinterest/youtube)
+  const [netVisual,        setNetVisual]        = useState({})
+  const [netVisualLoading, setNetVisualLoading] = useState({})
+  const [netVisualError,   setNetVisualError]   = useState({})
 
   // Analyse visuelle IA — profils designer / photographe / copywriter
   const [visualAnalysis, setVisualAnalysis] = useState(null)
@@ -160,6 +181,17 @@ export default function LeadDetail({ lead, onClose, onStatusChange, onDecisionMa
     setVisualLoading(false)
     setVisualError(null)
     setSelectedZone('header')
+    // Reset Instagram deep on lead change
+    setIgDeep(null)
+    setIgDeepLoading(false)
+    setIgDeepError(null)
+    // Reset network visual on lead change
+    setNetVisual({})
+    setNetVisualLoading({})
+    setNetVisualError({})
+    // Reset Facebook / TikTok on-demand stats
+    setFbStats(null); setFbStatsLoading(false); setFbStatsError(null)
+    setTkStats(null); setTkStatsLoading(false); setTkStatsError(null)
     setPhotoQuality(null)
     setPhotoQualityLoading(false)
     // Audit digital (PageSpeed + social) — chargé à la demande, sauf si cache dispo
@@ -181,6 +213,15 @@ export default function LeadDetail({ lead, onClose, onStatusChange, onDecisionMa
       if (lead.website)            params.set('website',   lead.website)
       if (lead.social?.facebook)   params.set('facebook',  lead.social.facebook)
       if (lead.social?.instagram)  params.set('instagram', lead.social.instagram)
+      params.set('profileId', activeProfile?.id ?? '')
+      if (lead.id || lead._id)     params.set('placeId',  lead.id || lead._id)
+      const leadCategory = lead.keyword || lead.domain || ''
+      const leadCity     = lead.address?.split(',').pop()?.trim() || ''
+      if (leadCategory)  params.set('category',     leadCategory)
+      if (leadCity)      params.set('city',          leadCity)
+      if (lead.name)     params.set('businessName',  lead.name)
+      if (lead.address)  params.set('address',       lead.address)
+      if (lead.phone)    params.set('phone',         lead.phone)
       const r = await fetch(`${API}/api/leads/audit?${params}`)
       const d = await r.json()
       console.log('[Audit] auditData reçu:', d)
@@ -196,6 +237,84 @@ export default function LeadDetail({ lead, onClose, onStatusChange, onDecisionMa
     } catch (e) {
       console.error('[Audit] erreur:', e)
       setAuditState('error')
+    }
+  }
+
+  const handleFbStats = async () => {
+    if (fbStatsLoading || !lead.social?.facebook) return
+    setFbStatsLoading(true); setFbStatsError(null); setFbStats(null)
+    try {
+      const r = await fetch(`${API}/api/leads/facebook-stats?url=${encodeURIComponent(lead.social.facebook)}`)
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error || 'Erreur serveur')
+      if (d.status === 'unknown') setFbStatsError('Compte privé ou inaccessible')
+      else setFbStats(d)
+    } catch (e) { setFbStatsError(e.message) }
+    finally     { setFbStatsLoading(false) }
+  }
+
+  const handleTkStats = async () => {
+    if (tkStatsLoading || !lead.social?.tiktok) return
+    setTkStatsLoading(true); setTkStatsError(null); setTkStats(null)
+    try {
+      const r = await fetch(`${API}/api/leads/tiktok-stats?url=${encodeURIComponent(lead.social.tiktok)}`)
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error || 'Erreur serveur')
+      if (d.error === 'tiktok_unavailable') setTkStatsError('Données indisponibles — compte privé ou restreint')
+      else if (d.error) setTkStatsError(d.error)
+      else setTkStats(d)
+    } catch (e) { setTkStatsError(e.message) }
+    finally     { setTkStatsLoading(false) }
+  }
+
+  const handleInstagramDeep = async () => {
+    if (igDeepLoading || !lead.social?.instagram) return
+    setIgDeepLoading(true)
+    setIgDeepError(null)
+    setIgDeep(null)
+    try {
+      const r = await fetch(`${API}/api/leads/instagram-deep`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ instagramUrl: lead.social.instagram }),
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error || 'Erreur serveur')
+      if (d.error === 'invalid_url') {
+        setIgDeepError('URL invalide — analyse impossible')
+      } else if (d.error === 'private_or_missing' || d.error === 'not_available') {
+        setIgDeepError('Compte privé ou inaccessible')
+      } else if (d.error) {
+        setIgDeepError(d.error)
+      } else {
+        setIgDeep(d)
+      }
+    } catch (e) {
+      setIgDeepError(e.message)
+    } finally {
+      setIgDeepLoading(false)
+    }
+  }
+
+  const handleNetworkVisual = async (network, networkUrl) => {
+    if (netVisualLoading[network] || !networkUrl) return
+    setNetVisualLoading(prev => ({ ...prev, [network]: true }))
+    setNetVisualError(prev => ({ ...prev, [network]: null }))
+    setNetVisual(prev => ({ ...prev, [network]: null }))
+    try {
+      const r = await fetch(`${API}/api/leads/network-visual`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ networkUrl, network }),
+      })
+      let d
+      try { d = await r.json() } catch { throw new Error('Analyse indisponible') }
+      if (!r.ok || d?.error) throw new Error(d?.error || `Erreur ${r.status}`)
+      setNetVisual(prev => ({ ...prev, [network]: d }))
+    } catch (e) {
+      setNetVisualError(prev => ({ ...prev, [network]: e.message }))
+    } finally {
+      setNetVisualLoading(prev => ({ ...prev, [network]: false }))
     }
   }
 
@@ -321,6 +440,7 @@ export default function LeadDetail({ lead, onClose, onStatusChange, onDecisionMa
           city:         (lead.address || '').split(',')[0]?.trim() || null,
           rating:       lead.google?.rating       ?? null,
           reviewCount:  lead.google?.totalReviews ?? null,
+          category:     lead.keyword || lead.domain || '',
           auditData:    auditData ? {
             googleAudit:       lead.googleAudit       ?? null,
             pagespeed:         auditData.pagespeed         ?? null,
@@ -356,6 +476,7 @@ export default function LeadDetail({ lead, onClose, onStatusChange, onDecisionMa
           leadData: {
             rating:       lead.google?.rating,
             totalReviews: lead.google?.totalReviews,
+            reviewCount:  lead.google?.totalReviews,
             website:      lead.website,
             social:       lead.social,
             address:      lead.address,
@@ -373,6 +494,7 @@ export default function LeadDetail({ lead, onClose, onStatusChange, onDecisionMa
           decisionMaker:     lead.decisionMaker            ?? null,
           city:              lead.city ?? lead.vicinity    ?? null,
           category:          lead.types?.[0]               ?? null,
+          napData:           auditData?.napData            ?? null,
         }),
       })
       const data = await res.json()
@@ -838,20 +960,44 @@ Bien cordialement,
     const prob = (text, color) => ({ text, color })
 
     switch (profileId) {
-      case 'chatbot': {
-        const hasChatbot = !!(lead.googleAudit?.hasChatbot)
-        const themes     = lead.reviewAnalysis?.themes?.length || 0
+      case 'chatbot':
+      case 'dev-chatbot': {
+        const siteSignals     = auditData?.pagespeed?.siteSignals ?? null
+        const isBookingUrl    = siteSignals?.isBookingUrl ?? false
+        const chatDetected    = siteSignals != null ? siteSignals.chatbotDetected : !!(lead.googleAudit?.hasChatbot)
+        const chatTool        = siteSignals?.chatbotTool ?? null
+        const bookingPlatform = siteSignals?.bookingPlatform ?? null
+        const hasFAQ          = siteSignals?.hasFAQ ?? null
+        const hasForm         = siteSignals?.hasContactForm ?? null
+        const sensitive       = auditData?.pagespeed?.sensitiveData ?? null
+        const themes          = lead.reviewAnalysis?.themes?.length || 0
+
+        const kpis = [
+          kpi('Avis sans réponse', unanswered > 0 ? unanswered : '0', unanswered > 0 ? 'danger' : 'good'),
+          { label: 'CHATBOT EXISTANT', type: 'chatbot_detect', detected: chatDetected, tool: chatTool },
+        ]
+        // Booking platform card — always orange, regardless of whether the URL is the platform itself
+        if (bookingPlatform !== null)
+          kpis.push({ label: 'PLATEFORME RÉSERVATION', type: 'booking_url', platform: bookingPlatform })
+        if (hasFAQ !== null)
+          kpis.push({ label: 'FAQ DÉTECTÉE', type: 'faq_detect', detected: hasFAQ })
+        if (hasForm !== null)
+          kpis.push({ label: 'FORMULAIRE CONTACT', type: 'form_detect', detected: hasForm })
+        if (sensitive !== null)
+          kpis.push({ label: 'DOMAINE SENSIBLE', type: 'sensitive', detected: sensitive })
+        if (siteSignals === null)
+          kpis.push(kpi('Thèmes récurrents', themes > 0 ? themes : '—', themes > 0 ? 'warn' : 'neutral'))
+
         return {
-          kpis: [
-            kpi('Avis sans réponse',  unanswered > 0 ? unanswered : '0',              unanswered > 0 ? 'danger' : 'good'),
-            kpi('Chatbot détecté',    hasChatbot ? 'Oui' : 'Aucun',                   hasChatbot ? 'warn' : 'good'),
-            kpi('Thèmes récurrents',  themes > 0 ? themes : '—',                   themes > 0 ? 'warn' : 'neutral'),
-            kpi('Réactivité',         unanswered > 0 ? 'Faible' : 'Bonne',           unanswered > 0 ? 'danger' : 'good'),
-          ],
+          kpis,
           problems: [
-            ...(unanswered > 0    ? [prob(`${unanswered} avis sans réponse — chaque silence = client perdu`, '#ef4444')] : []),
-            ...(!hasChatbot       ? [prob('Aucun chatbot détecté — opportunité directe', '#22c55e')] : []),
-            ...(themes > 0        ? [prob(`${themes} thèmes récurrents répondables automatiquement`, '#f59e0b')] : []),
+            ...(unanswered > 0   ? [prob(`${unanswered} avis sans réponse — chaque silence = client perdu`, '#ef4444')] : []),
+            ...(!chatDetected    ? [prob('Aucun chatbot détecté — opportunité directe', '#22c55e')] : []),
+            ...(chatDetected     ? [prob(`Chatbot existant (${chatTool ?? 'inconnu'}) — angle différentiel requis`, '#f59e0b')] : []),
+            ...(bookingPlatform  ? [prob(`${bookingPlatform} détecté — ne pas proposer la réservation, angle FAQ/tarifs/horaires`, '#f97316')] : []),
+            ...(hasFAQ           ? [prob('FAQ détectée — base de contenu disponible', '#22c55e')] : []),
+            ...(sensitive        ? [prob('Données sensibles — serveur local recommandé', '#f97316')] : []),
+            ...(themes > 0       ? [prob(`${themes} thèmes récurrents répondables automatiquement`, '#f59e0b')] : []),
           ],
         }
       }
@@ -909,9 +1055,12 @@ Bien cordialement,
           (perfScore < 50 ? redProbs : orangeProbs).push(prob('Performance mobile insuffisante — pénalité de référencement', perfScore < 50 ? '#ef4444' : '#f59e0b'))
         if (psPerformanceDsk != null && psPerformanceDsk < 70)
           (psPerformanceDsk < 50 ? redProbs : orangeProbs).push(prob('Performance desktop faible — expérience utilisateur dégradée', psPerformanceDsk < 50 ? '#ef4444' : '#f59e0b'))
-        if (loadTimeSec && parseFloat(loadTimeSec) > 3) {
+        if (loadTimeSec && parseFloat(loadTimeSec) >= 3) {
           const lt = parseFloat(loadTimeSec)
-          ;(lt > 7 ? redProbs : orangeProbs).push(prob(`Site charge en ${loadTimeSec}s — au dessus des 3s recommandés par Google`, lt > 7 ? '#ef4444' : '#f59e0b'))
+          if (lt >= 8)
+            redProbs.push(prob(`Site charge en ${loadTimeSec}s — trop lent, pénalité SEO probable`, '#ef4444'))
+          else
+            orangeProbs.push(prob(`Site charge en ${loadTimeSec}s — peut être optimisé (seuil Google : 3s)`, '#f59e0b'))
         }
         if (lcpNum != null && lcpNum > 2.5)
           (lcpNum > 4 ? redProbs : orangeProbs).push(prob('LCP trop lent — critère Core Web Vitals échoué', lcpNum > 4 ? '#ef4444' : '#f59e0b'))
@@ -933,6 +1082,40 @@ Bien cordialement,
           orangeProbs.push(prob(`${psRenderBlocking} ressource${psRenderBlocking > 1 ? 's' : ''} bloquante${psRenderBlocking > 1 ? 's' : ''} — retardent l'affichage`, '#f59e0b'))
         if (psAccessibility != null && psAccessibility < 70)
           orangeProbs.push(prob('Accessibilité faible — pénalise le référencement', '#f59e0b'))
+
+        const lr = auditData?.localRank
+        if (lr) {
+          const rankValue  = lr.found
+            ? (lr.topThree ? 'Top 3' : lr.topTen ? 'Top 10' : `Position ${lr.rank}`)
+            : 'Hors top 20'
+          const rankStatus = lr.found
+            ? (lr.topThree ? 'good' : lr.topTen ? 'warn' : 'danger')
+            : 'danger'
+          kpis.push({ label: 'POSITION LOCALE', value: rankValue, status: rankStatus, note: 'sur Google Maps local' })
+        }
+
+        const cmsRaw    = auditData?.pagespeed?.cms
+        const CMS_NAMES = { wordpress: 'WordPress', shopify: 'Shopify', webflow: 'Webflow', wix: 'Wix', squarespace: 'Squarespace', jimdo: 'Jimdo' }
+        const CMS_BADGES = {
+          wordpress:   { text: 'Optimisable', color: '#22c55e' },
+          shopify:     { text: 'Optimisable', color: '#22c55e' },
+          webflow:     { text: 'Optimisable', color: '#22c55e' },
+          wix:         { text: 'Limité',      color: '#f59e0b' },
+          squarespace: { text: 'Limité',      color: '#f59e0b' },
+          jimdo:       { text: 'Limité',      color: '#f59e0b' },
+        }
+        if (cmsRaw) kpis.push({ label: 'CMS DÉTECTÉ', value: CMS_NAMES[cmsRaw.cms] ?? 'Non identifié', type: 'cms', cmsBadge: CMS_BADGES[cmsRaw.cms] ?? null })
+
+        if (auditData?.pagespeed) {
+          const domainAge   = auditData.pagespeed.domainAge   ?? null
+          const indexedData = auditData.pagespeed.indexedPages ?? null
+          kpis.push({ label: 'ÂGE DU DOMAINE', type: 'domainAge', domainAge })
+          kpis.push({ label: 'PAGES INDEXÉES', type: 'indexedPages', indexedData })
+        }
+
+        if (auditData?.napData !== undefined) {
+          kpis.push({ label: 'COHÉRENCE NAP', type: 'nap', napData: auditData.napData ?? null })
+        }
 
         return { kpis, problems: [...redProbs, ...orangeProbs] }
       }
@@ -1463,6 +1646,67 @@ Bien cordialement,
               const obsOrder = { red:0, orange:1, green:2 }
               const obsColor = { red:'#ef4444', orange:'#f59e0b', green:'#22c55e' }
 
+              // ─── Network visual quality helper ─────────────────────────────
+              const SEP = '1px solid rgba(255,255,255,0.04)'
+              const NV_VERDICT_COLOR = { Professionnel: '#22c55e', Correct: '#f59e0b', Amateur: '#ef4444', Mauvais: '#ef4444' }
+              const renderNetVisual = (network, url) => {
+                const nv      = netVisual[network]
+                const loading = netVisualLoading[network]
+                const error   = netVisualError[network]
+                if (!url) return null
+                if (nv) {
+                  const sorted = [...(nv.observations ?? [])].sort((a, b) => (obsOrder[a.level] ?? 3) - (obsOrder[b.level] ?? 3))
+                  return (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderTop: SEP, borderBottom: sorted.length > 0 ? SEP : 'none' }}>
+                        <span style={LBL}>Qualité visuelle</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: NV_VERDICT_COLOR[nv.verdict] ?? '#64748b' }}>{nv.verdict}{nv.score != null ? ` · ${nv.score}/100` : ''}</span>
+                      </div>
+                      {sorted.map((obs, idx) => (
+                        <div key={idx} style={{ padding: '7px 14px 7px 11px', fontSize: 11, color: '#94a3b8', lineHeight: 1.4, borderLeft: `3px solid ${obsColor[obs.level] ?? '#475569'}`, borderBottom: idx < sorted.length - 1 ? SEP : 'none' }}>{obs.text}</div>
+                      ))}
+                    </>
+                  )
+                }
+                if (loading) return <div style={{ padding: '10px 14px', fontSize: 12, color: '#64748b', borderTop: SEP }}>Analyse en cours…</div>
+                if (error === 'tiktok_restricted') return (
+                  <div style={{ padding: '8px 14px', fontSize: 11, color: '#f59e0b', borderTop: SEP }}>
+                    Analyse TikTok indisponible — plateforme restreinte{' '}
+                    <a href={url} target="_blank" rel="noreferrer" style={{ color: '#6366f1', textDecoration: 'none' }}>Voir le compte →</a>
+                  </div>
+                )
+                if (error)   return <div style={{ padding: '8px 14px', fontSize: 11, color: '#f59e0b', borderTop: SEP }}>{error}</div>
+                return (
+                  <button onClick={() => handleNetworkVisual(network, url)} onMouseEnter={e => e.currentTarget.style.background='rgba(99,102,241,0.06)'} onMouseLeave={e => e.currentTarget.style.background='transparent'} style={BTN}>
+                    {network === 'instagram' ? 'Qualité des photos' : 'Analyser la qualité visuelle'}
+                    <span style={BADGE}>1 crédit</span>
+                  </button>
+                )
+              }
+
+              // ─── Global visual score ───────────────────────────────────────
+              const allVisualScores = [
+                pCount > 0 && photoQuality?.score != null ? photoQuality.score : null,
+                vscore,
+                netVisual.instagram?.score ?? null,
+                netVisual.facebook?.score  ?? null,
+                netVisual.tiktok?.score    ?? null,
+                netVisual.pinterest?.score ?? null,
+                netVisual.youtube?.score   ?? null,
+              ].filter(s => s != null)
+              const globalVisualScore   = allVisualScores.length >= 2
+                ? Math.round(allVisualScores.reduce((a, b) => a + b, 0) / allVisualScores.length)
+                : null
+              const globalVisualVerdict = globalVisualScore == null ? null
+                : globalVisualScore >= 75 ? 'Excellent'
+                : globalVisualScore >= 55 ? 'Correct'
+                : globalVisualScore >= 35 ? 'Insuffisant'
+                : 'Faible'
+              const globalColor = globalVisualScore == null ? '#475569'
+                : globalVisualScore >= 70 ? '#22c55e'
+                : globalVisualScore >= 45 ? '#f59e0b'
+                : '#ef4444'
+
               return (
                 <>
                   {/* Card 1 — Photos Google */}
@@ -1519,20 +1763,45 @@ Bien cordialement,
                         </span>
                         <span style={VAL(hasFb ? '#22c55e' : '#475569')}>{hasFb ? 'Présent' : 'Non présent'}</span>
                       </div>
-                      {fbAct && fbAct.status !== 'unknown' && (
-                        <>
-                          <div style={ROW(fbAct.lastPostDate == null)}>
-                            <span style={LBL}>Followers</span>
-                            <span style={VAL(fbAct.followers != null ? '#e2e8f0' : '#475569')}>{fbAct.followers != null ? fbAct.followers.toLocaleString('fr-FR') : '—'}</span>
-                          </div>
-                          {fbAct.lastPostDate != null && (
-                            <div style={ROW(true)}>
-                              <span style={LBL}>Dernier post</span>
-                              <span style={VAL(dayColor(fbAct.daysAgo))}>{fmtDays(fbAct.daysAgo)}</span>
+                      {/* Show stats from audit if already loaded, else from on-demand fetch */}
+                      {(() => {
+                        const src = (fbAct && fbAct.status !== 'unknown') ? fbAct : fbStats
+                        if (src) return (
+                          <>
+                            <div style={ROW(src.lastPostDate == null && src.likes == null)}>
+                              <span style={LBL}>Followers</span>
+                              <span style={VAL(src.followers != null ? '#e2e8f0' : '#475569')}>{src.followers != null ? src.followers.toLocaleString('fr-FR') : '—'}</span>
                             </div>
-                          )}
-                        </>
-                      )}
+                            {src.likes != null && (
+                              <div style={ROW(src.lastPostDate == null)}>
+                                <span style={LBL}>Likes page</span>
+                                <span style={VAL('#e2e8f0')}>{src.likes.toLocaleString('fr-FR')}</span>
+                              </div>
+                            )}
+                            {src.lastPostDate != null && (
+                              <div style={ROW(true)}>
+                                <span style={LBL}>Dernier post</span>
+                                <span style={VAL(dayColor(src.daysAgo))}>{fmtDays(src.daysAgo)}</span>
+                              </div>
+                            )}
+                          </>
+                        )
+                        if (fbStatsLoading) return <div style={{ padding: '10px 14px', fontSize: 12, color: '#64748b', borderTop: SEP }}>Récupération en cours…</div>
+                        if (fbStatsError)   return <div style={{ padding: '8px 14px', fontSize: 11, color: '#f59e0b', borderTop: SEP }}>{fbStatsError}</div>
+                        if (hasFb && !fbStats) return (
+                          <button onClick={handleFbStats} onMouseEnter={e => e.currentTarget.style.background='rgba(24,119,242,0.06)'} onMouseLeave={e => e.currentTarget.style.background='transparent'} style={BTN}>
+                            Stats &amp; activité
+                            <span style={BADGE}>1 crédit</span>
+                          </button>
+                        )
+                        return null
+                      })()}
+                      <div style={{ padding: '8px 14px', fontSize: 11, color: '#475569', fontStyle: 'italic', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                        Analyse visuelle des photos non disponible — politique Meta
+                        {hasFb && lead.social?.facebook && (
+                          <>{' '}<a href={lead.social.facebook} target="_blank" rel="noreferrer" style={{ color: '#6366f1', fontStyle: 'normal', textDecoration: 'none' }}>Voir la page →</a></>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -1564,7 +1833,146 @@ Bien cordialement,
                         Secteur très visuel — opportunité directe
                       </div>
                     )}
+                    {/* Deep analysis button — only if IG present and not yet analysed */}
+                    {hasIg && !igDeep && !igDeepLoading && !igDeepError && (
+                      <button
+                        onClick={handleInstagramDeep}
+                        onMouseEnter={e => e.currentTarget.style.background='rgba(225,48,108,0.06)'}
+                        onMouseLeave={e => e.currentTarget.style.background='transparent'}
+                        style={{ ...BTN, borderTop: '1px solid rgba(255,255,255,0.04)' }}
+                      >
+                        Stats &amp; activité
+                        <span style={BADGE}>1 crédit</span>
+                      </button>
+                    )}
+                    {igDeepLoading && (
+                      <div style={{ padding: '10px 14px', fontSize: 12, color: '#64748b', borderTop: '1px solid rgba(255,255,255,0.04)' }}>Analyse en cours…</div>
+                    )}
+                    {igDeepError && (
+                      <div style={{ padding: '8px 14px', fontSize: 11, color: '#ef4444', borderTop: '1px solid rgba(255,255,255,0.04)' }}>{igDeepError}</div>
+                    )}
+                    {igDeep && (
+                      <>
+                        <div style={ROW(false)}>
+                          <span style={LBL}>Publications analysées</span>
+                          <span style={VAL('#e2e8f0')}>{igDeep.postCount}</span>
+                        </div>
+                        <div style={ROW(false)}>
+                          <span style={LBL}>Likes moyens / post</span>
+                          <span style={VAL(igDeep.avgLikes >= 50 ? '#22c55e' : igDeep.avgLikes >= 10 ? '#f59e0b' : '#94a3b8')}>{igDeep.avgLikes ?? '—'}</span>
+                        </div>
+                        <div style={ROW(false)}>
+                          <span style={LBL}>Commentaires moyens</span>
+                          <span style={VAL('#e2e8f0')}>{igDeep.avgComments ?? '—'}</span>
+                        </div>
+                        {igDeep.postsPerMonth != null && (
+                          <div style={ROW(false)}>
+                            <span style={LBL}>Posts / mois</span>
+                            <span style={VAL(igDeep.postsPerMonth >= 4 ? '#22c55e' : igDeep.postsPerMonth >= 1 ? '#f59e0b' : '#ef4444')}>{igDeep.postsPerMonth}</span>
+                          </div>
+                        )}
+                        {igDeep.lastPostDate && (
+                          <div style={ROW(igDeep.topHashtags?.length === 0)}>
+                            <span style={LBL}>Dernier post</span>
+                            <span style={VAL('#e2e8f0')}>{igDeep.lastPostDate}</span>
+                          </div>
+                        )}
+                        {igDeep.topHashtags?.length > 0 && (
+                          <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                            <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 5 }}>Hashtags fréquents</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {igDeep.topHashtags.map(tag => (
+                                <span key={tag} style={{ fontSize: 10, color: '#94a3b8', background: 'rgba(255,255,255,0.04)', borderRadius: 4, padding: '2px 6px' }}>{tag}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {renderNetVisual('instagram', lead.social?.instagram)}
                   </div>
+
+                  {/* Card 3b — TikTok */}
+                  {lead.social?.tiktok && (
+                    <div style={CARD}>
+                      <div style={ROW(false)}>
+                        <span style={LBL}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="#fe2c55"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V9.01a8.16 8.16 0 0 0 4.77 1.52V7.07a4.85 4.85 0 0 1-1.01-.38z"/></svg>
+                          TikTok
+                        </span>
+                        <span style={VAL('#22c55e')}>Présent</span>
+                      </div>
+                      {/* TikTok on-demand stats */}
+                      {tkStats && (
+                        <>
+                          <div style={ROW(tkStats.videoCount == null && tkStats.heartCount == null)}>
+                            <span style={LBL}>Followers</span>
+                            <span style={VAL(tkStats.followers != null ? '#e2e8f0' : '#475569')}>{tkStats.followers != null ? tkStats.followers.toLocaleString('fr-FR') : '—'}</span>
+                          </div>
+                          {tkStats.videoCount != null && (
+                            <div style={ROW(tkStats.heartCount == null)}>
+                              <span style={LBL}>Vidéos publiées</span>
+                              <span style={VAL('#e2e8f0')}>{tkStats.videoCount.toLocaleString('fr-FR')}</span>
+                            </div>
+                          )}
+                          {tkStats.heartCount != null && (
+                            <div style={ROW(true)}>
+                              <span style={LBL}>Likes totaux</span>
+                              <span style={VAL('#e2e8f0')}>{tkStats.heartCount.toLocaleString('fr-FR')}</span>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {tkStatsLoading && <div style={{ padding: '10px 14px', fontSize: 12, color: '#64748b', borderTop: SEP }}>Récupération en cours…</div>}
+                      {tkStatsError   && (
+                        <div style={{ padding: '8px 14px', fontSize: 11, color: '#f59e0b', borderTop: SEP }}>
+                          {tkStatsError}{' '}
+                          <a href={lead.social.tiktok} target="_blank" rel="noreferrer" style={{ color: '#6366f1', fontStyle: 'normal', textDecoration: 'none' }}>Voir le compte TikTok →</a>
+                        </div>
+                      )}
+                      {!tkStats && !tkStatsLoading && !tkStatsError && (
+                        <button onClick={handleTkStats} onMouseEnter={e => e.currentTarget.style.background='rgba(254,44,85,0.06)'} onMouseLeave={e => e.currentTarget.style.background='transparent'} style={BTN}>
+                          Stats &amp; activité
+                          <span style={{ ...BADGE, background: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' }}>gratuit</span>
+                        </button>
+                      )}
+                      {renderNetVisual('tiktok', lead.social.tiktok)}
+                    </div>
+                  )}
+
+                  {/* Card 3c — Pinterest */}
+                  {lead.social?.pinterest && (
+                    <div style={CARD}>
+                      <div style={ROW(false)}>
+                        <span style={LBL}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="#E60023"><path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/></svg>
+                          Pinterest
+                        </span>
+                        <span style={VAL('#22c55e')}>Présent</span>
+                      </div>
+                      <div style={{ padding: '8px 14px', fontSize: 11, color: '#475569', fontStyle: 'italic', borderTop: SEP }}>
+                        Analyse visuelle non disponible — plateforme restreinte{' '}
+                        <a href={lead.social.pinterest} target="_blank" rel="noreferrer" style={{ color: '#6366f1', fontStyle: 'normal', textDecoration: 'none' }}>Voir le compte →</a>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Card 3d — YouTube */}
+                  {lead.social?.youtube && (
+                    <div style={CARD}>
+                      <div style={ROW(false)}>
+                        <span style={LBL}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="#FF0000"><path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/></svg>
+                          YouTube
+                        </span>
+                        <span style={VAL('#22c55e')}>Présent</span>
+                      </div>
+                      <div style={{ padding: '8px 14px', fontSize: 11, color: '#475569', fontStyle: 'italic', borderTop: SEP }}>
+                        Analyse visuelle non disponible — plateforme restreinte{' '}
+                        <a href={lead.social.youtube} target="_blank" rel="noreferrer" style={{ color: '#6366f1', fontStyle: 'normal', textDecoration: 'none' }}>Voir le compte →</a>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Card 4 — Réputation */}
                   <div style={CARD}>
@@ -1595,6 +2003,28 @@ Bien cordialement,
                       {auditState === 'loading' && (
                         <div style={{ padding: '10px 14px', fontSize: 12, color: '#64748b' }}>Audit en cours…</div>
                       )}
+                    </div>
+                  )}
+
+                  {/* Score visuel global — visible si 2+ sources analysées */}
+                  {globalVisualScore != null && (
+                    <div style={{ ...CARD, marginTop: 4 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderBottom: SEP }}>
+                        <span style={{ ...LBL, gap: 6 }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="#6366f1"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                          Score visuel global
+                        </span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: globalColor }}>{globalVisualScore}/100</span>
+                      </div>
+                      <div style={{ padding: '8px 14px' }}>
+                        <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 3, height: 4, overflow: 'hidden', marginBottom: 6 }}>
+                          <div style={{ width: `${globalVisualScore}%`, height: '100%', background: globalColor, borderRadius: 3, transition: 'width 0.65s cubic-bezier(0.4,0,0.2,1)', boxShadow: `0 0 6px ${globalColor}55` }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 11, color: globalColor, fontWeight: 500 }}>{globalVisualVerdict}</span>
+                          <span style={{ fontSize: 10, color: '#475569' }}>{allVisualScores.length} source{allVisualScores.length > 1 ? 's' : ''} analysée{allVisualScores.length > 1 ? 's' : ''}</span>
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -1630,6 +2060,148 @@ Bien cordialement,
                         </div>
                       )
                     }
+                    if (kpi.type === 'cms') {
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0', lineHeight: 1.1 }}>{kpi.value}</div>
+                          {kpi.cmsBadge && <div style={{ marginTop: 5, display: 'inline-block', fontSize: 9.5, fontWeight: 700, color: kpi.cmsBadge.color, background: `${kpi.cmsBadge.color}18`, border: `1px solid ${kpi.cmsBadge.color}40`, borderRadius: 4, padding: '2px 7px', letterSpacing: '0.5px' }}>{kpi.cmsBadge.text}</div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'domainAge') {
+                      const da = kpi.domainAge
+                      const color = !da ? '#475569' : da.ageYears >= 5 ? '#22c55e' : da.ageYears >= 2 ? '#f59e0b' : '#ef4444'
+                      const note  = !da ? null : da.ageYears >= 5 ? 'Domaine établi' : da.ageYears >= 2 ? 'Domaine récent' : 'Très récent'
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          {da
+                            ? <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{da.ageLabel}</div>
+                            : <div style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>Non disponible</div>
+                          }
+                          {note && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>{note}</div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'indexedPages') {
+                      const ip    = kpi.indexedData
+                      const color = !ip ? '#475569' : ip.signal === 'good' ? '#22c55e' : ip.signal === 'weak' ? '#f59e0b' : '#ef4444'
+                      const note  = !ip ? null : ip.signal === 'good' ? 'Bon volume de contenu' : ip.signal === 'weak' ? 'Contenu insuffisant' : 'Site quasi invisible'
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          {ip
+                            ? <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{ip.label}</div>
+                            : <div style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>Non disponible</div>
+                          }
+                          {note && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>{note}</div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'nap') {
+                      const nap   = kpi.napData
+                      const color = !nap ? '#475569'
+                        : nap.napScore === 'consistent'   ? '#22c55e'
+                        : nap.napScore === 'inconsistent' ? '#f59e0b'
+                        : '#ef4444'
+                      const label = !nap ? 'Non vérifié'
+                        : nap.napScore === 'consistent'   ? 'Cohérent'
+                        : nap.napScore === 'inconsistent' ? 'Incohérent'
+                        : 'Non trouvé'
+                      const note  = !nap ? null
+                        : nap.napScore === 'consistent'   ? 'Fiche PagesJaunes identique'
+                        : nap.napScore === 'inconsistent' ? `${nap.issues?.length ?? 1} différence(s) détectée(s)`
+                        : 'Commerce absent de PagesJaunes'
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px', gridColumn: nap?.found && nap?.issues?.length > 0 ? '1 / -1' : undefined }}>
+                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          {nap
+                            ? <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{label}</div>
+                            : <div style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>Non vérifié</div>
+                          }
+                          {note && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>{note}</div>}
+                          {nap?.found && (
+                            <div style={{ marginTop: 7, paddingTop: 7, borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                              {nap.pjName    && <div style={{ fontSize: 10, color: '#64748b' }}>Nom : <span style={{ color: '#94a3b8' }}>{nap.pjName}</span></div>}
+                              {nap.pjAddress && <div style={{ fontSize: 10, color: '#64748b' }}>Adresse : <span style={{ color: '#94a3b8' }}>{nap.pjAddress}</span></div>}
+                              {nap.pjPhone   && <div style={{ fontSize: 10, color: '#64748b' }}>Tél : <span style={{ color: '#94a3b8' }}>{nap.pjPhone}</span></div>}
+                            </div>
+                          )}
+                          {nap?.issues?.length > 0 && (
+                            <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              {nap.issues.map((issue, ii) => (
+                                <div key={ii} style={{ fontSize: 9.5, color: '#f59e0b', lineHeight: 1.5 }}>• {issue}</div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'booking_url') {
+                      return (
+                        <div key={i} style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.30)', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f97316', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: '#f97316', lineHeight: 1.1 }}>{kpi.platform}</div>
+                          <div style={{ fontSize: 8.5, color: '#f97316', marginTop: 4, lineHeight: 1.35 }}>Angle complémentaire — ne pas proposer la réservation</div>
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'chatbot_detect') {
+                      const color = kpi.detected ? '#f59e0b' : '#22c55e'
+                      const label = kpi.detected ? (kpi.tool ? kpi.tool : 'Oui') : 'Aucun'
+                      const note  = kpi.detected ? 'Angle différentiel requis' : 'Opportunité directe'
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{label}</div>
+                          <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>{note}</div>
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'booking_platform') {
+                      const color = kpi.platform ? '#a78bfa' : '#475569'
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          {kpi.platform
+                            ? <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{kpi.platform}</div>
+                            : <div style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>Aucune</div>
+                          }
+                          {kpi.platform && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>Complément FAQ possible</div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'faq_detect') {
+                      const color = kpi.detected ? '#22c55e' : '#475569'
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{kpi.detected ? 'Oui' : 'Non'}</div>
+                          {kpi.detected && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>Base de contenu disponible</div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'form_detect') {
+                      const color = kpi.detected ? '#22c55e' : '#475569'
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{kpi.detected ? 'Présent' : 'Absent'}</div>
+                          {kpi.detected && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>Remplacement ou complément chatbot</div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'sensitive') {
+                      const color = kpi.detected ? '#f97316' : '#22c55e'
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{kpi.detected ? 'Oui' : 'Non'}</div>
+                          {kpi.detected && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>Serveur local recommandé</div>}
+                        </div>
+                      )
+                    }
                     return (
                       <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
                         <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
@@ -1650,10 +2222,13 @@ Bien cordialement,
                   })}
                 </div>
 
-                {/* Compact perf-audit — SEO / dev-web / pub-google */}
-                {['seo', 'consultant-seo', 'dev-web', 'pub-google'].includes(activeProfile?.id) && (lead.website || lead.social?.facebook || lead.social?.instagram) && (() => {
+                {/* Compact perf-audit — SEO / dev-web / pub-google / chatbot */}
+                {['seo', 'consultant-seo', 'dev-web', 'pub-google', 'chatbot', 'dev-chatbot'].includes(activeProfile?.id) && (lead.website || lead.social?.facebook || lead.social?.instagram) && (() => {
+                  const isChatbotProfile = ['chatbot', 'dev-chatbot'].includes(activeProfile?.id)
+                  if (auditState === 'idle' && !lead.website)
+                    return <div style={{ fontSize: 11, color: '#475569', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, padding: '7px 12px', marginBottom: 10, textAlign: 'center' }}>{isChatbotProfile ? 'Pas de site web — analyse impossible' : 'Pas de site web — audit SEO impossible'}</div>
                   if (auditState === 'idle')
-                    return <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ width: '100%', height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#64748b', fontSize: 10.5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 10 }}>🚀 Analyser les performances — 1 crédit</button>
+                    return <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ width: '100%', height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#64748b', fontSize: 10.5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 10 }}>{isChatbotProfile ? '🤖 Analyser le site — détection chatbot' : '🚀 Analyser les performances — 1 crédit'}</button>
                   if (auditState === 'loading')
                     return <div style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, color: '#64748b', marginBottom: 10 }}>Analyse en cours…</div>
                   if (auditState === 'done' && auditData?.pagespeed?.timeout)
@@ -1690,15 +2265,16 @@ Bien cordialement,
               const fmtCls = (v) => v == null ? '—' : v.toFixed(3)
 
               if (!crux) return (
-                <div style={{ marginTop: 12, background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.15)', borderLeft: '3px solid #22c55e', borderRadius: '0 10px 10px 0', padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{ marginTop: 1, flexShrink: 0 }}>
-                    <circle cx="7.5" cy="7.5" r="7" stroke="#22c55e" strokeWidth="1"/>
-                    <path d="M7.5 4.5v4M7.5 10v1" stroke="#22c55e" strokeWidth="1.4" strokeLinecap="round"/>
-                  </svg>
-                  <div style={{ fontSize: 12.5, color: '#94a3b8', lineHeight: 1.6 }}>
-                    Les indicateurs affichés sont issus d'un audit Google en temps réel.{' '}
-                    Ils reflètent exactement ce que Google évalue pour positionner ce site{' '}
-                    dans les résultats de recherche.
+                <div style={{ marginTop: 12, background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', borderLeft: '3px solid #f59e0b', borderRadius: '0 10px 10px 0', padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>⚠️</span>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#f59e0b', marginBottom: 4 }}>Données utilisateurs réelles non disponibles</div>
+                    <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6, marginBottom: 6 }}>
+                      Ce site ne génère pas encore assez de trafic Chrome pour alimenter le rapport CrUX de Google.
+                    </div>
+                    <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.6 }}>
+                      Les indicateurs ci-dessus sont issus d'un audit Lighthouse (simulation). Les données réelles apparaîtront automatiquement quand le trafic du site sera suffisant.
+                    </div>
                   </div>
                 </div>
               )
@@ -1729,6 +2305,7 @@ Bien cordialement,
                 </div>
               )
             })()}
+
           </div>
 
           {/* Audit on-demand — PHOTOGRAPHE seulement, avant l'analyse visuelle */}
@@ -1835,39 +2412,6 @@ Bien cordialement,
             )
           })()}
 
-          {/* ── COMPARAISON CONCURRENTS ── */}
-          {lead.competitorAvg != null && (
-            <div style={{
-              fontSize: 11,
-              color: lead.competitorDelta > 0 ? '#10b981'
-                   : lead.competitorDelta < 0 ? '#ef4444'
-                   : '#94a3b8',
-              padding: '4px 14px',
-              fontFamily: 'var(--font-mono)',
-            }}>
-              {lead.competitorDelta > 0
-                ? `Moyenne secteur : ${lead.competitorAvg} — vous êtes +${lead.competitorDelta} au-dessus`
-                : lead.competitorDelta < 0
-                ? `Moyenne secteur : ${lead.competitorAvg} — vous êtes ${lead.competitorDelta} en dessous`
-                : `Dans la moyenne du secteur : ${lead.competitorAvg}`
-              }
-            </div>
-          )}
-
-          {/* ── BENCHMARK SECTORIEL ── */}
-          {lead.benchmarkPercentile != null && (
-            <div style={{
-              fontSize: 11,
-              color: lead.benchmarkPercentile >= 70 ? '#10b981'
-                   : lead.benchmarkPercentile >= 40 ? '#f59e0b'
-                   : '#ef4444',
-              padding: '4px 14px',
-              fontFamily: 'var(--font-mono)',
-            }}>
-              Meilleur que {lead.benchmarkPercentile}% des {lead.domain || 'établissements'}{lead.address ? ` de ${lead.address.split(',').pop().trim()}` : ''}
-            </div>
-          )}
-
           {/* ── SCORE DÉTAILLÉ ── */}
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#6366f1', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(99,102,241,0.12)' }}>
@@ -1895,7 +2439,99 @@ Bien cordialement,
                 return <span style={{ fontSize: 22, fontWeight: 700, color: c, fontFamily: 'var(--font-mono)' }}>{score}<span style={{ fontSize: 12, color: '#475569', fontWeight: 400 }}>/100</span></span>
               })()}
             </div>
+            {activeProfile?.id === 'photographe' && (
+              <div style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>Score basé sur les données publiques</div>
+            )}
           </div>
+
+          {/* ── POSITIONNEMENT ── */}
+          {(lead.competitorAvg != null || lead.benchmarkPercentile != null) && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#6366f1', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(99,102,241,0.12)' }}>
+                Positionnement
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {lead.competitorAvg != null && (
+                  <div style={{ background: '#1a1830', border: '0.5px solid rgba(99,102,241,0.25)', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                      <span style={{ fontSize: 10, color: '#64748b', letterSpacing: '0.04em' }}>Moyenne secteur</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>{lead.competitorAvg}</span>
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: lead.competitorDelta > 0 ? '#10b981' : lead.competitorDelta < 0 ? '#ef4444' : '#64748b' }}>
+                      {lead.competitorDelta > 0 ? `+${lead.competitorDelta} au-dessus de la moyenne` : lead.competitorDelta < 0 ? `${lead.competitorDelta} en dessous de la moyenne` : 'Dans la moyenne'}
+                    </div>
+                  </div>
+                )}
+                {lead.benchmarkPercentile != null && (() => {
+                  const pct = lead.benchmarkPercentile
+                  const barColor = pct >= 60 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#ef4444'
+                  const city = lead.address ? lead.address.split(',').pop().trim() : null
+                  const domain = lead.domain ? (lead.domain.charAt(0).toUpperCase() + lead.domain.slice(1)) : 'Établissements'
+                  const label = city ? `${domain} de ${city}` : domain
+                  const tierText = pct >= 60
+                    ? 'se situe dans le tiers supérieur de son secteur.'
+                    : pct >= 40
+                    ? 'se situe dans la moyenne de son secteur.'
+                    : 'se situe en dessous de la moyenne de son secteur.'
+                  // Voisins : top-5 de la même recherche, triés par score décroissant
+                  const peers = (leads || [])
+                    .filter(l => l.score?.total != null)
+                    .sort((a, b) => (b.score?.total ?? 0) - (a.score?.total ?? 0))
+                    .slice(0, 5)
+                  const peerCount = (leads || []).length
+                  return (
+                    <div style={{ background: '#1a1830', border: '0.5px solid rgba(99,102,241,0.25)', borderRadius: 8, padding: '10px 12px' }}>
+                      {/* Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
+                        <span style={{ fontSize: 10, color: '#64748b', letterSpacing: '0.04em' }}>Benchmark sectoriel</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: barColor, fontFamily: 'var(--font-mono)' }}>{pct}<span style={{ fontSize: 9, fontWeight: 400, color: '#475569' }}>%</span></span>
+                      </div>
+                      {/* Barre */}
+                      <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 3, height: 4, marginBottom: 8, overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', borderRadius: 3, background: barColor, transition: 'width 0.4s ease' }} />
+                      </div>
+                      {/* Texte principal */}
+                      <div style={{ fontSize: 10.5, color: '#94a3b8', marginBottom: 8 }}>Meilleur que {pct}% des {label}</div>
+                      {/* Bloc explicatif */}
+                      <div style={{ background: 'rgba(255,255,255,0.03)', borderLeft: '2px solid rgba(99,102,241,0.4)', borderRadius: '0 4px 4px 0', padding: '7px 10px', marginBottom: 10 }}>
+                        <span style={{ fontSize: 10, color: '#64748b', lineHeight: 1.5 }}>
+                          Sur les {peerCount} établissements similaires analysés dans cette ville, celui-ci {tierText}
+                        </span>
+                      </div>
+                      {/* Séparateur */}
+                      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', marginBottom: 9 }} />
+                      {/* Mini liste des voisins */}
+                      {peers.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          {peers.map(peer => {
+                            const isCurrent = peer.id === lead.id
+                            const peerScore = peer.score?.total ?? 0
+                            const peerColor = peerScore >= 70 ? '#10b981' : peerScore >= 40 ? '#f59e0b' : '#ef4444'
+                            const peerPct = peers.length > 1
+                              ? Math.round((peers.filter(p => (p.score?.total ?? 0) < peerScore).length / (peers.length)) * 100)
+                              : null
+                            return (
+                              <div key={peer.id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: isCurrent ? '4px 7px' : '2px 0', borderRadius: isCurrent ? 5 : 0, background: isCurrent ? 'rgba(99,102,241,0.12)' : 'transparent' }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: 9.5, color: isCurrent ? '#a5b4fc' : '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: isCurrent ? 600 : 400 }}>
+                                    {peer.name}{isCurrent && <span style={{ color: '#6366f1', marginLeft: 4, fontSize: 8.5 }}>← vous</span>}
+                                  </div>
+                                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 2, height: 3, marginTop: 3, overflow: 'hidden' }}>
+                                    <div style={{ width: `${peerScore}%`, height: '100%', borderRadius: 2, background: peerColor }} />
+                                  </div>
+                                </div>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: peerColor, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{peerScore}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+          )}
 
           {/* ── ANALYSE DES AVIS ── */}
           <div style={{ marginBottom: 20 }}>
@@ -2020,7 +2656,7 @@ Bien cordialement,
           </div>
 
           {/* Perf audit on-demand */}
-          {!['seo', 'consultant-seo', 'dev-web', 'pub-google', 'photographe'].includes(activeProfile?.id) && auditState === 'idle' && (lead.website || lead.social?.facebook || lead.social?.instagram) && (
+          {!['seo', 'consultant-seo', 'dev-web', 'pub-google', 'photographe', 'chatbot', 'dev-chatbot'].includes(activeProfile?.id) && auditState === 'idle' && (lead.website || lead.social?.facebook || lead.social?.instagram) && (
             <div style={{ marginBottom: 20 }}>
               <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ width: '100%', height: 34, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#64748b', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 🚀 Analyser les performances digitales — 1 crédit
@@ -2053,10 +2689,11 @@ Bien cordialement,
             {/* Generate email button */}
             {(() => {
               const VISUAL_PROFILES = ['photographe', 'designer', 'copywriter']
-              const AUDIT_PROFILES  = ['seo', 'consultant-seo', 'dev-web', 'pub-google']
+              const AUDIT_PROFILES  = ['seo', 'consultant-seo', 'dev-web', 'pub-google', 'chatbot', 'dev-chatbot']
               const pid = activeProfile?.id
+              const visualBlocked = VISUAL_PROFILES.includes(pid) && !!visualError && (visualError.includes('bloque') || visualError.includes('indisponible') || visualError.includes('ne permet pas'))
               const step2Done = VISUAL_PROFILES.includes(pid)
-                ? visualAnalysis !== null
+                ? visualAnalysis !== null || visualBlocked
                 : AUDIT_PROFILES.includes(pid) ? auditState === 'done' : null
               const hasStep2 = step2Done !== null
               const emailReady = aiReport && (!hasStep2 || step2Done)
@@ -2066,13 +2703,20 @@ Bien cordialement,
               else if (!aiReport) emailLabel = '✦ Générer l\'email — analysez d\'abord les avis'
               else if (hasStep2 && !step2Done) emailLabel = '✦ Générer l\'email — analysez d\'abord le site'
               return (
-                <button
-                  className="ld-btn"
-                  onClick={emailReady ? handleGenerateAIEmail : undefined}
-                  disabled={emailDisabled}
-                  style={{ width: '100%', height: 40, borderRadius: 10, border: emailDisabled ? '1px solid rgba(255,255,255,0.08)' : 'none', background: emailDisabled ? 'rgba(255,255,255,0.03)' : 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)', color: emailDisabled ? '#475569' : '#fff', fontSize: 13, fontWeight: 700, cursor: emailDisabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: !emailDisabled ? '0 4px 20px rgba(99,102,241,0.35)' : 'none', transition: 'all 0.15s' }}>
-                  {emailLabel}
-                </button>
+                <>
+                  <button
+                    className="ld-btn"
+                    onClick={emailReady ? handleGenerateAIEmail : undefined}
+                    disabled={emailDisabled}
+                    style={{ width: '100%', height: 40, borderRadius: 10, border: emailDisabled ? '1px solid rgba(255,255,255,0.08)' : 'none', background: emailDisabled ? 'rgba(255,255,255,0.03)' : 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)', color: emailDisabled ? '#475569' : '#fff', fontSize: 13, fontWeight: 700, cursor: emailDisabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: !emailDisabled ? '0 4px 20px rgba(99,102,241,0.35)' : 'none', transition: 'all 0.15s' }}>
+                    {emailLabel}
+                  </button>
+                  {visualBlocked && (
+                    <div style={{ fontSize: 10, color: '#475569', textAlign: 'center', marginTop: 5, lineHeight: 1.4 }}>
+                      Analyse visuelle indisponible — email généré sans données visuelles du site
+                    </div>
+                  )}
+                </>
               )
             })()}
 

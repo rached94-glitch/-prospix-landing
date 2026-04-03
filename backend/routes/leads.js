@@ -1,16 +1,17 @@
 const express        = require('express');
 const router         = express.Router();
-const { searchPlaces, getPlaceDetails, getPhotoUrls } = require('../services/googlePlaces');
+const { searchPlaces, getPlaceDetails, getPhotoUrls, getLocalRank } = require('../services/googlePlaces');
 const { analyzePhotoQuality } = require('../services/photoQualityService');
 const { enrichSocial }   = require('../services/socialEnrichment');
 const { calculateScore }  = require('../services/scoring');
 const { analyzeReviews }  = require('../services/reviewAnalysis');
 const { getAllReviews }      = require('../services/apifyReviews');
-const { analyzeWithAI, generateEmailPhotographe } = require('../services/aiReviewAnalysis');
+const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot } = require('../services/aiReviewAnalysis');
 const { findDecisionMaker } = require('../services/linkedinScraper');
 const { searchPappers }     = require('../services/pappersService');
-const { getPageSpeed }       = require('../services/pagespeedService');
-const { getFacebookActivity, getInstagramActivity } = require('../services/socialMediaService');
+const { getPageSpeed, checkNAP, getSiteSignals } = require('../services/pagespeedService');
+const { getFacebookActivity, getInstagramActivity, getInstagramPosts } = require('../services/socialMediaService')
+const { analyzeNetworkPhotos } = require('../services/visualSocialService');
 const benchmarkService = require('../services/benchmarkService');
 
 const SOCIAL_SOURCES = ['linkedin', 'facebook', 'instagram', 'tiktok'];
@@ -29,7 +30,7 @@ function haversineKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersData, weights }) {
+function buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersData, weights, profileId }) {
   const openNow        = place.opening_hours?.open_now ?? null;
   const placeData      = { ...place, openNow };
   const reviewAnalysis = analyzeReviews(place.reviews || []);
@@ -44,7 +45,7 @@ function buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersD
     hasHours:          place.hasHours ?? !!(place.opening_hours),
   };
 
-  const score    = calculateScore(placeData, socialPresence, reviewAnalysis, weights ?? undefined, pappersData ?? null, googleAudit);
+  const score    = calculateScore(placeData, socialPresence, reviewAnalysis, weights ?? undefined, pappersData ?? null, googleAudit, profileId ?? null);
   const distance = Math.round(haversineKm(lat, lng, place.lat, place.lng) * 10) / 10;
 
   return {
@@ -108,7 +109,7 @@ function applyPostProcessing(leads, { city, domain }) {
   }
 }
 
-async function processPlaces(places, { lat, lng, domain, keywords, sources, city, onProgress, weights }) {
+async function processPlaces(places, { lat, lng, domain, keywords, sources, city, onProgress, weights, profileId }) {
   const useSocial = sources.some(s => SOCIAL_SOURCES.includes(s));
 
   if (onProgress) onProgress({ type: 'progress', message: 'Scoring...' });
@@ -117,12 +118,12 @@ async function processPlaces(places, { lat, lng, domain, keywords, sources, city
     places.map(async place => {
       const [socialPresence, pappersData] = await Promise.all([
         useSocial
-          ? enrichSocial({ name: place.name, website: place.website, address: place.vicinity })
+          ? enrichSocial({ name: place.name, website: place.website, address: place.vicinity, placeId: place.place_id })
           : Promise.resolve({ linkedin: null, facebook: null, instagram: null, tiktok: null, hasChatbot: false }),
         searchPappers(place.name, city || ''),
       ]);
 
-      return buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersData, weights });
+      return buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersData, weights, profileId });
     })
   );
 
@@ -140,7 +141,7 @@ router.post('/search/stream', async (req, res) => {
   const send = data => res.write(`data: ${JSON.stringify(data)}\n\n`);
 
   try {
-    const { city, lat, lng, radius, domain, keywords = [], sources = [], weights = null } = req.body;
+    const { city, lat, lng, radius, domain, keywords = [], sources = [], weights = null, profileId = null } = req.body;
 
     if (!lat || !lng) { send({ type: 'error', message: 'lat/lng manquants' }); return res.end(); }
 
@@ -153,6 +154,7 @@ router.post('/search/stream', async (req, res) => {
       lat, lng, domain, keywords, sources, city,
       onProgress: send,
       weights,
+      profileId,
     });
 
     applyPostProcessing(leads, { city, domain })
@@ -175,13 +177,13 @@ router.post('/search/stream', async (req, res) => {
 // ─── POST /search (classique, rétrocompatibilité) ─────────────────────────────
 router.post('/search', async (req, res) => {
   try {
-    const { city, lat, lng, radius, domain, keywords = [], sources = [], weights = null } = req.body;
+    const { city, lat, lng, radius, domain, keywords = [], sources = [], weights = null, profileId = null } = req.body;
 
     if (!lat || !lng)    return res.status(400).json({ error: 'lat/lng manquants' });
     if (radius == null)  return res.status(400).json({ error: 'radius manquant' });
 
     const { places, fromCache } = await searchPlaces({ lat, lng, radius, keywords, domain });
-    const leads = await processPlaces(places, { lat, lng, domain, keywords, sources, city, weights });
+    const leads = await processPlaces(places, { lat, lng, domain, keywords, sources, city, weights, profileId });
 
     applyPostProcessing(leads, { city, domain })
 
@@ -249,6 +251,7 @@ router.post('/analyze/:placeId', async (req, res) => {
       rating       = null,
       reviewCount  = null,
       auditData    = null,
+      category     = null,
     } = req.body
     console.log(`[analyze] Profil reçu: ${profileId} | business: "${businessName}" | avis: ${reviews.length} | site: ${websiteUrl ?? 'absent'} | ville: ${city ?? '?'}`)
     console.log(`[analyze] auditData reçu: ${auditData ? 'oui' : 'non'}`)
@@ -257,7 +260,7 @@ router.post('/analyze/:placeId', async (req, res) => {
       return res.status(400).json({ error: 'Aucun avis fourni. Chargez les avis d\'abord.' })
     }
 
-    const result = await analyzeWithAI(reviews, businessName, profileId, { websiteUrl, city, rating, reviewCount }, auditData)
+    const result = await analyzeWithAI(reviews, businessName, profileId, { websiteUrl, city, rating, reviewCount, category: category || 'ce secteur' }, auditData)
     res.json(result)
   } catch (e) {
     res.status(500).json({ error: e.message })
@@ -286,6 +289,8 @@ router.post('/generate-email', async (req, res) => {
       facebookActivity   = null,   // { status, label, followers, lastPostDate, daysAgo }
       instagramActivity  = null,   // { status, label, followers, lastPostDate, daysAgo }
       photoQuality       = null,   // { verdict, score, hasStockPhotos, hasAuthenticPhotos, observations }
+      pagespeedData      = null,   // { performance, seo, loadTime, lcp, mobileFriendly, https, title, sitemap, cms }
+      localRank          = null,   // { rank, found, topThree, topTen }
     } = req.body
 
     if (!aiAnalysis?.report) {
@@ -410,12 +415,45 @@ RÈGLES ABSOLUES :
 Retourne UNIQUEMENT un JSON valide (pas de texte avant ou après) :
 {"subject":"${businessName} — une observation sur votre présence Google","body":"Corps complet de l'email avec sauts de ligne \\n"}`
 
+    // ── Email spécialisé CHATBOT / DEV-CHATBOT → fonction dédiée ────────────────
+    if (profileId === 'chatbot' || profileId === 'dev-chatbot') {
+      console.log(`[generate-email] Délégation CHATBOT → generateEmailChatbot (category:${req.body.category ?? 'n/a'})`)
+      const leadCity = leadData?.address?.split(',').pop()?.trim() || req.body.city || ''
+      const emailResult = await generateEmailChatbot({
+        leadData:      { name: businessName, city: leadCity, category: req.body.category ?? null, rating: leadData.rating ?? avgRating, reviewCount: leadData.reviewCount ?? totalReviews, website: leadData.website ?? null },
+        pagespeedData: pagespeedData ?? null,
+        reviewsData:   { unanswered, avgRating, keywords: reviewsData?.keywords ?? [], topQuotes: reviewsData?.topQuotes ?? [] },
+      })
+      return res.json(emailResult)
+    }
+
+    // ── Email spécialisé SEO / CONSULTANT-SEO → fonction dédiée ─────────────────
+    if (profileId === 'seo' || profileId === 'consultant-seo') {
+      console.log(`[generate-email] Délégation SEO → generateEmailSEO (rank:${localRank?.rank ?? 'n/a'} perf:${pagespeedData?.performance ?? 'n/a'})`)
+      const leadCity = leadData?.address?.split(',').pop()?.trim() || req.body.city || ''
+      const emailResult = await generateEmailSEO({
+        leadData:      { name: businessName, city: leadCity, category: req.body.category ?? null, rating: leadData.rating ?? avgRating, reviewCount: leadData.reviewCount ?? totalReviews, website: leadData.website ?? null },
+        pagespeedData: pagespeedData ?? null,
+        localRank:     localRank    ?? null,
+        reviewsData:   { unanswered, avgRating, keywords: reviewsData?.keywords ?? [], topQuotes: reviewsData?.topQuotes ?? [] },
+        napData:       req.body.napData ?? null,
+      })
+      return res.json(emailResult)
+    }
+
     // ── Email spécialisé PHOTOGRAPHE → fonction dédiée dans aiReviewAnalysis ───
     if (profileId === 'photographe') {
       console.log(`[generate-email] Délégation PHOTOGRAPHE → generateEmailPhotographe (score:${visualAnalysis?.score ?? 'n/a'})`)
-      console.log('[Email] reviewCount transmis:', totalReviews)
+      const leadCity = leadData?.address?.split(',').pop()?.trim() || req.body.city || ''
+      console.log('[Email Photographe] leadData transmis:', JSON.stringify({
+        name: businessName,
+        city: leadCity,
+        reviewCount: totalReviews,
+        photoCount: googleData?.photoCount ?? null,
+        rating: avgRating
+      }))
       const emailResult = await generateEmailPhotographe({
-        leadData:          { name: businessName, rating: avgRating, reviewCount: totalReviews, website: leadData.website ?? null, decisionMaker: req.body.decisionMaker ?? null, city: req.body.city ?? null, category: req.body.category ?? null },
+        leadData:          { name: businessName, rating: avgRating, reviewCount: totalReviews, website: leadData.website ?? null, decisionMaker: req.body.decisionMaker ?? null, city: leadCity, category: req.body.category ?? null, competitorDelta: req.body.leadData?.competitorDelta ?? null },
         visualAnalysis:    visualAnalysis ?? null,
         googleData,
         siteAnalysis,
@@ -478,12 +516,47 @@ router.post('/photo-quality', async (req, res) => {
 // ─── GET /audit — PageSpeed + Facebook + Instagram (chargement à la demande) ──
 router.get('/audit', async (req, res) => {
   try {
-    const { website, facebook, instagram, placeId } = req.query
+    const { website, facebook, instagram, placeId, profileId, category, city, businessName, address, phone } = req.query
     console.log('[PageSpeed] website reçu (query):', website ?? 'undefined')
-    const [pagespeed, facebookActivity, instagramActivity] = await Promise.all([
-      getPageSpeed(website || null),
-      getFacebookActivity(facebook  || null),
-      getInstagramActivity(instagram || null),
+
+    if (!website || website.trim() === '') {
+      return res.json({
+        pagespeed: null,
+        localRank: null,
+        message: 'Pas de site web détecté pour ce lead',
+      })
+    }
+
+    const SOCIAL_PROFILES   = ['photographe', 'social-media']
+    const SEO_PROFILES      = ['seo', 'consultant-seo']
+    const CHATBOT_PROFILES  = ['chatbot', 'dev-chatbot']
+    const WEBSITE_BLACKLIST = [
+      'facebook.com', 'fb.com',
+      'instagram.com', 'twitter.com', 'x.com',
+      'linkedin.com', 'tiktok.com', 'youtube.com',
+      'google.com', 'maps.google.com',
+    ]
+    const isBlacklisted = (url) => {
+      if (!url) return false
+      try {
+        const hostname = new URL(url).hostname.replace(/^www\./, '')
+        return WEBSITE_BLACKLIST.some(d => hostname === d || hostname.endsWith(`.${d}`))
+      } catch { return false }
+    }
+    const websiteForAudit = isBlacklisted(website) ? null : (website || null)
+    if (isBlacklisted(website)) console.log(`[Audit] website blacklisté, PageSpeed ignoré: ${website}`)
+
+    const needsSocial   = SOCIAL_PROFILES.includes(profileId)
+    const needsRank     = SEO_PROFILES.includes(profileId) && placeId && category && city
+    const needsNAP      = SEO_PROFILES.includes(profileId) && businessName && city
+    const isChatbot     = CHATBOT_PROFILES.includes(profileId)
+
+    const [pagespeed, facebookActivity, instagramActivity, localRank, napData] = await Promise.all([
+      isChatbot ? getSiteSignals(websiteForAudit, category ?? null) : getPageSpeed(websiteForAudit),
+      needsSocial ? getFacebookActivity(facebook  || null) : Promise.resolve(null),
+      needsSocial ? getInstagramActivity(instagram || null) : Promise.resolve(null),
+      needsRank   ? getLocalRank(placeId, category, city)  : Promise.resolve(null),
+      needsNAP    ? checkNAP(businessName, address || null, phone || null, city, placeId || null) : Promise.resolve(null),
     ])
     console.log('[PageSpeed] Résultat:', JSON.stringify(pagespeed))
 
@@ -498,7 +571,85 @@ router.get('/audit', async (req, res) => {
       }
     }
 
-    res.json({ pagespeed, facebookActivity, instagramActivity, photoUrls })
+    res.json({ pagespeed, facebookActivity, instagramActivity, photoUrls, localRank, napData })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+router.post('/instagram-deep', async (req, res) => {
+  try {
+    const { instagramUrl } = req.body
+    if (!instagramUrl) return res.status(400).json({ error: 'instagramUrl manquant' })
+    const result = await getInstagramPosts(instagramUrl)
+    res.json(result)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// ─── GET /facebook-stats — Facebook activity on-demand (slim, no pagespeed) ────
+router.get('/facebook-stats', async (req, res) => {
+  try {
+    const { url } = req.query
+    if (!url) return res.status(400).json({ error: 'url requis' })
+    const result = await getFacebookActivity(url)
+    res.json(result)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// ─── GET /tiktok-stats — TikTok stats via HTML scraping (free, no Apify) ────────
+router.get('/tiktok-stats', async (req, res) => {
+  const axios   = require('axios')
+  const cheerio = require('cheerio')
+  try {
+    const { url } = req.query
+    if (!url) return res.status(400).json({ error: 'url requis' })
+    const cleanUrl = url.split('?')[0]
+    console.log('[TikTokStats] Scraping:', cleanUrl)
+    const { data: html } = await axios.get(cleanUrl, {
+      timeout: 15000,
+      headers: {
+        'User-Agent':      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
+        'Accept':          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    })
+    const $ = cheerio.load(html)
+    // TikTok embeds stats in a <script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"> tag
+    const scriptContent = $('script#__UNIVERSAL_DATA_FOR_REHYDRATION__').html()
+    if (!scriptContent) {
+      console.warn('[TikTokStats] Script __UNIVERSAL_DATA_FOR_REHYDRATION__ introuvable')
+      return res.json({ error: 'tiktok_unavailable' })
+    }
+    const json       = JSON.parse(scriptContent)
+    const userInfo   = json?.['__DEFAULT_SCOPE__']?.['webapp.user-detail']?.userInfo
+    const stats      = userInfo?.stats
+    if (!stats) {
+      console.warn('[TikTokStats] stats introuvables dans le JSON')
+      return res.json({ error: 'tiktok_unavailable' })
+    }
+    const followers   = stats.followerCount  ?? null
+    const videoCount  = stats.videoCount     ?? null
+    const heartCount  = stats.heartCount     ?? stats.heart ?? null
+    console.log(`[TikTokStats] followers:${followers} videos:${videoCount} hearts:${heartCount}`)
+    res.json({ followers, videoCount, heartCount })
+  } catch (e) {
+    console.warn('[TikTokStats] Erreur:', e.message)
+    res.json({ error: 'tiktok_unavailable' })
+  }
+})
+
+router.post('/network-visual', async (req, res) => {
+  try {
+    const { networkUrl, network } = req.body
+    if (!networkUrl || !network) return res.status(400).json({ error: 'networkUrl et network requis' })
+    const VALID = ['instagram', 'facebook', 'tiktok', 'pinterest', 'youtube']
+    if (!VALID.includes(network)) return res.status(400).json({ error: `Réseau invalide : ${network}` })
+    const result = await analyzeNetworkPhotos(networkUrl, network)
+    res.json(result)
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

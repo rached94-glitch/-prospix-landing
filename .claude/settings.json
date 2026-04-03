@@ -1,0 +1,57 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/env-guard.js",
+            "timeout": 10,
+            "statusMessage": "🔒 Vérification protection .env..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/auto-save.js",
+            "timeout": 30,
+            "statusMessage": "📝 Mise à jour du changelog...",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/context-loader.js",
+            "timeout": 15,
+            "statusMessage": "📂 Chargement du contexte projet..."
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/memory-save.js",
+            "timeout": 15,
+            "statusMessage": "💾 Sauvegarde du contexte SaaS..."
+          }
+        ]
+      }
+    ]
+  }
+}

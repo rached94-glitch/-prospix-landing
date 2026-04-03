@@ -1,0 +1,294 @@
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root {
+  --bg:            #060608;
+  --surface:       #0d0d12;
+  --card:          #13131a;
+  --border:        rgba(255,255,255,0.06);
+  --border-strong: rgba(255,255,255,0.10);
+  --border-glow:   rgba(0,212,255,0.30);
+  --accent:        #00d4ff;
+  --accent2:       #8b5cf6;
+  --accent-dim:    rgba(0,212,255,0.12);
+  --success:       #10b981;
+  --warning:       #f59e0b;
+  --danger:        #ef4444;
+  --text:          #f0f0f8;
+  --muted:         rgba(240,240,248,0.38);
+  --faint:         rgba(240,240,248,0.18);
+
+  --font-display: 'Clash Display', sans-serif;
+  --font-body:    'Cabinet Grotesk', sans-serif;
+  --font-mono:    'DM Mono', monospace;
+}
+
+/* ============================================================
+   RESET
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.018) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+img, svg { display: block; max-width: 100%; }
+button { font-family: var(--font-body); cursor: pointer; }
+input, select, textarea { font-family: var(--font-body); }
+ul, ol { list-style: none; }
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.18); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.35); }
+* { scrollbar-width: thin; scrollbar-color: rgba(0,212,255,0.18) transparent; }
+
+/* ============================================================
+   SIDEBAR — scrollable zone
+   ============================================================ */
+.sidebar {
+  height: calc(100vh - 58px);
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+}
+
+/* ============================================================
+   BACKGROUND ORBS — fixed, pointer-events none
+   ============================================================ */
+.orb-violet {
+  position: fixed;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139,92,246,0.07) 0%, transparent 70%);
+  top: -200px;
+  right: -200px;
+  pointer-events: none;
+  z-index: 0;
+}
+.orb-cyan {
+  position: fixed;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,212,255,0.045) 0%, transparent 70%);
+  bottom: -200px;
+  left: -200px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ============================================================
+   TYPOGRAPHY UTILITIES
+   ============================================================ */
+.display { font-family: var(--font-display); }
+.mono    { font-family: var(--font-mono); }
+.muted   { color: var(--muted); }
+
+.gradient-text {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ============================================================
+   INPUTS PREMIUM
+   ============================================================ */
+.input-premium {
+  width: 100%;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 200ms, box-shadow 200ms, background 200ms;
+}
+.input-premium:focus {
+  border-color: rgba(0,212,255,0.40);
+  background: rgba(0,212,255,0.025);
+  box-shadow: 0 0 0 3px rgba(0,212,255,0.08);
+}
+.input-premium::placeholder { color: rgba(240,240,248,0.18); }
+
+/* ============================================================
+   SLIDER PREMIUM
+   ============================================================ */
+.slider-premium {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.slider-premium::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,212,255,0.18), 0 0 12px rgba(0,212,255,0.55);
+  cursor: pointer;
+  transition: box-shadow 200ms, transform 200ms;
+}
+.slider-premium::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 5px rgba(0,212,255,0.22), 0 0 20px rgba(0,212,255,0.75);
+  transform: scale(1.1);
+}
+.slider-premium::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,212,255,0.18), 0 0 12px rgba(0,212,255,0.55);
+}
+
+/* ============================================================
+   BUTTON SHIMMER
+   ============================================================ */
+.btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.btn-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.20), transparent);
+  transform: translateX(-100%);
+  transition: none;
+}
+.btn-shimmer:hover::after { animation: shimmerSlide 0.5s ease forwards; }
+.btn-shimmer:hover { box-shadow: 0 8px 30px rgba(0,212,255,0.30) !important; }
+
+/* ============================================================
+   LEAD CARD
+   ============================================================ */
+.lead-card {
+  opacity: 0;
+  animation: cardSlideIn 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  transition:
+    transform 200ms cubic-bezier(0.16,1,0.3,1),
+    border-color 200ms,
+    box-shadow 200ms,
+    background 200ms;
+}
+.lead-card:hover {
+  transform: translateX(4px);
+  border-color: rgba(0,212,255,0.25) !important;
+  box-shadow: 0 0 0 1px rgba(0,212,255,0.08), 0 8px 32px rgba(0,0,0,0.4);
+  background: rgba(0,212,255,0.025) !important;
+}
+
+/* ============================================================
+   SCORE BAR
+   ============================================================ */
+.score-bar-inner {
+  height: 100%;
+  border-radius: inherit;
+  animation: scoreBarGrow 0.8s ease-out forwards;
+}
+
+/* ============================================================
+   CHIP — domain selector
+   ============================================================ */
+.chip-domain {
+  transition: border-color 150ms, background 150ms, transform 150ms;
+  cursor: pointer;
+  user-select: none;
+}
+.chip-domain:hover { transform: scale(1.03); }
+
+/* ============================================================
+   MAP — marker pulse ring
+   ============================================================ */
+.marker-pulse-ring {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  animation: markerPulse 1.6s ease-out infinite;
+  pointer-events: none;
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes cardSlideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes scoreBarGrow {
+  from { width: 0; }
+  to   { width: var(--w, 0%); }
+}
+@keyframes shimmerSlide {
+  to { transform: translateX(100%); }
+}
+@keyframes markerPulse {
+  0%   { opacity: 0.6; transform: scale(0.85); }
+  100% { opacity: 0;   transform: scale(2.4); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes auditSweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+@keyframes progressIndeterminate {
+  0%   { width: 0%;  margin-left: 0%; }
+  50%  { width: 60%; margin-left: 20%; }
+  100% { width: 0%;  margin-left: 100%; }
+}
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes countUp {
+  from { opacity: 0.3; transform: translateY(4px); }
+  to   { opacity: 1;   transform: translateY(0); }
+}

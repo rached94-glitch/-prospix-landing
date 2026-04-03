@@ -1,12 +1,14 @@
 const axios   = require('axios');
 const cheerio = require('cheerio');
+const { createCache } = require('../cache/searchCache');
 
 const BASE_URL = 'https://maps.googleapis.com/maps/api/place/';
 const API_KEY  = process.env.GOOGLE_MAPS_API_KEY;
 
-// ─── Cache en mémoire (10 min) ───────────────────────────────────────────────
-const searchCache = new Map();
-const CACHE_TTL   = 10 * 60 * 1000;
+// ─── Caches TTL ───────────────────────────────────────────────────────────────
+const searchResultsCache = createCache('search');        // 6h
+const placeDetailsCache  = createCache('placeDetails');  // 24h
+const localRankCache     = createCache('localRank');     // 24h
 
 // ─── Mapping domaine → types Google Places ───────────────────────────────────
 const DOMAIN_TYPES = {
@@ -22,13 +24,27 @@ const DOMAIN_TYPES = {
   sport:      ['gym', 'stadium'],
 };
 
+// ─── Domaines génériques/sociaux — jamais considérés comme site web du business ─
+const WEBSITE_BLACKLIST = [
+  'facebook.com', 'fb.com',
+  'instagram.com', 'twitter.com', 'x.com',
+  'linkedin.com', 'tiktok.com', 'youtube.com',
+  'google.com', 'maps.google.com',
+]
+
 // ─── Nettoie une URL Google Places (supprime paramètres UTM, trailing slash) ─
 function cleanWebsiteUrl(raw) {
   if (!raw || raw === 'null' || raw === 'undefined') return null
   try {
     // Google Places sometimes returns URLs without protocol — add https:// if needed
     const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
-    return new URL(withProtocol).origin  // ex: "https://asia-market.fr"
+    const origin = new URL(withProtocol).origin  // ex: "https://asia-market.fr"
+    const hostname = new URL(withProtocol).hostname.replace(/^www\./, '')
+    if (WEBSITE_BLACKLIST.some(domain => hostname === domain || hostname.endsWith(`.${domain}`))) {
+      console.log(`[Places] cleanWebsiteUrl → domaine blacklisté ignoré: ${hostname}`)
+      return null
+    }
+    return origin
   } catch {
     return raw  // si URL vraiment invalide, on garde brute
   }
@@ -95,6 +111,9 @@ async function fetchAllPages({ lat, lng, radius, keyword, type, onProgress }) {
 
 // ─── Détails + avis d'un lieu ────────────────────────────────────────────────
 async function getPlaceDetails(placeId) {
+  const cached = placeDetailsCache.get(`place_details_${placeId}`)
+  if (cached) return cached
+
   const fields = [
     'formatted_phone_number', 'website', 'opening_hours',
     'price_level', 'rating', 'user_ratings_total', 'reviews',
@@ -119,7 +138,7 @@ async function getPlaceDetails(placeId) {
       console.log('[Places] Premier avis raw:', JSON.stringify(r.reviews[0], null, 2));
     }
 
-    return {
+    const result = {
       ...r,
       reviews: (r.reviews || []).slice(0, 5).map(rev => ({
         author:       rev.author_name,
@@ -135,6 +154,8 @@ async function getPlaceDetails(placeId) {
                       || null,
       })),
     };
+    placeDetailsCache.set(`place_details_${placeId}`, result, 24 * 60 * 60 * 1000)
+    return result;
   } catch (err) {
     console.error(`getPlaceDetails ${placeId}:`, err.message);
     return {};
@@ -323,10 +344,10 @@ async function searchPlaces({ lat, lng, radius, keywords = [], domain, onProgres
 
   // Cache
   const cacheKey = `${lat}-${lng}-${radius}-${domain || 'all'}-${keywords.join(',')}`;
-  const cached   = searchCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+  const cached   = searchResultsCache.get(cacheKey);
+  if (cached) {
     if (onProgress) onProgress({ type: 'cache', message: 'Résultats depuis le cache ⚡' });
-    return { places: cached.places, fromCache: true };
+    return { places: cached, fromCache: true };
   }
 
   // N'utilise QUE les mots-clés utilisateur — jamais le label de domaine (mot français)
@@ -360,7 +381,7 @@ async function searchPlaces({ lat, lng, radius, keywords = [], domain, onProgres
   const places = await enrichBatch(unique, onProgress);
 
   // Mise en cache
-  searchCache.set(cacheKey, { places, timestamp: Date.now() });
+  searchResultsCache.set(cacheKey, places, 6 * 60 * 60 * 1000);
 
   return { places, fromCache: false };
 }
@@ -373,4 +394,43 @@ function getPhotoUrls(photos, maxPhotos = 5) {
   })
 }
 
-module.exports = { searchPlaces, getPlaceDetails, getPhotoUrls };
+// ─── Rang local : position d'un lieu dans une recherche catégorie + ville ─────
+async function getLocalRank(placeId, category, city) {
+  const notFound = { rank: null, outOf: 20, found: false, topThree: false, topTen: false }
+  if (!placeId || !category || !city) return notFound
+
+  const rankKey = `localrank_${placeId}_${category}_${city}`
+  const cached  = localRankCache.get(rankKey)
+  if (cached) return cached
+
+  try {
+    const { data } = await withTimeout(
+      axios.get(`${BASE_URL}textsearch/json`, {
+        params: { query: `${category} ${city}`, key: API_KEY, language: 'fr' },
+      }),
+      5000
+    )
+
+    if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+      console.warn(`[LocalRank] status inattendu: ${data.status}`)
+      return notFound
+    }
+
+    const results = data.results || []
+    const outOf   = results.length
+    const idx     = results.findIndex(r => r.place_id === placeId)
+
+    if (idx === -1) return { rank: null, outOf, found: false, topThree: false, topTen: false }
+
+    const rank = idx + 1
+    console.log(`[LocalRank] "${category} ${city}" → ${placeId} → position ${rank}/${outOf}`)
+    const rankResult = { rank, outOf, found: true, topThree: rank <= 3, topTen: rank <= 10 }
+    localRankCache.set(rankKey, rankResult, 24 * 60 * 60 * 1000)
+    return rankResult
+  } catch (e) {
+    console.warn(`[LocalRank] erreur ${placeId} (${category} ${city}):`, e.message)
+    return { found: false }
+  }
+}
+
+module.exports = { searchPlaces, getPlaceDetails, getPhotoUrls, getLocalRank };

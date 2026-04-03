@@ -1,0 +1,48 @@
+{
+  "profiles": [
+    {
+      "id": "default",
+      "name": "Défaut",
+      "isPreset": true,
+      "weights": {
+        "googleRating": 30,
+        "reviewVolume": 25,
+        "digitalPresence": 25,
+        "opportunity": 20
+      }
+    },
+    {
+      "id": "chatbot",
+      "name": "Chatbot",
+      "isPreset": true,
+      "weights": {
+        "googleRating": 10,
+        "reviewVolume": 10,
+        "digitalPresence": 10,
+        "opportunity": 70
+      }
+    },
+    {
+      "id": "seo",
+      "name": "SEO",
+      "isPreset": true,
+      "weights": {
+        "googleRating": 15,
+        "reviewVolume": 15,
+        "digitalPresence": 60,
+        "opportunity": 10
+      }
+    },
+    {
+      "id": "pub-google",
+      "name": "Pub Google",
+      "isPreset": true,
+      "weights": {
+        "googleRating": 50,
+        "reviewVolume": 20,
+        "digitalPresence": 20,
+        "opportunity": 10
+      }
+    }
+  ]
+}
