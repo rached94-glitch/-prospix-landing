@@ -1159,15 +1159,29 @@ Bien cordialement,
         const chatDetected    = siteSignals != null ? siteSignals.chatbotDetected : !!(lead.googleAudit?.hasChatbot)
         const chatTool        = siteSignals?.chatbotTool ?? null
         const bookingPlatform = siteSignals?.bookingPlatform ?? null
-        const hasFAQ          = siteSignals?.hasFAQ ?? null
-        const hasForm         = siteSignals?.hasContactForm ?? null
+        // Option B: priorité chatbotDetection/faqDetection (enrichissement unlock), fallback siteSignals (audit on-demand)
+        const hasFAQ = lead.chatbotDetection?.faqDetection?.hasFAQ
+          ?? lead.faqDetection?.hasFAQ
+          ?? siteSignals?.hasFAQ
+          ?? null
+        const hasForm = lead.chatbotDetection?.contactFormDetection?.hasContactForm
+          ?? lead.contactFormDetection?.hasContactForm
+          ?? siteSignals?.hasContactForm
+          ?? null
         const sensitive       = auditData?.pagespeed?.sensitiveData ?? null
         const themes          = lead.reviewAnalysis?.themes?.length || 0
+
+        // New signals
+        const questionCount   = lead.reviewAnalysis?.questionAnalysis?.totalQuestions ?? null
+        const questionTopics  = lead.reviewAnalysis?.questionAnalysis?.questionTopics ?? {}
+        const domainComplexity = lead.domainComplexity ?? null
 
         const kpis = [
           kpi('Avis sans réponse', unanswered > 0 ? unanswered : '0', unanswered > 0 ? 'danger' : 'good'),
           { label: 'CHATBOT EXISTANT', type: 'chatbot_detect', detected: chatDetected, tool: chatTool },
         ]
+        if (questionCount !== null)
+          kpis.push({ label: 'QUESTIONS DANS AVIS', type: 'question_count', count: questionCount, topics: questionTopics })
         // Booking platform card — always orange, regardless of whether the URL is the platform itself
         if (bookingPlatform !== null)
           kpis.push({ label: 'PLATEFORME RÉSERVATION', type: 'booking_url', platform: bookingPlatform })
@@ -1175,6 +1189,8 @@ Bien cordialement,
           kpis.push({ label: 'FAQ DÉTECTÉE', type: 'faq_detect', detected: hasFAQ })
         if (hasForm !== null)
           kpis.push({ label: 'FORMULAIRE CONTACT', type: 'form_detect', detected: hasForm })
+        if (domainComplexity !== null)
+          kpis.push({ label: 'COMPLEXITÉ DOMAINE', type: 'domain_complexity', complexity: domainComplexity })
         if (sensitive !== null)
           kpis.push({ label: 'DOMAINE SENSIBLE', type: 'sensitive', detected: sensitive })
         if (siteSignals === null)
@@ -1183,13 +1199,15 @@ Bien cordialement,
         return {
           kpis,
           problems: [
-            ...(unanswered > 0   ? [prob(`${unanswered} avis sans réponse — chaque silence = client perdu`, '#ef4444')] : []),
-            ...(!chatDetected    ? [prob('Aucun chatbot détecté — opportunité directe', '#22c55e')] : []),
-            ...(chatDetected     ? [prob(`Chatbot existant (${chatTool ?? 'inconnu'}) — angle différentiel requis`, '#f59e0b')] : []),
-            ...(bookingPlatform  ? [prob(`${bookingPlatform} détecté — ne pas proposer la réservation, angle FAQ/tarifs/horaires`, '#f97316')] : []),
-            ...(hasFAQ           ? [prob('FAQ détectée — base de contenu disponible', '#22c55e')] : []),
-            ...(sensitive        ? [prob('Données sensibles — serveur local recommandé', '#f97316')] : []),
-            ...(themes > 0       ? [prob(`${themes} thèmes récurrents répondables automatiquement`, '#f59e0b')] : []),
+            ...(unanswered > 0       ? [prob(`${unanswered} avis sans réponse — chaque silence = client perdu`, '#ef4444')] : []),
+            ...(!chatDetected        ? [prob('Aucun chatbot détecté — opportunité directe', '#22c55e')] : []),
+            ...(chatDetected         ? [prob(`Chatbot existant (${chatTool ?? 'inconnu'}) — angle différentiel requis`, '#f59e0b')] : []),
+            ...(bookingPlatform      ? [prob(`${bookingPlatform} détecté — ne pas proposer la réservation, angle FAQ/tarifs/horaires`, '#f97316')] : []),
+            ...(hasFAQ               ? [prob('FAQ détectée — base de contenu disponible', '#22c55e')] : []),
+            ...(questionCount >= 3   ? [prob(`${questionCount} questions dans les avis — chatbot peut y répondre automatiquement`, '#f59e0b')] : []),
+            ...(domainComplexity === 'complex' ? [prob('Domaine complexe — fort potentiel FAQ/chatbot', '#22c55e')] : []),
+            ...(sensitive            ? [prob('Données sensibles — serveur local recommandé', '#f97316')] : []),
+            ...(themes > 0           ? [prob(`${themes} thèmes récurrents répondables automatiquement`, '#f59e0b')] : []),
           ],
         }
       }
@@ -2385,6 +2403,20 @@ Bien cordialement,
                         </div>
                       )
                     }
+                    if (kpi.type === 'question_count') {
+                      const hasQuestions = (kpi.count ?? 0) > 0
+                      const color = kpi.count >= 3 ? '#f59e0b' : kpi.count > 0 ? '#94a3b8' : '#475569'
+                      const topicList = Object.entries(kpi.topics || {})
+                        .sort((a, b) => b[1] - a[1]).slice(0, 2).map(([t]) => t).join(', ')
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{kpi.count ?? 0}</div>
+                          {topicList && <div style={{ fontSize: 8.5, color: '#94a3b8', marginTop: 4, lineHeight: 1.35 }}>Sujets : {topicList}</div>}
+                          {!hasQuestions && <div style={{ fontSize: 8.5, color: '#475569', marginTop: 4 }}>Aucune question détectée</div>}
+                        </div>
+                      )
+                    }
                     if (kpi.type === 'faq_detect') {
                       const color = kpi.detected ? '#22c55e' : '#475569'
                       return (
@@ -2392,6 +2424,19 @@ Bien cordialement,
                           <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
                           <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{kpi.detected ? 'Oui' : 'Non'}</div>
                           {kpi.detected && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>Base de contenu disponible</div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'domain_complexity') {
+                      const labels   = { complex: 'Complexe', medium: 'Mixte', simple: 'Simple' }
+                      const colors   = { complex: '#22c55e', medium: '#f59e0b', simple: '#475569' }
+                      const notes    = { complex: 'Fort potentiel FAQ / chatbot', medium: 'Potentiel modéré', simple: 'Opportunité réduite' }
+                      const c        = colors[kpi.complexity] || '#475569'
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: c, lineHeight: 1.1 }}>{labels[kpi.complexity] ?? kpi.complexity}</div>
+                          <div style={{ fontSize: 8.5, color: c, marginTop: 4, lineHeight: 1.35 }}>{notes[kpi.complexity] ?? ''}</div>
                         </div>
                       )
                     }

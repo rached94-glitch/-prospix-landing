@@ -7,7 +7,7 @@ const { createCache } = require('../cache/searchCache');
 const { validateSearchParams, validatePlaceId } = require('../utils/validateInputs');
 const { analyzePhotoQuality } = require('../services/photoQualityService');
 const { enrichSocial }   = require('../services/socialEnrichment');
-const { calculateScore }  = require('../services/scoring');
+const { calculateScore, getDomainComplexity } = require('../services/scoring');
 const { analyzeReviews }  = require('../services/reviewAnalysis');
 const { getAllReviews }      = require('../services/apifyReviews');
 const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateAuditSEO, generateAuditPhotographe } = require('../services/aiReviewAnalysis');
@@ -46,8 +46,20 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 
 function buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersData, weights, profileId }) {
   const openNow        = place.opening_hours?.open_now ?? null;
-  const placeData      = { ...place, openNow };
+  const placeData      = { ...place, openNow, keyword: keywords?.[0], domain };
   const reviewAnalysis = analyzeReviews(place.reviews || []);
+
+  // Augment chatbotSignals for scoring (merged from review + social detection)
+  reviewAnalysis.chatbotSignals = {
+    ...(reviewAnalysis.chatbotSignals || {}),
+    questionCount:    reviewAnalysis.questionAnalysis?.totalQuestions ?? 0,
+    questionRatio:    reviewAnalysis.questionAnalysis?.questionRatio  ?? 0,
+    hasFAQ:           socialPresence.faqDetection?.hasFAQ             ?? false,
+    hasContactForm:   socialPresence.contactFormDetection?.hasContactForm ?? false,
+    domainComplexity: getDomainComplexity(placeData),
+  }
+
+  const domainComplexity = reviewAnalysis.chatbotSignals.domainComplexity
 
   // Google audit — derived from Places Details, no extra API call
   const googleAudit = {
@@ -93,9 +105,12 @@ function buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersD
     status:  'new',
     domain:  domain || null,
     keyword: keywords?.[0] || null,
-    newBusinessBadge: score.newBusinessBadge ?? null,
-    isActiveOwner:    place.isActiveOwner ?? false,
-    ownerReplyRatio:  place.ownerReplyRatio ?? 0,
+    newBusinessBadge:    score.newBusinessBadge ?? null,
+    isActiveOwner:       place.isActiveOwner ?? false,
+    ownerReplyRatio:     place.ownerReplyRatio ?? 0,
+    domainComplexity,
+    faqDetection:        socialPresence.faqDetection         ?? null,
+    contactFormDetection: socialPresence.contactFormDetection ?? null,
   };
 }
 

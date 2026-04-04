@@ -135,6 +135,43 @@ function extractHandleFromUrl(url, pattern) {
   return m ? m[1] : null
 }
 
+function detectFAQ($, html) {
+  // Check links text or href
+  let hasFAQ = false
+  $('a').each((_, el) => {
+    const href = ($(el).attr('href') || '').toLowerCase()
+    const text = ($(el).text() || '').toLowerCase()
+    if (href.includes('faq') || text.includes('faq') ||
+        text.includes('foire aux questions') || text.includes('questions fréquentes') ||
+        href.includes('questions-frequentes')) {
+      hasFAQ = true
+    }
+  })
+  if (!hasFAQ && $('[id*="faq"],[class*="faq"]').length > 0) hasFAQ = true
+  if (!hasFAQ && ($('details').length >= 3)) hasFAQ = true  // accordion FAQ pattern
+  if (!hasFAQ && (html.toLowerCase().includes('"faqpage"') || html.toLowerCase().includes('application/ld+json'))) {
+    hasFAQ = html.toLowerCase().includes('faqpage')
+  }
+  return hasFAQ
+}
+
+function detectContactForm($) {
+  let hasContactForm = false
+  $('form').each((_, form) => {
+    const $form    = $(form)
+    const hasEmail = $form.find('input[type="email"]').length > 0 ||
+      $form.find('input[name*="email"],input[name*="mail"]').length > 0
+    const hasTextarea = $form.find('textarea').length > 0
+    const hasSubmit   = $form.find('input[type="submit"],button[type="submit"],button').length > 0
+    if ((hasEmail || hasTextarea) && hasSubmit) hasContactForm = true
+  })
+  if (!hasContactForm) {
+    if ($('[id*="contact-form"],[class*="contact-form"],[class*="wpcf7"],[id*="wpcf7"]').length > 0)
+      hasContactForm = true
+  }
+  return hasContactForm
+}
+
 function extractSocialLinks(html) {
   const social = {
     linkedin:  null,
@@ -224,6 +261,9 @@ function extractSocialLinks(html) {
   social.hasChatbot         = detected.length > 0;
   social.chatbotsDetected   = detected;
 
+  social.faqDetection         = { hasFAQ: detectFAQ($, html) }
+  social.contactFormDetection = { hasContactForm: detectContactForm($) }
+
   return social;
 }
 
@@ -234,15 +274,17 @@ async function enrichSocial({ name, website, placeId }) {
   }
 
   const result = {
-    linkedin:         null,
-    facebook:         null,
-    instagram:        null,
-    tiktok:           null,
-    pinterest:        null,
-    youtube:          null,
-    hasChatbot:       false,
-    chatbotsDetected: [],
-    chatbotDetection: null,
+    linkedin:             null,
+    facebook:             null,
+    instagram:            null,
+    tiktok:               null,
+    pinterest:            null,
+    youtube:              null,
+    hasChatbot:           false,
+    chatbotsDetected:     [],
+    chatbotDetection:     null,
+    faqDetection:         null,
+    contactFormDetection: null,
   };
 
   if (website) {
@@ -250,12 +292,16 @@ async function enrichSocial({ name, website, placeId }) {
       const html  = await fetchWebsiteHTML(website);
       const found = extractSocialLinks(html);
       Object.assign(result, found);
+      result.faqDetection         = found.faqDetection         || { hasFAQ: false }
+      result.contactFormDetection = found.contactFormDetection || { hasContactForm: false }
       result.chatbotDetection = {
-        hasChatbot:       found.hasChatbot,
-        chatbotsDetected: found.chatbotsDetected || [],
+        hasChatbot:           found.hasChatbot,
+        chatbotsDetected:     found.chatbotsDetected || [],
         opportunity: found.hasChatbot
           ? `⚠️ Utilise déjà : ${(found.chatbotsDetected || []).join(', ')}`
           : '✅ Aucun chatbot — opportunité directe',
+        faqDetection:         result.faqDetection,
+        contactFormDetection: result.contactFormDetection,
       };
     } catch (err) {
       console.error(`Error fetching website ${website}:`, err.message);

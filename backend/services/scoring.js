@@ -90,6 +90,20 @@ function photographeOpportunityScore(placeData, socialPresence) {
   return Math.min(100, photoScore + visualBonus)
 }
 
+// ── Complexité du domaine métier ──────────────────────────────────────────────
+const DOMAIN_COMPLEX = ['doctor', 'dentist', 'lawyer', 'hospital', 'clinique', 'cabinet', 'assurance', 'comptable', 'notaire', 'avocat', 'kine', 'psy', 'pharmacie', 'immo', 'insurance', 'medical', 'clinic', 'attorney', 'accountant', 'osteopathe', 'psychologue', 'psychiatre', 'orthodontiste']
+const DOMAIN_MEDIUM  = ['restaurant', 'cafe', 'hotel', 'salon', 'coiffure', 'spa', 'garage', 'sport', 'fitness', 'gym', 'brasserie', 'pizz', 'burger', 'barbier']
+
+function getDomainComplexity(placeData) {
+  const types   = (placeData.types || []).map(t => t.toLowerCase())
+  const raw     = ((placeData.keyword ?? placeData.domain ?? types[0] ?? '') + '')
+    .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const allText = [...types, raw].join(' ')
+  if (DOMAIN_COMPLEX.some(c => allText.includes(c))) return 'complex'
+  if (DOMAIN_MEDIUM.some(c  => allText.includes(c))) return 'medium'
+  return 'simple'
+}
+
 // ── Opportunité chatbot → score /100 ─────────────────────────────────────────
 const CHATBOT_FORT   = ['restaurant', 'cafe', 'hotel', 'salon', 'coiffure', 'beaute', 'spa', 'barbier', 'clinique', 'dentiste', 'kine', 'garage', 'avocat', 'notaire', 'comptable', 'immo', 'sport', 'medecin', 'pharmacie', 'cabinet', 'osteopathe', 'psychologue', 'psychiatre', 'brasserie', 'pizz', 'burger']
 const CHATBOT_MOYEN  = ['fleuriste', 'bijouterie', 'optique']
@@ -122,13 +136,19 @@ function chatbotOpportunityScore(placeData, pagespeedData, pappersData, reviewsD
     if ((pappersData.chiffreAffaires ?? 0) > 100000) score += 10
   }
 
-  // Enriched signals — populated after AI analysis
+  // Enriched signals — populated by buildLead() before calling calculateScore
   const sig = reviewsData?.chatbotSignals
   if (sig) {
-    if (sig.hasRecurringQuestions)        score += 20
-    if ((sig.unansweredCount ?? 0) >= 3)  score += 15
-    if (sig.isMultilingual)               score += 10
-    if (sig.hasOverwhelmKeywords)         score += 20
+    if (sig.hasRecurringQuestions)            score += 20
+    if ((sig.unansweredCount ?? 0) >= 3)      score += 15
+    if (sig.isMultilingual)                   score += 10
+    if (sig.hasOverwhelmKeywords)             score += 20
+    if ((sig.questionCount ?? 0) >= 3)        score += 15  // reviews with questions
+    if ((sig.questionRatio ?? 0) >= 20)       score += 10  // high question ratio
+    if (sig.hasFAQ)                           score -= 20  // already has FAQ → less need
+    if (sig.hasContactForm)                   score -= 10  // already has contact channel
+    if (sig.domainComplexity === 'complex')   score += 15
+    else if (sig.domainComplexity === 'medium') score += 5
   }
 
   return Math.max(10, Math.min(100, score))
@@ -181,7 +201,7 @@ function calculateScore(placeData, socialPresence, reviewAnalysis, weights = DEF
       : (profileId === 'seo' || profileId === 'consultant-seo')
         ? seoOpportunityScore(placeData, pagespeedData)
         : (profileId === 'chatbot' || profileId === 'dev-chatbot')
-          ? chatbotOpportunityScore(placeData, pagespeedData, pappersData)
+          ? chatbotOpportunityScore(placeData, pagespeedData, pappersData, reviewAnalysis)
           : opportunityScore(placeData.website, socialPresence))
 
   const googleRating    = Math.min(w.googleRating,    Math.round(rawRating     / 100 * w.googleRating))
@@ -226,4 +246,4 @@ function calculateScore(placeData, socialPresence, reviewAnalysis, weights = DEF
   }
 }
 
-module.exports = { calculateScore, DEFAULT_WEIGHTS }
+module.exports = { calculateScore, DEFAULT_WEIGHTS, getDomainComplexity }

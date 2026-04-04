@@ -1,3 +1,44 @@
+const QUESTION_PATTERNS = [
+  'est-ce que', 'comment', 'quand', 'combien', 'peut-on', 'est-il possible',
+  'pouvez-vous', 'avez-vous', 'faites-vous', 'acceptez-vous',
+]
+
+const QUESTION_TOPICS = {
+  horaires:    ['horaire', 'ouvert', 'fermé', 'fermeture', 'heure', 'quand'],
+  reservation: ['réservation', 'réserver', 'booking', 'prendre rendez'],
+  tarif:       ['prix', 'tarif', 'combien', 'coût', 'cout', 'cher', 'gratuit'],
+  contact:     ['téléphone', 'contact', 'joindre', 'appeler', 'mail', 'email'],
+  services:    ['service', 'prestation', 'disponible', 'propose', 'offre'],
+}
+
+function countQuestionsInReviews(reviews) {
+  if (!reviews || reviews.length === 0) {
+    return { totalQuestions: 0, questionTopics: {}, questionRatio: 0 }
+  }
+
+  let totalQuestions = 0
+  const topicCounts  = {}
+
+  reviews.forEach(review => {
+    const text = (review.text || '').toLowerCase()
+    const hasQuestion = text.includes('?') ||
+      QUESTION_PATTERNS.some(kw => text.includes(kw))
+    if (hasQuestion) totalQuestions++
+
+    for (const [topic, keywords] of Object.entries(QUESTION_TOPICS)) {
+      if (keywords.some(kw => text.includes(kw))) {
+        topicCounts[topic] = (topicCounts[topic] || 0) + 1
+      }
+    }
+  })
+
+  return {
+    totalQuestions,
+    questionTopics: topicCounts,
+    questionRatio:  Math.round((totalQuestions / reviews.length) * 100),
+  }
+}
+
 const POSITIVE_KEYWORDS = [
   'excellent', 'parfait', 'super', 'rapide', 'efficace',
   'professionnel', 'accueil', 'recommande', 'top', 'génial',
@@ -102,7 +143,9 @@ function analyzeReviews(reviews) {
     oppScore >= 50 ? 'high' :
     oppScore >= 30 ? 'medium' : 'low'
 
+  result.questionAnalysis = countQuestionsInReviews(reviews)
+
   return result
 }
 
-module.exports = { analyzeReviews }
+module.exports = { analyzeReviews, countQuestionsInReviews }
