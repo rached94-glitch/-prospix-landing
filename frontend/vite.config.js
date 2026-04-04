@@ -6,7 +6,14 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': 'http://localhost:3001',
+      '/api': {
+        target:        'http://localhost:3001',
+        changeOrigin:  true,
+        ws:            false,
+        // Garde la connexion SSE ouverte sans timeout côté proxy
+        proxyTimeout:  0,
+        timeout:       0,
+      },
     },
   },
   optimizeDeps: {

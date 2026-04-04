@@ -206,5 +206,13 @@ export function useLeads() {
 
   const forceCloseOverlay = () => { console.log('[useLeads] forceCloseOverlay appelé'); setIsLoading(false); setProgress(null) }
 
-  return { leads, isLoading, error, progress, searchLeads, updateLeadStatus, updateLeadDecisionMaker, exportLeads, forceCloseOverlay }
+  const updateLeadData = (id, enrichedData) => {
+    setLeads((prev) =>
+      prev.map((l) =>
+        (l._id === id || l.id === id) ? { ...l, ...enrichedData } : l
+      )
+    )
+  }
+
+  return { leads, isLoading, error, progress, searchLeads, updateLeadStatus, updateLeadDecisionMaker, exportLeads, forceCloseOverlay, updateLeadData }
 }

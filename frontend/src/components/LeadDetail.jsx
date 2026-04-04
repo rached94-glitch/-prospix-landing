@@ -81,7 +81,7 @@ function saveStatus(id, status) { localStorage.setItem(STATUS_KEY(id), status) }
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDecisionMakerFound, activeProfile }) {
+export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDecisionMakerFound, onLeadUnlocked, activeProfile }) {
   const [contactedConfirm, setContactedConfirm] = useState(false)
   const [savedToSheets,    setSavedToSheets]    = useState(false)
   const [wide,             setWide]             = useState(false)
@@ -154,10 +154,18 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
   const [photoQuality,        setPhotoQuality]        = useState(null)
   const [photoQualityLoading, setPhotoQualityLoading] = useState(false)
 
+  // Lock state
+  const [isUnlocked,   setIsUnlocked]   = useState(false)
+  const [unlockLoading, setUnlockLoading] = useState(false)
+  const [unlockError,   setUnlockError]   = useState(null)
+
   // Ref on scrollable container — used to reset scroll position when lead changes
   const scrollRef = useRef(null)
 
   useEffect(() => {
+    setIsUnlocked(!(lead?.locked))
+    setUnlockLoading(false)
+    setUnlockError(null)
     setContactedConfirm(false)
     if (scrollRef.current) scrollRef.current.scrollTop = 0
     setSavedToSheets(false)
@@ -222,6 +230,45 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
     // Reset SEMrush on lead change
     setSemrushData(null); setSemrushLoading(false); setSemrushError(null)
   }, [lead?.id, lead?._id])
+
+  const handleUnlock = async () => {
+    if (unlockLoading) return
+    setUnlockLoading(true)
+    setUnlockError(null)
+    try {
+      const placeId = lead.id || lead._id
+      const res = await fetch(`/api/leads/unlock/${placeId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name:               lead.name,
+          vicinity:           lead.address,
+          lat:                lead.lat,
+          lng:                lead.lng,
+          rating:             lead.google?.rating,
+          user_ratings_total: lead.google?.totalReviews,
+          price_level:        lead.google?.priceLevel,
+          photoCount:         lead.googleAudit?.photoCount ?? 0,
+          domain:             lead.domain,
+          keywords:           lead.keyword ? [lead.keyword] : [],
+          city:               lead.address?.split(',').pop()?.trim() ?? '',
+          profileId:          activeProfile?.id ?? null,
+          weights:            activeProfile?.weights ?? null,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `HTTP ${res.status}`)
+      }
+      const enriched = await res.json()
+      setIsUnlocked(true)
+      onLeadUnlocked?.(lead.id || lead._id, enriched)
+    } catch (e) {
+      setUnlockError(e.message)
+    } finally {
+      setUnlockLoading(false)
+    }
+  }
 
   const handleAnalyzePerformance = async () => {
     if (auditState === 'loading') return
@@ -1540,7 +1587,49 @@ Bien cordialement,
         </div>
 
         {/* ══ SCROLLABLE CONTENT ══ */}
-        <div ref={scrollRef} className="ld-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 16px 80px', scrollbarWidth: 'thin', scrollbarColor: '#2d3748 #0D1410' }}>
+        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        {!isUnlocked && (
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 10,
+            backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+            background: 'rgba(13,20,16,0.75)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            gap: 14, padding: '24px 20px',
+          }}>
+            <div style={{ fontSize: 36, lineHeight: 1 }}>🔒</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9', textAlign: 'center', lineHeight: 1.4 }}>
+              Débloquez ce lead pour accéder à toutes les données
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+              {['📞 Téléphone', '🌐 Site web', 'in LinkedIn', 'fb Facebook', 'ig Instagram', '📊 Score /100'].map(tag => (
+                <span key={tag} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-mono)' }}>
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <button
+              onClick={handleUnlock}
+              disabled={unlockLoading}
+              style={{
+                marginTop: 6, padding: '10px 24px', borderRadius: 10, border: 'none', cursor: unlockLoading ? 'wait' : 'pointer',
+                background: unlockLoading ? 'rgba(237,250,54,0.5)' : '#edfa36',
+                color: '#0d1410', fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-body)',
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}
+            >
+              {unlockLoading
+                ? <><span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid #0d1410', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />Déblocage...</>
+                : '🔓 Débloquer — 1 crédit'
+              }
+            </button>
+            {unlockError && (
+              <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', maxWidth: 260, lineHeight: 1.4 }}>
+                ✗ {unlockError}
+              </div>
+            )}
+          </div>
+        )}
+        <div ref={scrollRef} className="ld-scroll" style={{ height: '100%', overflowY: 'auto', padding: '14px 16px 80px', scrollbarWidth: 'thin', scrollbarColor: '#2d3748 #0D1410' }}>
 
           {/* ── CONTACT & PRÉSENCE ── */}
           <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, marginBottom: 12, overflow: 'hidden' }}>
@@ -2854,6 +2943,7 @@ Bien cordialement,
           </div>
 
         </div>
+        </div>{/* end position:relative wrapper */}
       </div>
 
       {/* ── DESCRIPTION MODAL ── */}

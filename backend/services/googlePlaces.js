@@ -6,10 +6,11 @@ const BASE_URL = 'https://maps.googleapis.com/maps/api/place/';
 const API_KEY  = process.env.GOOGLE_MAPS_API_KEY;
 
 // ─── Caches TTL ───────────────────────────────────────────────────────────────
-const TTL_7D             = 7 * 24 * 60 * 60 * 1000      // 7 jours en ms
-const searchResultsCache = createCache('search');        // 7 jours
-const placeDetailsCache  = createCache('placeDetails');  // 7 jours
-const localRankCache     = createCache('localRank');     // 7 jours
+const TTL_7D                  = 7 * 24 * 60 * 60 * 1000
+const searchResultsCache      = createCache('search');            // 7 jours
+const placeDetailsCache       = createCache('placeDetails');      // 7 jours — champs complets (unlock)
+const placeDetailsBasicCache  = createCache('placeDetailsBasic'); // 7 jours — champs Basic seulement
+const localRankCache          = createCache('localRank');         // 7 jours
 
 // ─── Mapping domaine → types Google Places ───────────────────────────────────
 const DOMAIN_TYPES = {
@@ -111,7 +112,31 @@ async function fetchAllPages({ lat, lng, radius, keyword, type, onProgress }) {
   return all;
 }
 
-// ─── Détails + avis d'un lieu ────────────────────────────────────────────────
+// ─── Détails basiques (phase 1 — pas de phone/website/reviews) ───────────────
+async function getPlaceDetailsBasic(placeId) {
+  const cached = placeDetailsBasicCache.get(`place_basic_${placeId}`)
+  if (cached) return cached
+
+  const fields = ['photos', 'price_level', 'rating', 'user_ratings_total'].join(',');
+
+  console.log(`[API COST] Appel réel à Google API: Place Details Basic maps.googleapis.com — placeId=${placeId}`)
+  try {
+    const { data } = await withTimeout(
+      axios.get(`${BASE_URL}details/json`, {
+        params: { place_id: placeId, fields, key: API_KEY, language: 'fr' },
+      }),
+      5000
+    );
+    const result = data.result || {};
+    placeDetailsBasicCache.set(`place_basic_${placeId}`, result, TTL_7D)
+    return result;
+  } catch (err) {
+    console.error(`getPlaceDetailsBasic ${placeId}:`, err.message);
+    return {};
+  }
+}
+
+// ─── Détails complets + avis d'un lieu ───────────────────────────────────────
 async function getPlaceDetails(placeId) {
   const cached = placeDetailsCache.get(`place_details_${placeId}`)
   if (cached) return cached
@@ -285,7 +310,7 @@ async function scrapeDescription(websiteUrl, editorialSummary) {
   }
 }
 
-// ─── Enrichissement par batch de 10 ─────────────────────────────────────────
+// ─── Enrichissement par batch de 10 (phase 1 — Basic seulement) ─────────────
 async function enrichBatch(places, onProgress) {
   const BATCH = 10;
   const enriched = [];
@@ -299,39 +324,32 @@ async function enrichBatch(places, onProgress) {
     const batch = places.slice(i, i + BATCH);
     const results = await Promise.all(
       batch.map(async place => {
-        const details    = await getPlaceDetails(place.place_id);
-        const websiteUrl = cleanWebsiteUrl(details.website);
-        const descResult = await scrapeDescription(websiteUrl, details.editorial_summary);
+        const details    = await getPlaceDetailsBasic(place.place_id);
         const photoCount = details.photos?.length ?? 0
         console.log('[Photos]', JSON.stringify(photoCount), '—', place.name)
 
-        const totalRatings    = details.user_ratings_total ?? place.user_ratings_total ?? 0
-        const repliedCount    = (details.reviews ?? []).filter(r => r.author_reply).length
-        // 3/5 visible reviews = 60% effective threshold; condition impossible if < 3 reviews visible
-        const isActiveOwner   = totalRatings >= 5 && repliedCount >= 3
-        // Ratio sur les 5 avis retournés par l'API (pas le taux de réponse global)
-        const ownerReplyRatio = totalRatings > 0 ? repliedCount / Math.min(totalRatings, 5) : 0
-
         return {
-          place_id:            place.place_id,
-          name:                place.name,
-          vicinity:            place.vicinity,
-          lat:                 place.geometry?.location?.lat,
-          lng:                 place.geometry?.location?.lng,
-          rating:              details.rating              ?? place.rating              ?? null,
-          user_ratings_total:  details.user_ratings_total ?? place.user_ratings_total ?? null,
-          price_level:         details.price_level         ?? place.price_level         ?? null,
-          phone:               details.formatted_phone_number ?? null,
-          website:             websiteUrl,
-          opening_hours:       details.opening_hours          ?? null,
-          reviews:             details.reviews                ?? [],
+          place_id:           place.place_id,
+          name:               place.name,
+          vicinity:           place.vicinity,
+          lat:                place.geometry?.location?.lat,
+          lng:                place.geometry?.location?.lng,
+          rating:             details.rating             ?? place.rating             ?? null,
+          user_ratings_total: details.user_ratings_total ?? place.user_ratings_total ?? null,
+          price_level:        details.price_level        ?? place.price_level        ?? null,
           photoCount,
-          hasDescription:      descResult.hasDescription,
-          descriptionText:     descResult.descriptionText,
-          descriptionSource:   descResult.descriptionSource,
-          hasHours:            !!(details.opening_hours),
-          isActiveOwner,
-          ownerReplyRatio,
+          // Champs complets — disponibles après unlock
+          phone:              null,
+          website:            null,
+          opening_hours:      null,
+          reviews:            [],
+          hasDescription:     false,
+          descriptionText:    null,
+          descriptionSource:  null,
+          hasHours:           false,
+          isActiveOwner:      false,
+          ownerReplyRatio:    0,
+          locked:             true,
         };
       })
     );
@@ -437,4 +455,4 @@ async function getLocalRank(placeId, category, city) {
   }
 }
 
-module.exports = { searchPlaces, getPlaceDetails, getPhotoUrls, getLocalRank };
+module.exports = { searchPlaces, getPlaceDetails, getPhotoUrls, getLocalRank, cleanWebsiteUrl, scrapeDescription };

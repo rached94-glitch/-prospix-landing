@@ -326,7 +326,7 @@ function Sidebar({ children }) {
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 export default function App() {
-  const { leads, isLoading, progress, searchLeads, updateLeadStatus, updateLeadDecisionMaker, forceCloseOverlay } = useLeads()
+  const { leads, isLoading, progress, searchLeads, updateLeadStatus, updateLeadDecisionMaker, forceCloseOverlay, updateLeadData } = useLeads()
   const safeLeads = leads || []
 
   const { profiles, activeProfile, setActiveProfile, createProfile, updateProfile, deleteProfile } = useScoringProfiles()
@@ -387,6 +387,10 @@ export default function App() {
   const onDecisionMakerFound = (leadId, decisionMaker) => {
     updateLeadDecisionMaker(leadId, decisionMaker)
     setSelectedLead(prev => prev?._id === leadId || prev?.id === leadId ? { ...prev, decisionMaker } : prev)
+  }
+  const onLeadUnlocked = (leadId, enrichedData) => {
+    updateLeadData(leadId, enrichedData)
+    setSelectedLead(prev => prev?._id === leadId || prev?.id === leadId ? { ...prev, ...enrichedData } : prev)
   }
 
   const filteredLeads = applyFilters(safeLeads, filters)
@@ -506,6 +510,7 @@ export default function App() {
                 onClose={() => setSelectedLead(null)}
                 onStatusChange={onStatusChange}
                 onDecisionMakerFound={onDecisionMakerFound}
+                onLeadUnlocked={onLeadUnlocked}
                 activeProfile={activeProfile}
               />
             )}
