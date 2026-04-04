@@ -21,8 +21,8 @@ backend/node_modules/
 frontend/dist/
 frontend/.vite/
 
-# Cache Pappers (données financières)
-backend/cache/
+# Données de cache runtime (JSON) — les sources .js restent trackés
+backend/cache/*.json
 
 # Logs
 *.log

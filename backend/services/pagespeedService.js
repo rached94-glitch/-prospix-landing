@@ -25,14 +25,14 @@ function checkSensitiveCategory(category) {
 
 // ── Cache CrUX 7 jours (données mensuelles) ───────────────────────────────────
 const CRUX_TTL   = 7 * 24 * 60 * 60 * 1000
-const cruxCache  = new Map()
+const cruxCache  = createCache('crux')
 
 async function getCruxData(originUrl) {
-  const key = originUrl
-  const hit  = cruxCache.get(key)
-  if (hit && (Date.now() - hit.ts) < CRUX_TTL) {
-    console.log(`[CrUX] Cache HIT pour ${originUrl}`)
-    return hit.result
+  const key    = originUrl
+  const cached = cruxCache.get(key)
+  if (cached !== null) {
+    // HIT already logged by createCache — cached can be the result object or the sentinel {_null:true}
+    return cached._null ? null : cached
   }
 
   console.log(`[API COST] Appel réel à Google API: CrUX chromeuxreport.googleapis.com — ${originUrl}`)
@@ -58,7 +58,7 @@ async function getCruxData(originUrl) {
     const metrics = response.data?.record?.metrics
     if (!metrics) {
       console.log(`[CrUX] Pas de métriques pour ${originUrl}`)
-      cruxCache.set(key, { result: null, ts: Date.now() })
+      cruxCache.set(key, { _null: true }, CRUX_TTL)
       return null
     }
 
@@ -73,7 +73,7 @@ async function getCruxData(originUrl) {
       ttfb_real: getP75('experimental_time_to_first_byte'),
       dataSource: 'crux',
     }
-    cruxCache.set(key, { result, ts: Date.now() })
+    cruxCache.set(key, result, CRUX_TTL)
     console.log(`[CrUX] Données réelles trouvées pour ${originUrl} — lcp:${result.lcp_real}ms fcp:${result.fcp_real}ms ttfb:${result.ttfb_real}ms`)
     return result
   } catch (e) {
@@ -84,7 +84,7 @@ async function getCruxData(originUrl) {
     } else {
       console.warn(`[CrUX] Erreur ${status ?? 'réseau'} pour ${originUrl}: ${detail}`)
     }
-    cruxCache.set(key, { result: null, ts: Date.now() })
+    cruxCache.set(key, { _null: true }, CRUX_TTL)
     return null
   }
 }
