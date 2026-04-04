@@ -3,7 +3,7 @@ import { playClick, playSuccess, playError } from '../utils/sounds'
 import ReactMarkdown from 'react-markdown'
 import { ScoreBadge } from './LeadCard'
 import { exportLeadPDF } from '../utils/exportPDF'
-import { exportAuditPDF } from '../utils/exportAuditPDF'
+import { exportAuditPDF, exportAuditPhotographePDF } from '../utils/exportAuditPDF'
 import { FaFacebookF, FaLinkedinIn, FaYoutube, FaTiktok, FaInstagram } from 'react-icons/fa'
 
 const SOCIAL_CONFIG = [
@@ -227,6 +227,11 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
     // Reset prospect audit on lead change
     setProspectAudit(null)
     setProspectAuditState('idle')
+    // Reset photo audit on lead change
+    setPhotoAudit(null)
+    setPhotoAuditState('idle')
+    setPhotoAuditPdfLoading(false)
+    setPhotoAuditPdfError(null)
     // Reset SEMrush on lead change
     setSemrushData(null); setSemrushLoading(false); setSemrushError(null)
   }, [lead?.id, lead?._id])
@@ -920,6 +925,12 @@ Bien cordialement,
   const [auditPdfLoading, setAuditPdfLoading] = useState(false)
   const [auditPdfError,   setAuditPdfError]   = useState(null)
 
+  // Audit photographe — on-demand
+  const [photoAudit,          setPhotoAudit]          = useState(null)
+  const [photoAuditState,     setPhotoAuditState]     = useState('idle') // idle | loading | done | error
+  const [photoAuditPdfLoading,setPhotoAuditPdfLoading]= useState(false)
+  const [photoAuditPdfError,  setPhotoAuditPdfError]  = useState(null)
+
   const handleExportPDF = async () => {
     setPdfLoading(true)
     try {
@@ -980,6 +991,48 @@ Bien cordialement,
       setAuditPdfError(err.message ?? 'Erreur inconnue')
     } finally {
       setAuditPdfLoading(false)
+    }
+  }
+
+  const handleExportPhotoAuditPDF = async () => {
+    setPhotoAuditPdfLoading(true)
+    setPhotoAuditPdfError(null)
+    setPhotoAuditState('loading')
+    try {
+      const placeId  = lead.id || lead._id || 'unknown'
+      const leadCity = lead.address?.split(',').pop()?.trim() || ''
+
+      // Step 1 — generate AI audit via backend
+      const r = await fetch(`/api/leads/audit-photo/${placeId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessName: lead.name          ?? '',
+          websiteUrl:   lead.website       ?? null,
+          photoCount:   lead.googleAudit?.photoCount ?? lead.google?.photoCount ?? 0,
+          googlePhotos: [],
+          social:       lead.social        ?? {},
+          reviewsData:  reviewsData        ?? null,
+          googleRating: lead.google?.rating       ?? null,
+          totalReviews: lead.google?.totalReviews  ?? null,
+        }),
+      })
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}))
+        throw new Error(err.error ?? `Erreur serveur ${r.status}`)
+      }
+      const photoAuditResult = await r.json()
+      setPhotoAudit(photoAuditResult)
+      setPhotoAuditState('done')
+
+      // Step 2 — generate PDF with AI content
+      await exportAuditPhotographePDF({ lead, activeProfile, photoAudit: photoAuditResult, auditData })
+    } catch (err) {
+      console.error('[PhotoAuditPDF]', err)
+      setPhotoAuditState('error')
+      setPhotoAuditPdfError(err.message ?? 'Erreur inconnue')
+    } finally {
+      setPhotoAuditPdfLoading(false)
     }
   }
 
@@ -2939,6 +2992,26 @@ Bien cordialement,
               <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
                 ✗ {auditPdfError}
               </div>
+            )}
+
+            {/* Audit photo — profil Photographe uniquement */}
+            {activeProfile?.id === 'photographe' && (
+              <>
+                <button
+                  className="ld-btn"
+                  onClick={handleExportPhotoAuditPDF}
+                  disabled={photoAuditPdfLoading}
+                  style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: photoAuditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: photoAuditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
+                  onMouseEnter={e => { if (!photoAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
+                  {photoAuditState === 'loading' ? '⏳ Génération de l\'audit…' : photoAuditPdfLoading ? '⏳ Mise en page PDF…' : '📷 Générer l\'audit photo'}
+                </button>
+                {photoAuditPdfError && (
+                  <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
+                    ✗ {photoAuditPdfError}
+                  </div>
+                )}
+              </>
             )}
           </div>
 

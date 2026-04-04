@@ -1267,4 +1267,188 @@ Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
   return parsed
 }
 
-module.exports = { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateAuditSEO }
+// ─── generateAuditPhotographe ─────────────────────────────────────────────────
+async function generateAuditPhotographe({ businessName, websiteUrl, googlePhotos, photoCount, socialActivity, reviewsData, googleRating, totalReviews }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
+
+  const anthropic = new Anthropic({ apiKey })
+
+  const name         = businessName  ?? 'ce commerce'
+  const website      = websiteUrl    ?? null
+  const rating       = googleRating  ?? null
+  const reviewCount  = totalReviews  ?? null
+  const photos       = photoCount    ?? 0
+
+  const hasInstagram = socialActivity?.hasInstagram ?? false
+  const hasFacebook  = socialActivity?.hasFacebook  ?? false
+  const hasTiktok    = socialActivity?.hasTiktok    ?? false
+  const hasYoutube   = socialActivity?.hasYoutube   ?? false
+  const hasPinterest = socialActivity?.hasPinterest ?? false
+
+  const unanswered   = reviewsData?.unanswered ?? 0
+  const keywords     = reviewsData?.keywords   ?? []
+  const keywordsText = keywords.length > 0 ? keywords.slice(0, 5).join(', ') : '—'
+
+  // ── Forces détectées côté JS ──────────────────────────────────────────────
+  const forcesHints = []
+  if (photos >= 20)                          forcesHints.push(`Volume de photos Google significatif (${photos} photos)`)
+  else if (photos >= 5)                      forcesHints.push(`Fiche Google illustrée (${photos} photos)`)
+  if (hasInstagram)                          forcesHints.push('Présence Instagram détectée')
+  if (hasTiktok)                             forcesHints.push('Présence TikTok détectée — format vidéo court valorisé')
+  if (hasFacebook)                           forcesHints.push('Page Facebook active')
+  if (hasYoutube)                            forcesHints.push('Chaîne YouTube présente — contenu vidéo long format')
+  if (rating !== null && rating >= 4.5)      forcesHints.push(`Excellente note Google (${rating}/5 — ${reviewCount ?? '?'} avis)`)
+  else if (rating !== null && rating >= 4)   forcesHints.push(`Bonne note Google (${rating}/5)`)
+  if (website)                               forcesHints.push('Site web présent — galerie potentiellement exploitable')
+  if (forcesHints.length === 0)              forcesHints.push('Fiche Google Maps existante et indexée')
+
+  // ── Faiblesses détectées côté JS ─────────────────────────────────────────
+  const weaknessHints = []
+  if (photos === 0)                          weaknessHints.push('Aucune photo sur la fiche Google — premier critère de confiance absent')
+  else if (photos < 5)                       weaknessHints.push(`Fiche Google sous-illustrée (${photos} photo${photos > 1 ? 's' : ''} seulement)`)
+  else if (photos < 15)                      weaknessHints.push(`Volume de photos limité (${photos}) — pas de diversité intérieur/extérieur/équipe`)
+  if (!hasInstagram && !hasTiktok)           weaknessHints.push('Absence totale sur les réseaux visuels (Instagram, TikTok)')
+  else if (!hasInstagram)                    weaknessHints.push('Instagram absent — canal visuel prioritaire pour ce secteur')
+  if (!website)                              weaknessHints.push('Site web absent — pas de galerie photos professionnelle possible')
+  if (unanswered > 0)                        weaknessHints.push(`${unanswered} avis Google sans réponse — signaux de confiance manquants`)
+  if (rating !== null && rating < 4)         weaknessHints.push(`Note Google insuffisante (${rating}/5) — les visuels pourraient améliorer la perception`)
+  if (!hasPinterest && !hasYoutube)          weaknessHints.push('Absence sur Pinterest/YouTube — opportunités de contenu visuel long terme inexploitées')
+
+  // ── Bloc réseaux sociaux visuels ──────────────────────────────────────────
+  const socialsBlock = [
+    `  - Instagram  : ${hasInstagram ? 'Présent' : 'Absent'}`,
+    `  - TikTok     : ${hasTiktok    ? 'Présent' : 'Absent'}`,
+    `  - Facebook   : ${hasFacebook  ? 'Présent' : 'Absent'}`,
+    `  - YouTube    : ${hasYoutube   ? 'Présent' : 'Absent'}`,
+    `  - Pinterest  : ${hasPinterest ? 'Présent' : 'Absent'}`,
+  ].join('\n')
+
+  const prompt = `Tu es un photographe professionnel expert en image de marque pour les commerces locaux. Rédige un audit visuel pour "${name}".
+Ton : consultant professionnel, factuel, bienveillant — jamais alarmiste, jamais vendeur.
+
+DONNÉES VERROUILLÉES — N'UTILISE QUE CES CHIFFRES :
+- Nom           : ${name}
+- Site web      : ${website || 'ABSENT'}
+- Note Google   : ${rating ?? '—'}/5 (${reviewCount ?? '—'} avis)
+- Avis sans réponse : ${unanswered}
+- Mots-clés avis : ${keywordsText}
+- Photos Google : ${photos} photo(s)
+${socialsBlock}
+
+FORCES DÉTECTÉES (base de départ obligatoire) :
+${forcesHints.map(f => `- ${f}`).join('\n')}
+
+FAIBLESSES IDENTIFIÉES (points à traiter) :
+${weaknessHints.map(w => `- ${w}`).join('\n') || '- Aucune faiblesse majeure identifiée'}
+
+INSTRUCTIONS :
+1. Commence toujours par les forces — ne jamais ouvrir sur les problèmes
+2. Les faiblesses doivent être factuelles et directement tirées des données ci-dessus
+3. Les opportunités = bénéfices concrets d'un travail photo professionnel (fiche Google, réseaux, site, saisonnier)
+4. Les recommandations doivent être priorisées et orienter naturellement vers le shooting professionnel, la cohérence visuelle, le contenu réseaux sociaux visuels
+5. L'accroche est une phrase courte et percutante pour l'email — jamais "j'ai analysé", jamais de liste
+6. N'invente aucun chiffre absent des DONNÉES VERROUILLÉES ci-dessus
+
+LIMITES STRICTES DE LONGUEUR — OBLIGATOIRE :
+- resume_executif : maximum 4 phrases courtes
+- forces : exactement 3 entrées maximum
+- faiblesses : exactement 3 entrées maximum
+- opportunites : exactement 3 entrées maximum
+- recommandations : exactement 4 entrées maximum
+- Chaque titre : maximum 10 mots
+- Chaque description : maximum 2 phrases
+- accroche : 1 seule phrase
+- Sois CONCIS. Le JSON total doit faire moins de 3000 caractères.
+
+IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide. Pas de texte avant, pas de texte après, pas de markdown, pas de \`\`\`json.
+
+Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
+{
+  "resume_executif": "3-4 phrases courtes max",
+  "forces": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
+  "faiblesses": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
+  "opportunites": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
+  "recommandations": [{"titre": "max 10 mots", "description": "max 2 phrases", "priorite": 1}],
+  "accroche": "1 seule phrase"
+}`
+
+  console.log(`[generateAuditPhotographe] ${name} | photos:${photos} | ig:${hasInstagram} | tt:${hasTiktok} | prompt:${prompt.length} chars`)
+
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 2500,
+      messages:   [{ role: 'user', content: prompt }],
+    })
+  } catch (err) {
+    console.error('[generateAuditPhotographe] ✗ Erreur Anthropic:', err.message)
+    throw new Error(`Erreur génération audit photographe: ${err.message}`)
+  }
+
+  const raw = message.content[0].text
+  console.log(`[generateAuditPhotographe] ✓ réponse reçue (${raw.length} chars)`)
+
+  // ── Parsing robuste (même logique que generateAuditSEO) ───────────────────
+  function tryParse(str) {
+    try { return JSON.parse(str) } catch (_) { return null }
+  }
+
+  function cleanAndParse(str) {
+    let result = tryParse(str)
+    if (result) return result
+
+    const lastBrace = str.lastIndexOf('}')
+    if (lastBrace > 0) {
+      result = tryParse(str.substring(0, lastBrace + 1))
+      if (result) return result
+    }
+
+    const cleaned = str
+      .replace(/,\s*([}\]])/g, '$1')
+      .replace(/[\r\n]+/g, ' ')
+      .replace(/([^\\])\\n/g, '$1 ')
+      .replace(/\t/g, ' ')
+    result = tryParse(cleaned)
+    if (result) return result
+
+    const lastBrace2 = cleaned.lastIndexOf('}')
+    if (lastBrace2 > 0) {
+      result = tryParse(cleaned.substring(0, lastBrace2 + 1))
+      if (result) return result
+    }
+
+    return null
+  }
+
+  const start = raw.indexOf('{')
+  const end   = raw.lastIndexOf('}')
+
+  if (start === -1 || end === -1 || end <= start) {
+    console.error('[generateAuditPhotographe] Aucun JSON trouvé dans la réponse')
+    return {
+      resume_executif: 'Audit généré avec des données partielles — veuillez relancer.',
+      forces: [], faiblesses: [], opportunites: [],
+      recommandations: [{ titre: 'Enrichir les photos de la fiche Google', description: 'Des photos professionnelles augmentent le taux de clic de 25% en moyenne.', priorite: 1 }],
+      accroche: 'Vos photos sont votre première impression — soignons-la.',
+    }
+  }
+
+  const jsonStr = raw.substring(start, end + 1)
+  const parsed  = cleanAndParse(jsonStr)
+
+  if (!parsed) {
+    console.error('[generateAuditPhotographe] Parse échoué. JSON extrait:', jsonStr)
+    return {
+      resume_executif: 'Audit généré avec des données partielles — veuillez relancer.',
+      forces: [], faiblesses: [], opportunites: [],
+      recommandations: [{ titre: 'Enrichir les photos de la fiche Google', description: 'Des photos professionnelles augmentent le taux de clic de 25% en moyenne.', priorite: 1 }],
+      accroche: 'Vos photos sont votre première impression — soignons-la.',
+    }
+  }
+
+  return parsed
+}
+
+module.exports = { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateAuditSEO, generateAuditPhotographe }

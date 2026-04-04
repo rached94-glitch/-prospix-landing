@@ -10,7 +10,7 @@ const { enrichSocial }   = require('../services/socialEnrichment');
 const { calculateScore }  = require('../services/scoring');
 const { analyzeReviews }  = require('../services/reviewAnalysis');
 const { getAllReviews }      = require('../services/apifyReviews');
-const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateAuditSEO } = require('../services/aiReviewAnalysis');
+const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateAuditSEO, generateAuditPhotographe } = require('../services/aiReviewAnalysis');
 const { findDecisionMaker } = require('../services/linkedinScraper');
 const { searchPappers }     = require('../services/pappersService');
 const { getPageSpeed, checkNAP, getSiteSignals } = require('../services/pagespeedService');
@@ -720,6 +720,53 @@ router.post('/audit-prospect/:placeId', async (req, res, next) => {
     }
 
     const result = await generateAuditSEO({ leadData, pagespeedData, localRank, reviewsData, napData, facebookActivity, instagramActivity })
+    res.json(result)
+  } catch (e) {
+    next(e)
+  }
+})
+
+// ─── POST /audit-photo/:placeId — Audit IA prospect profil Photographe ───────
+router.post('/audit-photo/:placeId', async (req, res, next) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new AppError('ANTHROPIC_API_KEY manquante', 503)
+    }
+    const { placeId } = req.params
+    if (!validatePlaceId(placeId)) throw new AppError('placeId invalide', 400)
+
+    const {
+      businessName  = 'ce commerce',
+      websiteUrl    = null,
+      googlePhotos  = [],
+      photoCount    = 0,
+      social        = {},   // { linkedin, facebook, instagram, tiktok }
+      reviewsData   = null,
+      googleRating  = null,
+      totalReviews  = null,
+    } = req.body
+
+    // Construire socialActivity depuis le champ lead.social standard
+    const socialActivity = {
+      hasInstagram: !!(social.instagram),
+      hasFacebook:  !!(social.facebook),
+      hasTiktok:    !!(social.tiktok),
+      hasYoutube:   !!(social.youtube),
+      hasPinterest: !!(social.pinterest),
+    }
+
+    console.log(`[audit-photo] placeId:${placeId} | business:"${businessName}" | photos:${photoCount} | ig:${socialActivity.hasInstagram} | tt:${socialActivity.hasTiktok}`)
+
+    const result = await generateAuditPhotographe({
+      businessName,
+      websiteUrl,
+      googlePhotos,
+      photoCount,
+      socialActivity,
+      reviewsData,
+      googleRating,
+      totalReviews,
+    })
     res.json(result)
   } catch (e) {
     next(e)
