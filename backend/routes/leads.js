@@ -1,6 +1,7 @@
 const express        = require('express');
 const router         = express.Router();
 const AppError       = require('../utils/AppError');
+const logger         = require('../utils/logger');
 const { searchPlaces, getPlaceDetails, getPhotoUrls, getLocalRank, cleanWebsiteUrl, scrapeDescription } = require('../services/googlePlaces');
 const { createCache } = require('../cache/searchCache');
 const { validateSearchParams, validatePlaceId } = require('../utils/validateInputs');
@@ -137,7 +138,7 @@ async function processPlaces(places, { lat, lng, domain, keywords, city, onProgr
       const lead = buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersData, weights, profileId });
       lead.locked = true;
       done++;
-      console.log(`[Enrich] Lead ${done}/${total} terminé : ${place.name}`);
+      logger.info('Enrich', `Lead ${done}/${total} terminé : ${place.name}`);
       return lead;
     })
   );
@@ -148,26 +149,26 @@ async function processPlaces(places, { lat, lng, domain, keywords, city, onProgr
 
 // ─── POST /search/stream (SSE) ────────────────────────────────────────────────
 router.post('/search/stream', async (req, res) => {
-  console.log('[Stream] Requête reçue — body:', JSON.stringify(req.body))
+  logger.info('Stream', `Requête reçue — body: ${JSON.stringify(req.body)}`)
 
   res.setHeader('Content-Type',  'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection',    'keep-alive');
   res.flushHeaders();
-  console.log('[Stream] Headers SSE envoyés')
+  logger.info('Stream', 'Headers SSE envoyés')
 
   const send = data => {
     if (res.writableEnded) return
     try {
       res.write(`data: ${JSON.stringify(data)}\n\n`)
     } catch (e) {
-      console.error('[Stream] res.write error:', e.message)
+      logger.error('Stream', `res.write error: ${e.message}`, e)
     }
   }
 
   try {
     const { city, lat, lng, radius, domain, keywords = [], sources = [], weights = null, profileId = null } = req.body;
-    console.log(`[Stream] Params — city:${city} lat:${lat} lng:${lng} radius:${radius} domain:${domain}`)
+    logger.info('Stream', `Params — city:${city} lat:${lat} lng:${lng} radius:${radius} domain:${domain}`)
 
     const { valid, errors } = validateSearchParams({ lat, lng, radius, keywords, domain, profileId })
     if (!valid) {
@@ -175,21 +176,21 @@ router.post('/search/stream', async (req, res) => {
       return res.end()
     }
 
-    console.log('[Stream] Lancement searchPlaces…')
+    logger.info('Stream', 'Lancement searchPlaces…')
     const { places, fromCache } = await searchPlaces({
       lat, lng, radius, keywords, domain,
       onProgress: send,
     });
-    console.log(`[Stream] searchPlaces terminé — ${places.length} lieux (fromCache:${fromCache})`)
+    logger.info('Stream', `searchPlaces terminé — ${places.length} lieux (fromCache:${fromCache})`)
 
-    console.log('[Stream] Lancement processPlaces…')
+    logger.info('Stream', 'Lancement processPlaces…')
     const leads = await processPlaces(places, {
       lat, lng, domain, keywords, sources, city,
       onProgress: send,
       weights,
       profileId,
     });
-    console.log(`[Stream] processPlaces terminé — ${leads.length} leads`)
+    logger.info('Stream', `processPlaces terminé — ${leads.length} leads`)
 
     applyPostProcessing(leads, { city, domain })
 
@@ -200,14 +201,14 @@ router.post('/search/stream', async (req, res) => {
       fromCache,
       searchParams: { city, lat, lng, radius, domain, keywords, sources },
     });
-    console.log('[Stream] Événement done envoyé')
+    logger.info('Stream', 'Événement done envoyé')
   } catch (err) {
-    console.error('[Stream] ERREUR non catchée:', err)
+    logger.error('Stream', `ERREUR non catchée: ${err.message}`, err)
     send({ type: 'error', message: err.message });
   }
 
   res.end();
-  console.log('[Stream] res.end() appelé')
+  logger.info('Stream', 'res.end() appelé')
 });
 
 // ─── POST /search (classique, rétrocompatibilité) ─────────────────────────────

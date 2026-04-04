@@ -9,8 +9,9 @@
 //   myCache.set('key', value, 7 * 24 * 60 * 60 * 1000)  // 7d TTL
 //   const v = myCache.get('key')                          // null on miss/expiry
 
-const fs   = require('fs')
-const path = require('path')
+const fs     = require('fs')
+const path   = require('path')
+const logger = require('../utils/logger')
 
 const CACHE_FILE = path.join(__dirname, 'apiCache.json')
 const registry   = new Map()   // name → instance — used by getAllStats()
@@ -26,15 +27,15 @@ try {
       const total = Object.values(diskData).reduce((s, v) => {
         return s + (v && typeof v === 'object' ? Object.keys(v).length : 0)
       }, 0)
-      console.log(`[Cache] Chargé ${total} entrée(s) depuis apiCache.json (${ns} namespace(s))`)
+      logger.info('Cache', `Chargé ${total} entrée(s) depuis apiCache.json (${ns} namespace(s))`)
     } else {
-      console.log('[Cache] Fichier apiCache.json vide — démarrage avec cache vide')
+      logger.info('Cache', 'Fichier apiCache.json vide — démarrage avec cache vide')
     }
   } else {
-    console.log('[Cache] Fichier introuvable, démarrage avec cache vide')
+    logger.info('Cache', 'Fichier introuvable, démarrage avec cache vide')
   }
 } catch (e) {
-  console.warn('[Cache] apiCache.json corrompu ou illisible — démarrage avec cache vide. Erreur:', e.message)
+  logger.warn('Cache', `apiCache.json corrompu ou illisible — démarrage avec cache vide. Erreur: ${e.message}`)
   diskData = {}
   // Supprime le fichier corrompu pour éviter le même problème au prochain démarrage
   try { fs.unlinkSync(CACHE_FILE) } catch { /* ignore */ }
@@ -61,7 +62,7 @@ function scheduleSave() {
     writeInFlight = true
     fs.writeFile(CACHE_FILE, json, 'utf8', (err) => {
       writeInFlight = false
-      if (err) console.warn('[Cache] Erreur écriture async apiCache.json:', err.message)
+      if (err) logger.warn('Cache', `Erreur écriture async apiCache.json: ${err.message}`)
     })
   }, 5000)
 }
@@ -73,13 +74,13 @@ function registerShutdownHandlers() {
   shutdownRegistered = true
 
   function onShutdown(sig) {
-    console.log(`[Cache] Signal ${sig} — sauvegarde synchrone du cache…`)
+    logger.info('Cache', `Signal ${sig} — sauvegarde synchrone du cache…`)
     if (writeTimer) { clearTimeout(writeTimer); writeTimer = null }
     try {
       fs.writeFileSync(CACHE_FILE, JSON.stringify(buildSnapshot()), 'utf8')
-      console.log('[Cache] Cache sauvegardé.')
+      logger.info('Cache', 'Cache sauvegardé.')
     } catch (e) {
-      console.warn('[Cache] Erreur sauvegarde shutdown:', e.message)
+      logger.warn('Cache', `Erreur sauvegarde shutdown: ${e.message}`)
     }
     // Ne pas appeler process.exit() ici — laisse le processus se terminer naturellement
     // (nodemon et autres runners géreront la suite)
@@ -104,7 +105,7 @@ function createCache(name) {
       }
     }
     if (restored > 0) {
-      console.log(`[Cache] "${name}" → ${restored} entrée(s) restaurée(s)`)
+      logger.info('Cache', `"${name}" → ${restored} entrée(s) restaurée(s)`)
     }
   }
 
@@ -116,12 +117,12 @@ function createCache(name) {
     const entry = store.get(key)
     if (_valid(entry)) {
       hits++
-      console.log(`[Cache] HIT  ${name}:${key}`)
+      logger.cache(name, key, true)
       return entry.value
     }
     if (entry) store.delete(key)   // purge stale entry
     misses++
-    console.log(`[Cache] MISS ${name}:${key}`)
+    logger.cache(name, key, false)
     return null
   }
 

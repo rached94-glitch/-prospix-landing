@@ -1,4 +1,5 @@
 const axios    = require('axios')
+const logger   = require('../utils/logger')
 const psCache  = require('../cache/pagespeedCache')
 const puppeteer = require('puppeteer')
 const { createCache } = require('../cache/searchCache')
@@ -35,7 +36,7 @@ async function getCruxData(originUrl) {
     return cached._null ? null : cached
   }
 
-  console.log(`[API COST] Appel réel à Google API: CrUX chromeuxreport.googleapis.com — ${originUrl}`)
+  logger.info('CrUX', `[API COST] chromeuxreport.googleapis.com — ${originUrl}`)
   try {
     const cruxKey = process.env.PAGESPEED_API_KEY ? `?key=${process.env.PAGESPEED_API_KEY}` : ''
     const response = await axios.post(
@@ -57,7 +58,7 @@ async function getCruxData(originUrl) {
 
     const metrics = response.data?.record?.metrics
     if (!metrics) {
-      console.log(`[CrUX] Pas de métriques pour ${originUrl}`)
+      logger.warn('CrUX', `Pas de métriques pour ${originUrl}`)
       cruxCache.set(key, { _null: true }, CRUX_TTL)
       return null
     }
@@ -74,15 +75,15 @@ async function getCruxData(originUrl) {
       dataSource: 'crux',
     }
     cruxCache.set(key, result, CRUX_TTL)
-    console.log(`[CrUX] Données réelles trouvées pour ${originUrl} — lcp:${result.lcp_real}ms fcp:${result.fcp_real}ms ttfb:${result.ttfb_real}ms`)
+    logger.info('CrUX', `Données réelles — lcp:${result.lcp_real}ms fcp:${result.fcp_real}ms ttfb:${result.ttfb_real}ms — ${originUrl}`)
     return result
   } catch (e) {
     const status = e.response?.status
     const detail = e.response?.data?.error?.message ?? e.message
     if (status === 404) {
-      console.log(`[CrUX] Domaine absent du dataset Chrome pour ${originUrl} (404 — trafic insuffisant)`)
+      logger.warn('CrUX', `Domaine absent du dataset Chrome pour ${originUrl} (404 — trafic insuffisant)`)
     } else {
-      console.warn(`[CrUX] Erreur ${status ?? 'réseau'} pour ${originUrl}: ${detail}`)
+      logger.warn('CrUX', `Erreur ${status ?? 'réseau'} pour ${originUrl}: ${detail}`)
     }
     cruxCache.set(key, { _null: true }, CRUX_TTL)
     return null
@@ -280,17 +281,17 @@ async function getIndexedPages(website) {
   const cacheKey = `indexed_${domain}`
   const cached   = indexedCache.get(cacheKey)
   if (cached) {
-    console.log(`[IndexedPages] Cache HIT pour ${domain}`)
+    logger.cache('IndexedPages', domain, true)
     return cached
   }
 
   // Primary: Google Custom Search API (requires GOOGLE_CSE_KEY + GOOGLE_CSE_CX in .env)
   const cseKey = process.env.GOOGLE_CSE_KEY
   const cseCx  = process.env.GOOGLE_CSE_CX
-  console.log(`[IndexedPages] domaine: ${domain} | GOOGLE_CSE_KEY: ${cseKey ? 'présente' : 'absente'} | GOOGLE_CSE_CX: ${cseCx ?? 'absent'}`)
+  logger.info('IndexedPages', `domaine: ${domain} | CSE_KEY: ${cseKey ? 'présente' : 'absente'} | CSE_CX: ${cseCx ?? 'absent'}`)
   if (cseKey && cseCx) {
-    console.log(`[IndexedPages] méthode: CSE`)
-    console.log(`[API COST] Appel réel à Google API: Custom Search googleapis.com/customsearch — site:${domain}`)
+    logger.info('IndexedPages', 'méthode: CSE')
+    logger.info('IndexedPages', `[API COST] Custom Search googleapis.com — site:${domain}`)
     try {
       const params = new URLSearchParams([
         ['key', cseKey], ['cx', cseCx], ['q', `site:${domain}`], ['num', '1'],
@@ -299,31 +300,31 @@ async function getIndexedPages(website) {
         `https://www.googleapis.com/customsearch/v1?${params}`,
         { signal: AbortSignal.timeout(5000) }
       )
-      console.log(`[IndexedPages] CSE HTTP status: ${resp.status}`)
+      logger.info('IndexedPages', `CSE HTTP status: ${resp.status}`)
       if (resp.ok) {
         const data  = await resp.json()
-        console.log(`[IndexedPages] CSE réponse brute:`, JSON.stringify(data.searchInformation ?? data.error ?? data))
+        logger.info('IndexedPages', `CSE réponse brute: ${JSON.stringify(data.searchInformation ?? data.error ?? data)}`)
         const total = parseInt(data.searchInformation?.totalResults ?? '', 10)
         if (!isNaN(total)) {
-          console.log(`[IndexedPages] CSE → ${total} pages pour ${domain}`)
+          logger.info('IndexedPages', `CSE → ${total} pages pour ${domain}`)
           const indexResult = buildIndexResult(total)
           indexedCache.set(cacheKey, indexResult, TTL_7D)
           return indexResult
         }
-        console.warn(`[IndexedPages] CSE totalResults introuvable ou NaN`)
+        logger.warn('IndexedPages', 'CSE totalResults introuvable ou NaN')
       } else {
         const errBody = await resp.text().catch(() => '(body illisible)')
-        console.warn(`[IndexedPages] CSE réponse non-ok (${resp.status}):`, errBody.slice(0, 300))
+        logger.warn('IndexedPages', `CSE réponse non-ok (${resp.status}): ${errBody.slice(0, 300)}`)
       }
     } catch (e) {
-      console.warn(`[IndexedPages] CSE erreur pour ${domain}:`, e.message)
+      logger.warn('IndexedPages', `CSE erreur pour ${domain}: ${e.message}`)
     }
   } else {
-    console.log(`[IndexedPages] CSE ignoré (clés manquantes) — passage au fallback scraping`)
+    logger.info('IndexedPages', 'CSE ignoré (clés manquantes) — passage au fallback scraping')
   }
 
   // Fallback: scrape Google search result page
-  console.log(`[IndexedPages] méthode: scraping Google`)
+  logger.info('IndexedPages', 'méthode: scraping Google')
   try {
     const resp = await fetch(
       `https://www.google.com/search?q=site%3A${domain}`,
@@ -332,30 +333,30 @@ async function getIndexedPages(website) {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LeadGenBot/1.0)' },
       }
     )
-    console.log(`[IndexedPages] Scraping HTTP status: ${resp.status}`)
+    logger.info('IndexedPages', `Scraping HTTP status: ${resp.status}`)
     if (!resp.ok) {
-      console.warn(`[IndexedPages] Scraping réponse non-ok (${resp.status}) pour ${domain}`)
+      logger.warn('IndexedPages', `Scraping réponse non-ok (${resp.status}) pour ${domain}`)
       return null
     }
     const html  = await resp.text()
-    console.log(`[IndexedPages] Scraping HTML reçu: ${html.length} chars | extrait:`, html.slice(0, 200).replace(/\s+/g, ' '))
+    logger.info('IndexedPages', `Scraping HTML reçu: ${html.length} chars | extrait: ${html.slice(0, 200).replace(/\s+/g, ' ')}`)
     const match = html.match(/Environ ([\d\s]+) résultats/)
-    console.log(`[IndexedPages] Scraping regex match:`, match ? match[0] : 'aucun match')
+    logger.info('IndexedPages', `Scraping regex match: ${match ? match[0] : 'aucun match'}`)
     if (match) {
       const total = parseInt(match[1].replace(/\s/g, ''), 10)
       if (!isNaN(total)) {
-        console.log(`[IndexedPages] Scraping → ${total} pages pour ${domain}`)
+        logger.info('IndexedPages', `Scraping → ${total} pages pour ${domain}`)
         const indexResult = buildIndexResult(total)
         indexedCache.set(cacheKey, indexResult, TTL_7D)
         return indexResult
       }
     }
-    console.warn(`[IndexedPages] Scraping — regex non matchée ou NaN pour ${domain}`)
+    logger.warn('IndexedPages', `Scraping — regex non matchée ou NaN pour ${domain}`)
   } catch (e) {
-    console.warn(`[IndexedPages] Scraping erreur pour ${domain}:`, e.message)
+    logger.warn('IndexedPages', `Scraping erreur pour ${domain}: ${e.message}`)
   }
 
-  console.warn(`[IndexedPages] aucune méthode n'a retourné de résultat pour ${domain}`)
+  logger.warn('IndexedPages', `aucune méthode n'a retourné de résultat pour ${domain}`)
   return null
 }
 
@@ -397,9 +398,7 @@ async function getDomainAge(website) {
 }
 
 async function getPageSpeed(websiteUrl, category = null) {
-  console.log('[PageSpeed] Clé API présente:', !!process.env.PAGESPEED_API_KEY)
-  console.log('[PageSpeed] Clé API valeur:', process.env.PAGESPEED_API_KEY ? process.env.PAGESPEED_API_KEY.slice(0, 10) + '...' : '(vide)')
-  console.log(`[PageSpeed] URL reçue: ${websiteUrl ?? 'null'}`)
+  logger.info('PageSpeed', `Clé API: ${process.env.PAGESPEED_API_KEY ? process.env.PAGESPEED_API_KEY.slice(0, 10) + '…' : '(absente)'} | URL: ${websiteUrl ?? 'null'}`)
   if (!websiteUrl || websiteUrl === 'null' || websiteUrl === 'undefined') return null
 
   // Secondary clean — safeguard against UTM params
@@ -408,16 +407,16 @@ async function getPageSpeed(websiteUrl, category = null) {
     const withProto = /^https?:\/\//i.test(websiteUrl) ? websiteUrl : `https://${websiteUrl}`
     cleanUrl = new URL(withProto).origin
   } catch { /* keep raw */ }
-  console.log(`[PageSpeed] URL nettoyée: ${cleanUrl}`)
+  logger.info('PageSpeed', `URL nettoyée: ${cleanUrl}`)
 
   // ── Cache check (24h) ─────────────────────────────────────────────────────
   const hit = psCache.get(cleanUrl)
   if (hit) {
-    console.log(`[PageSpeed] Cache HIT pour ${cleanUrl}`)
+    logger.cache('PageSpeed', cleanUrl, true)
     return hit.result
   }
-  console.log(`[PageSpeed] Cache MISS pour ${cleanUrl} — appel API`)
-  console.log(`[API COST] Appel réel à Google API: PageSpeed Insights googleapis.com/pagespeedonline — ${cleanUrl}`)
+  logger.cache('PageSpeed', cleanUrl, false)
+  logger.info('PageSpeed', `[API COST] PageSpeed Insights googleapis.com — ${cleanUrl}`)
 
   // ── PSI request builder ───────────────────────────────────────────────────
   const buildQS = (strategy) => {
@@ -446,18 +445,18 @@ async function getPageSpeed(websiteUrl, category = null) {
   } catch (e) {
     const isTimeout = e.code === 'ECONNABORTED' || e.message?.includes('timeout')
     if (isTimeout) {
-      console.log(`[PageSpeed] Timeout 1er essai pour ${cleanUrl} — retry...`)
+      logger.warn('PageSpeed', `Timeout 1er essai pour ${cleanUrl} — retry…`)
       try {
         ;({ data: mobileData } = await callPSI('mobile'))
       } catch (e2) {
-        console.warn(`[PageSpeed] Double timeout pour ${cleanUrl}:`, e2.message)
+        logger.warn('PageSpeed', `Double timeout pour ${cleanUrl}: ${e2.message}`)
         // Ne pas cacher — objet partiel avec flag timeout
         return { performance: null, seo: null, loadTime: null, timeout: true }
       }
     } else {
-      console.warn(`[PageSpeed] erreur pour ${cleanUrl}:`, e.message)
+      logger.warn('PageSpeed', `Erreur pour ${cleanUrl}: ${e.message}`)
       if (e.response) {
-        console.warn('[PageSpeed] HTTP status:', e.response.status, '| data:', JSON.stringify(e.response.data)?.slice(0, 200))
+        logger.warn('PageSpeed', `HTTP status: ${e.response.status} | data: ${JSON.stringify(e.response.data)?.slice(0, 200)}`)
       }
       return null
     }
@@ -466,7 +465,7 @@ async function getPageSpeed(websiteUrl, category = null) {
   const cats   = mobileData.lighthouseResult?.categories ?? {}
   const audits = mobileData.lighthouseResult?.audits ?? {}
 
-  console.log('[PageSpeed] categories:', JSON.stringify(cats, null, 2))
+  logger.info('PageSpeed', `categories: ${JSON.stringify(cats)}`)
 
   // ── Core metrics ──────────────────────────────────────────────────────────
   const performance = Math.round((cats.performance?.score ?? 0) * 100)
@@ -506,7 +505,7 @@ async function getPageSpeed(websiteUrl, category = null) {
   const desktopHit = psCache.get(desktopKey)
   if (desktopHit) {
     performanceDesktop = desktopHit.result?.performance ?? null
-    console.log(`[PageSpeed] Desktop cache HIT → ${performanceDesktop}`)
+    logger.cache('PageSpeed', `${cleanUrl}__desktop`, true)
   } else {
     try {
       const { data: desktopData } = await callPSI('desktop')
@@ -514,9 +513,9 @@ async function getPageSpeed(websiteUrl, category = null) {
         (desktopData.lighthouseResult?.categories?.performance?.score ?? 0) * 100
       )
       psCache.set(desktopKey, { performance: performanceDesktop })
-      console.log(`[PageSpeed] Desktop → ${performanceDesktop}`)
+      logger.info('PageSpeed', `Desktop → ${performanceDesktop}`)
     } catch (e) {
-      console.warn('[PageSpeed] Desktop call failed:', e.message)
+      logger.warn('PageSpeed', `Desktop call failed: ${e.message}`)
     }
   }
 
@@ -540,14 +539,14 @@ async function getPageSpeed(websiteUrl, category = null) {
   ;({ sitemap, robots } = sitemapResult)
 
   if (sitemapHit) {
-    console.log(`[PageSpeed] Sitemap cache HIT → sitemap:${sitemap} robots:${robots}`)
+    logger.cache('PageSpeed', `${cleanUrl}__sitemap`, true)
   } else {
-    console.log(`[PageSpeed] Sitemap check → sitemap:${sitemap} robots:${robots}`)
+    logger.info('PageSpeed', `Sitemap check → sitemap:${sitemap} robots:${robots}`)
   }
 
   const sensitiveData = checkSensitiveCategory(category)
   const result = { performance, seo, loadTime, https, title, lcp, cls, accessibility, imagesOptimized, renderBlocking, mobileFriendly, performanceDesktop, sitemap, robots, issues, crux: cruxData, cms: cmsData, siteSignals, sensitiveData, domainAge, indexedPages }
-  console.log(`[PageSpeed] ${cleanUrl} → perf:${performance} seo:${seo} loadTime:${loadTime}s https:${https} sitemap:${sitemap} cms:${cmsData?.cms ?? 'n/a'} chatbot:${siteSignals?.chatbotTool ?? 'none'} booking:${siteSignals?.bookingPlatform ?? 'none'} sensitive:${sensitiveData}`)
+  logger.info('PageSpeed', `${cleanUrl} → perf:${performance} seo:${seo} loadTime:${loadTime}s https:${https} sitemap:${sitemap} cms:${cmsData?.cms ?? 'n/a'} chatbot:${siteSignals?.chatbotTool ?? 'none'} booking:${siteSignals?.bookingPlatform ?? 'none'} sensitive:${sensitiveData}`)
 
   // Ne cacher que les résultats valides (jamais null ni timeout)
   psCache.set(cleanUrl, result)
