@@ -197,12 +197,14 @@ function buildRecommendations({ profileId, lead, auditData }) {
 }
 
 // ─── HTML principal ───────────────────────────────────────────────────────────
-function buildAuditHTML({ lead, activeProfile, aiReport, auditData, prospectAudit }) {
+function buildAuditHTML({ lead, activeProfile, activeWeights, aiReport, auditData, prospectAudit }) {
   const score      = lead.score?.total ?? 0
   const sColor     = scoreColor(score)
   const breakdown  = lead.score?.breakdown ?? {}
-  const w          = activeProfile?.weights
-  const weights    = (w && typeof w === 'object' && !Array.isArray(w)) ? w : DEFAULT_WEIGHTS
+  // activeWeights passed directly from LeadDetail (same source as the score panel) — fallback to activeProfile.weights then DEFAULT_WEIGHTS
+  const weights    = (activeWeights && typeof activeWeights === 'object' && !Array.isArray(activeWeights))
+    ? activeWeights
+    : ((activeProfile?.weights && typeof activeProfile.weights === 'object' && !Array.isArray(activeProfile.weights)) ? activeProfile.weights : DEFAULT_WEIGHTS)
   const ra         = lead.reviewAnalysis
   const now        = new Date()
   const date       = now.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
@@ -304,7 +306,7 @@ function buildAuditHTML({ lead, activeProfile, aiReport, auditData, prospectAudi
   .cover-watermark { font-size:7px; color:rgba(255,255,255,0.12); letter-spacing:1px; }
 
   /* ── PAGE 2 RAPPORT ── */
-  .report { padding:48px 52px; page-break-after:always; }
+  .report { padding:48px 52px; }
   .section-title {
     font-size:8.5px; font-weight:800; letter-spacing:3.5px; text-transform:uppercase;
     color:#1d6e55; border-bottom:2px solid #1d6e55;
@@ -337,8 +339,7 @@ function buildAuditHTML({ lead, activeProfile, aiReport, auditData, prospectAudi
   .review-author { font-size:11px; font-weight:700; color:#0f172a; margin-bottom:5px; }
   .review-text   { font-size:10.5px; color:#475569; line-height:1.5; font-style:italic; }
 
-  /* ── PAGE 3 RECOMMANDATIONS ── */
-  .last-page { padding:40px 52px; }
+  /* ── RECOMMANDATIONS ── */
   .rec-item { padding:13px 16px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:8px; background:#f8fafc; display:flex; gap:14px; align-items:flex-start; }
   .rec-num { width:24px; height:24px; border-radius:50%; background:#1d6e55; color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
   .rec-content { flex:1; }
@@ -487,13 +488,7 @@ function buildAuditHTML({ lead, activeProfile, aiReport, auditData, prospectAudi
   </div>
   ${reviewCard(worstR && worstR !== bestR ? worstR : null, '⚠ Avis critique', '#dc2626')}
 
-  <div class="page-footer">Rapport généré via LeadGenPro · ${date}</div>
-</div>
-
-<!-- ═══════ PAGE 3 : RECOMMANDATIONS ═══════ -->
-<div class="last-page">
-
-  <div class="section-title" style="margin-top:0">${prospectAudit?.forces?.length > 0 ? '6' : '5'} · Recommandations & Plan d'action</div>
+  <div class="section-title">${prospectAudit?.forces?.length > 0 ? '6' : '5'} · Recommandations & Plan d'action</div>
   ${recommendations.map((r, i) => `
   <div class="rec-item">
     <div class="rec-num">${i + 1}</div>
@@ -516,14 +511,14 @@ function buildAuditHTML({ lead, activeProfile, aiReport, auditData, prospectAudi
   </div>
 
   <div class="page-footer">Rapport généré via LeadGenPro · ${date}</div>
-</div>
+</div>  <!-- /.report -->
 
 </body>
 </html>`
 }
 
 // ─── Export function (même pipeline que exportLeadPDF) ────────────────────────
-export async function exportAuditPDF({ lead, activeProfile, aiReport, auditData, prospectAudit = null }) {
+export async function exportAuditPDF({ lead, activeProfile, activeWeights, aiReport, auditData, prospectAudit = null }) {
   const container = document.createElement('div')
   container.style.cssText = `
     position: fixed;
@@ -536,7 +531,7 @@ export async function exportAuditPDF({ lead, activeProfile, aiReport, auditData,
     color: #1a1a1a;
     box-sizing: border-box;
   `
-  container.innerHTML = buildAuditHTML({ lead, activeProfile, aiReport, auditData, prospectAudit })
+  container.innerHTML = buildAuditHTML({ lead, activeProfile, activeWeights, aiReport, auditData, prospectAudit })
   document.body.appendChild(container)
 
   const PAGE_PX = Math.round(297 * 794 / 210) // ≈ 1123px par page A4 à 794px de large

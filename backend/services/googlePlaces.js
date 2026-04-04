@@ -6,9 +6,10 @@ const BASE_URL = 'https://maps.googleapis.com/maps/api/place/';
 const API_KEY  = process.env.GOOGLE_MAPS_API_KEY;
 
 // ─── Caches TTL ───────────────────────────────────────────────────────────────
-const searchResultsCache = createCache('search');        // 6h
-const placeDetailsCache  = createCache('placeDetails');  // 24h
-const localRankCache     = createCache('localRank');     // 24h
+const TTL_7D             = 7 * 24 * 60 * 60 * 1000      // 7 jours en ms
+const searchResultsCache = createCache('search');        // 7 jours
+const placeDetailsCache  = createCache('placeDetails');  // 7 jours
+const localRankCache     = createCache('localRank');     // 7 jours
 
 // ─── Mapping domaine → types Google Places ───────────────────────────────────
 const DOMAIN_TYPES = {
@@ -82,6 +83,7 @@ async function fetchAllPages({ lat, lng, radius, keyword, type, onProgress }) {
       const params = { ...baseParams };
       if (pageToken) params.pagetoken = pageToken;
 
+      console.log(`[API COST] Appel réel à Google API: Places NearbySearch maps.googleapis.com — type=${type || 'all'} keyword=${keyword || '—'} page=${pageNum}`)
       const { data } = await withTimeout(
         axios.get(`${BASE_URL}nearbysearch/json`, { params }),
         5000
@@ -120,6 +122,7 @@ async function getPlaceDetails(placeId) {
     'photos', 'editorial_summary',
   ].join(',');
 
+  console.log(`[API COST] Appel réel à Google API: Place Details maps.googleapis.com — placeId=${placeId}`)
   try {
     const { data } = await withTimeout(
       axios.get(`${BASE_URL}details/json`, {
@@ -154,7 +157,7 @@ async function getPlaceDetails(placeId) {
                       || null,
       })),
     };
-    placeDetailsCache.set(`place_details_${placeId}`, result, 24 * 60 * 60 * 1000)
+    placeDetailsCache.set(`place_details_${placeId}`, result, TTL_7D)
     return result;
   } catch (err) {
     console.error(`getPlaceDetails ${placeId}:`, err.message);
@@ -380,8 +383,8 @@ async function searchPlaces({ lat, lng, radius, keywords = [], domain, onProgres
   // Enrichissement par batch
   const places = await enrichBatch(unique, onProgress);
 
-  // Mise en cache
-  searchResultsCache.set(cacheKey, places, 6 * 60 * 60 * 1000);
+  // Mise en cache 7 jours
+  searchResultsCache.set(cacheKey, places, TTL_7D);
 
   return { places, fromCache: false };
 }
@@ -403,6 +406,7 @@ async function getLocalRank(placeId, category, city) {
   const cached  = localRankCache.get(rankKey)
   if (cached) return cached
 
+  console.log(`[API COST] Appel réel à Google API: Places TextSearch maps.googleapis.com — "${category} ${city}"`)
   try {
     const { data } = await withTimeout(
       axios.get(`${BASE_URL}textsearch/json`, {
@@ -425,7 +429,7 @@ async function getLocalRank(placeId, category, city) {
     const rank = idx + 1
     console.log(`[LocalRank] "${category} ${city}" → ${placeId} → position ${rank}/${outOf}`)
     const rankResult = { rank, outOf, found: true, topThree: rank <= 3, topTen: rank <= 10 }
-    localRankCache.set(rankKey, rankResult, 24 * 60 * 60 * 1000)
+    localRankCache.set(rankKey, rankResult, TTL_7D)
     return rankResult
   } catch (e) {
     console.warn(`[LocalRank] erreur ${placeId} (${category} ${city}):`, e.message)

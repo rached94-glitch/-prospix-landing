@@ -135,6 +135,11 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
   const [tkStatsLoading, setTkStatsLoading] = useState(false)
   const [tkStatsError,   setTkStatsError]   = useState(null)
 
+  // SEMrush stats on-demand (profil SEO)
+  const [semrushData,        setSemrushData]        = useState(null)
+  const [semrushLoading,     setSemrushLoading]     = useState(false)
+  const [semrushError,       setSemrushError]       = useState(null)
+
 
   // Network visual quality — profil photographe (instagram/facebook/tiktok/pinterest/youtube)
   const [netVisual,        setNetVisual]        = useState({})
@@ -214,6 +219,8 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
     // Reset prospect audit on lead change
     setProspectAudit(null)
     setProspectAuditState('idle')
+    // Reset SEMrush on lead change
+    setSemrushData(null); setSemrushLoading(false); setSemrushError(null)
   }, [lead?.id, lead?._id])
 
   const handleAnalyzePerformance = async () => {
@@ -276,6 +283,19 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
       else setTkStats(d)
     } catch (e) { setTkStatsError(e.message) }
     finally     { setTkStatsLoading(false) }
+  }
+
+  const handleSemrush = async () => {
+    if (semrushLoading || !lead.website) return
+    setSemrushLoading(true); setSemrushError(null); setSemrushData(null)
+    try {
+      const domain = lead.website.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]
+      const r = await fetch(`${API}/api/leads/semrush?domain=${encodeURIComponent(domain)}`)
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error || 'Erreur serveur')
+      setSemrushData(d)
+    } catch (e) { setSemrushError(e.message) }
+    finally     { setSemrushLoading(false) }
   }
 
   const handleInstagramDeep = async () => {
@@ -906,7 +926,7 @@ Bien cordialement,
       setProspectAuditState('done')
 
       // Step 2 — generate PDF with AI content
-      await exportAuditPDF({ lead, activeProfile, aiReport, auditData, prospectAudit: prospectAuditResult })
+      await exportAuditPDF({ lead, activeProfile, activeWeights, aiReport, auditData, prospectAudit: prospectAuditResult })
     } catch (err) {
       console.error('[AuditPDF]', err)
       setProspectAuditState('error')
@@ -2350,6 +2370,59 @@ Bien cordialement,
                       <div key={i} style={{ padding: '7px 11px', borderBottom: i < rows.length - 2 ? '1px solid rgba(255,255,255,0.04)' : 'none', borderRight: i % 2 === 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
                         <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 3 }}>{label}</div>
                         <div style={{ fontSize: 13, fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>{fmt(val)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* ── BLOC SEMRUSH ── SEO seulement, à la demande */}
+            {['seo', 'consultant-seo'].includes(activeProfile?.id) && lead.website && (() => {
+              const domain = lead.website.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '').toLowerCase().trim()
+
+              if (semrushLoading)
+                return <div style={{ marginTop: 12, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, color: '#64748b' }}>Récupération SEMrush…</div>
+
+              if (semrushError)
+                return (
+                  <div style={{ marginTop: 12, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '8px 12px', fontSize: 10.5, color: '#ef4444' }}>
+                    ✗ {semrushError}
+                    <button className="ld-btn" onClick={handleSemrush} style={{ marginLeft: 10, fontSize: 10, color: '#EDFA36', background: 'none', border: '1px solid rgba(29,110,85,0.25)', borderRadius: 5, padding: '2px 8px', cursor: 'pointer' }}>Réessayer</button>
+                  </div>
+                )
+
+              if (!semrushData)
+                return (
+                  <button className="ld-btn" onClick={handleSemrush} style={{ marginTop: 12, width: '100%', height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#64748b', fontSize: 10.5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/></svg>
+                    Récupérer données SEMrush
+                  </button>
+                )
+
+              // Data grid
+              const fmt = (v, suffix = '') => v == null ? '—' : `${Number(v).toLocaleString('fr-FR')}${suffix}`
+              const authorityColor = !semrushData.authorityScore ? '#64748b' : semrushData.authorityScore >= 50 ? '#22c55e' : semrushData.authorityScore >= 25 ? '#f59e0b' : '#ef4444'
+              const rows = [
+                { label: 'Authority Score',      val: semrushData.authorityScore != null ? `${semrushData.authorityScore}/100` : '—', color: authorityColor },
+                { label: 'Trafic mensuel',        val: fmt(semrushData.monthlyTraffic),   color: '#94a3b8' },
+                { label: 'Mots-clés organiques',  val: fmt(semrushData.organicKeywords),  color: '#94a3b8' },
+                { label: 'Backlinks',             val: fmt(semrushData.backlinks),        color: '#94a3b8' },
+                { label: 'Domaines référents',    val: fmt(semrushData.referringDomains), color: '#94a3b8' },
+                { label: 'Mots-clés payants',     val: fmt(semrushData.paidKeywords),     color: '#94a3b8' },
+              ]
+
+              return (
+                <div style={{ marginTop: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(29,110,85,0.12)', borderRadius: 8, overflow: 'hidden' }}>
+                  <div style={{ padding: '7px 11px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: '#1D6E55' }}>SEMrush — Autorité & Trafic</span>
+                    <span style={{ fontSize: 8.5, color: '#334155', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 6px' }}>{domain}</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+                    {rows.map(({ label, val, color }, i) => (
+                      <div key={i} style={{ padding: '7px 11px', borderBottom: i < rows.length - 2 ? '1px solid rgba(255,255,255,0.04)' : 'none', borderRight: i % 2 === 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                        <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 3 }}>{label}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>{val}</div>
                       </div>
                     ))}
                   </div>

@@ -81,3 +81,11 @@ The frontend proxies all `/api/*` requests to `localhost:3001` via Vite's dev pr
 - `2026-04-03 21:57:40` — modifié `frontend/src/components/LeadDetail.jsx`
 - `2026-04-03 21:52:45` — modifié `frontend/src/components/LeadDetail.jsx`
 
+
+## Dernières modifications
+- `2026-04-04 09:22:23` — modifié `backend/services/pagespeedService.js`
+- `2026-04-04 09:22:13` — créé/réécrit `backend/services/googleReviews.js`
+- `2026-04-04 09:22:00` — modifié `backend/services/googlePlaces.js`
+- `2026-04-04 09:21:56` — modifié `backend/services/googlePlaces.js`
+- `2026-04-04 09:21:50` — modifié `backend/services/googlePlaces.js`
+

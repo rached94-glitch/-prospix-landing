@@ -1,5 +1,63 @@
 # LeadGen Pro — Contexte Projet
 
+---
+
+## AUDIT 2026-04-04 — Problèmes & Ordre d'action
+
+### 🔴 CRITIQUES
+
+1. **CORS production = 0%** (`server.js:13`) — hardcodé localhost, bloque tout déploiement
+   - Fix : `origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173']`
+
+2. **Overlay chargement bloqué** — `processPlaces` fait `Promise.all` sur `enrichSocial` + `searchPappers` sans timeout. Si un appel accroche, le backend ne send jamais `type: 'done'` → `isLoading` reste `true` pour toujours.
+   - Fix : ajouter `Promise.race([call, timeout(10000)])` sur chaque appel dans `processPlaces`
+   - Workaround actuel : bouton ✕ force-close dans l'overlay
+
+3. **Désynchronisation profils JSON/code** — `scoringProfiles.json` a 4 profils, mais 11+ profileIds référencés dans le code (photographe, social-media, designer, copywriter, dev-web, email-marketing, videaste, consultant-seo...)
+   - Résultat : 7 profils tombent sur le template email générique silencieusement
+
+4. **`LeadDetail.jsx` = 2 729 lignes, 15+ useState** — illisible, toute modif est risquée
+   - Candidats à extraire : `AuditPanel`, `ReviewsSection`, `AIEmailGenerator`, `SocialStats`, `FinancialBlock`
+
+### 🟡 IMPORTANTS
+
+5. **`presenceScore(website, social)` crash si `social = null`** (`scoring.js`)
+   - `social.facebook`, `social.instagram` etc. sans vérification
+   - Fix : `presenceScore(website, social ?? {})`
+
+6. **`aiCache` et `auditCache` illimités** (`LeadDetail.jsx:15-16`) — grossissent indéfiniment
+   - Fix : LRU avec limite de 200 entrées
+
+7. **Pas de rate limiting ni retry sur Claude API** — erreur réseau = échec sec, bills non plafonnés
+
+8. **`pagespeedService.js` fallback Google = scraping HTML fragile** — regex sur "Environ X résultats", Google peut changer son HTML à tout moment
+
+9. **`aiReviewAnalysis.js` = 1 044 lignes** — 3 fonctions generateEmail + prompts 500+ lignes dans un seul fichier
+
+### 🔵 MINEURS
+
+10. **SearchPanel.jsx (962 lignes) + SidebarSearch.jsx (643 lignes) dupliquent la même logique** — SearchPanel.jsx est inutilisé dans App.jsx
+11. **Aucun `React.memo`** — `LeadCard` re-rendu à chaque changement de `selectedLead`
+12. **Caching fragmenté** — 3 caches avec TTL différents (6h, 24h, 48h), pas de gestion unifiée
+13. **GOOGLE_PRIVATE_KEY multiline** dans `.env` — nécessite échappement `\n` explicite en prod
+
+### Ordre d'action recommandé
+
+| # | Tâche | Fichier(s) | Temps estimé |
+|---|-------|-----------|--------------|
+| 1 | Fixer CORS pour production | `server.js` | 15 min |
+| 2 | Ajouter timeout sur `enrichSocial`/`searchPappers` | `routes/leads.js` | 30 min |
+| 3 | Synchroniser `scoringProfiles.json` avec 11 profils | `data/scoringProfiles.json` | 30 min |
+| 4 | Protéger `presenceScore(website, social ?? {})` | `services/scoring.js` | 5 min |
+| 5 | LRU cache sur `aiCache` / `auditCache` | `LeadDetail.jsx` | 1h |
+| 6 | Implémenter retry/backoff Claude API | `services/aiReviewAnalysis.js` | 1h |
+| 7 | Splitter `LeadDetail.jsx` en sous-composants | `LeadDetail.jsx` | 4h |
+| 8 | Extraire prompts de `aiReviewAnalysis.js` | `services/aiReviewAnalysis.js` | 1h |
+| 9 | Supprimer `SearchPanel.jsx` ou le brancher | `App.jsx` | 30 min |
+| 10 | Ajouter `React.memo` sur `LeadCard` + `NavBar` | composants | 30 min |
+
+---
+
 ## Stack
 - Backend : Node.js + Express (port 3001)
 - Frontend : React + Vite (port 5173)

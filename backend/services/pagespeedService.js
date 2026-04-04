@@ -3,7 +3,9 @@ const psCache  = require('../cache/pagespeedCache')
 const puppeteer = require('puppeteer')
 const { createCache } = require('../cache/searchCache')
 
-const napCache = createCache('nap')  // 24h
+const TTL_7D   = 7 * 24 * 60 * 60 * 1000
+const napCache        = createCache('nap')           // 7 jours
+const indexedCache    = createCache('indexedPages')  // 7 jours
 
 // ── Sensitive categories → local RAG deployment recommended ───────────────────
 const SENSITIVE_CATEGORIES = [
@@ -21,11 +23,8 @@ function checkSensitiveCategory(category) {
   })
 }
 
-// Vider le cache au démarrage — force un appel API frais à chaque redémarrage
-psCache.clear()
-
-// ── Cache CrUX 48h (données mensuelles) ───────────────────────────────────────
-const CRUX_TTL   = 48 * 60 * 60 * 1000
+// ── Cache CrUX 7 jours (données mensuelles) ───────────────────────────────────
+const CRUX_TTL   = 7 * 24 * 60 * 60 * 1000
 const cruxCache  = new Map()
 
 async function getCruxData(originUrl) {
@@ -36,6 +35,7 @@ async function getCruxData(originUrl) {
     return hit.result
   }
 
+  console.log(`[API COST] Appel réel à Google API: CrUX chromeuxreport.googleapis.com — ${originUrl}`)
   try {
     const cruxKey = process.env.PAGESPEED_API_KEY ? `?key=${process.env.PAGESPEED_API_KEY}` : ''
     const response = await axios.post(
@@ -276,12 +276,21 @@ async function getIndexedPages(website) {
   let domain
   try { domain = new URL(website).hostname.replace(/^www\./, '') } catch { return null }
 
+  // ── Cache check 7 jours ───────────────────────────────────────────────────
+  const cacheKey = `indexed_${domain}`
+  const cached   = indexedCache.get(cacheKey)
+  if (cached) {
+    console.log(`[IndexedPages] Cache HIT pour ${domain}`)
+    return cached
+  }
+
   // Primary: Google Custom Search API (requires GOOGLE_CSE_KEY + GOOGLE_CSE_CX in .env)
   const cseKey = process.env.GOOGLE_CSE_KEY
   const cseCx  = process.env.GOOGLE_CSE_CX
   console.log(`[IndexedPages] domaine: ${domain} | GOOGLE_CSE_KEY: ${cseKey ? 'présente' : 'absente'} | GOOGLE_CSE_CX: ${cseCx ?? 'absent'}`)
   if (cseKey && cseCx) {
     console.log(`[IndexedPages] méthode: CSE`)
+    console.log(`[API COST] Appel réel à Google API: Custom Search googleapis.com/customsearch — site:${domain}`)
     try {
       const params = new URLSearchParams([
         ['key', cseKey], ['cx', cseCx], ['q', `site:${domain}`], ['num', '1'],
@@ -297,7 +306,9 @@ async function getIndexedPages(website) {
         const total = parseInt(data.searchInformation?.totalResults ?? '', 10)
         if (!isNaN(total)) {
           console.log(`[IndexedPages] CSE → ${total} pages pour ${domain}`)
-          return buildIndexResult(total)
+          const indexResult = buildIndexResult(total)
+          indexedCache.set(cacheKey, indexResult, TTL_7D)
+          return indexResult
         }
         console.warn(`[IndexedPages] CSE totalResults introuvable ou NaN`)
       } else {
@@ -334,7 +345,9 @@ async function getIndexedPages(website) {
       const total = parseInt(match[1].replace(/\s/g, ''), 10)
       if (!isNaN(total)) {
         console.log(`[IndexedPages] Scraping → ${total} pages pour ${domain}`)
-        return buildIndexResult(total)
+        const indexResult = buildIndexResult(total)
+        indexedCache.set(cacheKey, indexResult, TTL_7D)
+        return indexResult
       }
     }
     console.warn(`[IndexedPages] Scraping — regex non matchée ou NaN pour ${domain}`)
@@ -404,6 +417,7 @@ async function getPageSpeed(websiteUrl, category = null) {
     return hit.result
   }
   console.log(`[PageSpeed] Cache MISS pour ${cleanUrl} — appel API`)
+  console.log(`[API COST] Appel réel à Google API: PageSpeed Insights googleapis.com/pagespeedonline — ${cleanUrl}`)
 
   // ── PSI request builder ───────────────────────────────────────────────────
   const buildQS = (strategy) => {
@@ -558,9 +572,9 @@ function normalizeText(s) {
     .trim()
 }
 
-// Normalize a phone number to digits only
+// Normalize a phone number to digits only (strip spaces, nbsp, dashes, dots, parens)
 function normalizePhone(s) {
-  return (s || '').replace(/[\s\-\.\(\)]/g, '').replace(/^(\+33|0033)/, '0')
+  return (s || '').replace(/[\s\u00a0\-\.\(\)]/g, '').replace(/^(\+33|0033)/, '0')
 }
 
 // True if the two name strings are likely the same business
@@ -569,8 +583,8 @@ function nameMatches(a, b) {
   const nb = normalizeText(b)
   if (na === nb) return true
   if (na.includes(nb) || nb.includes(na)) return true
-  // share at least one significant word (>3 chars)
-  const wordsA = na.split(' ').filter(w => w.length > 3)
+  // share at least one significant word (>=3 chars)
+  const wordsA = na.split(' ').filter(w => w.length >= 3)
   return wordsA.some(w => nb.includes(w))
 }
 
@@ -644,6 +658,14 @@ async function checkNAP(businessName, address, phone, city, placeId) {
     // ── Compare each NAP field ─────────────────────────────────────────────────
     const issues = []
 
+    const normName    = normalizeText(businessName)
+    const normNamePJ  = normalizeText(raw.name)
+    const normAddr    = normalizeText(address || '')
+    const normAddrPJ  = normalizeText(raw.address || '')
+    const normPhone   = normalizePhone(phone || '')
+    const normPhonePJ = normalizePhone(raw.phone || '')
+    console.log(`[NAP] Comparaison normalisée — Nom: "${normName}" vs "${normNamePJ}" | Adresse: "${normAddr}" vs "${normAddrPJ}" | Tél: "${normPhone}" vs "${normPhonePJ}"`)
+
     if (!nameMatches(businessName, raw.name))
       issues.push(`Nom différent : local "${businessName}" → PagesJaunes "${raw.name}"`)
 
@@ -651,8 +673,8 @@ async function checkNAP(businessName, address, phone, city, placeId) {
       issues.push(`Adresse différente : local "${address}" → PagesJaunes "${raw.address}"`)
 
     if (phone && raw.phone) {
-      const np = normalizePhone(phone)
-      const nf = normalizePhone(raw.phone)
+      const np = normPhone
+      const nf = normPhonePJ
       if (np !== nf && !np.endsWith(nf.slice(-8)) && !nf.endsWith(np.slice(-8)))
         issues.push(`Téléphone différent : local "${phone}" → PagesJaunes "${raw.phone}"`)
     }
@@ -661,7 +683,7 @@ async function checkNAP(businessName, address, phone, city, placeId) {
     console.log(`[NAP] ${businessName} → ${napScore} (${issues.length} problème(s))`)
 
     const napResult = { found: true, napScore, pjName: raw.name, pjAddress: raw.address, pjPhone: raw.phone, issues }
-    if (placeId) napCache.set(`nap_${placeId}`, napResult, 24 * 60 * 60 * 1000)
+    if (placeId) napCache.set(`nap_${placeId}`, napResult, TTL_7D)
     return napResult
 
   } catch (e) {

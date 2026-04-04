@@ -642,6 +642,22 @@ router.get('/tiktok-stats', async (req, res) => {
   }
 })
 
+// ─── GET /semrush — Données SEMrush via Apify (authority, trafic, keywords) ─────
+router.get('/semrush', async (req, res) => {
+  const { scrapeSemrushData } = require('../services/semrushService')
+  try {
+    const { domain } = req.query
+    if (!domain) return res.status(400).json({ error: 'domain requis' })
+    if (!process.env.APIFY_API_TOKEN) return res.status(503).json({ error: 'APIFY_API_TOKEN manquant' })
+    const result = await scrapeSemrushData(domain)
+    if (!result) return res.status(404).json({ error: 'Aucune donnée SEMrush disponible pour ce domaine' })
+    res.json(result)
+  } catch (e) {
+    console.error('[SEMrush route] Erreur:', e)
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ─── POST /audit-prospect/:placeId — Audit IA prospect (JSON structuré) ───────
 router.post('/audit-prospect/:placeId', async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
