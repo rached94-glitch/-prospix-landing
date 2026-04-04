@@ -1,6 +1,6 @@
 // ── Persistent TTL cache — all named instances share a single JSON file ─────────
 // On startup  : reads backend/cache/apiCache.json, restores non-expired entries
-// On set/del  : schedules a debounced write (5 s) to avoid hammering the disk
+// On set/del  : schedules a debounced async write (5 s) — NON-BLOCKING
 // On shutdown : flushes synchronously before exit (SIGTERM + SIGINT)
 //
 // Usage (unchanged from previous API):
@@ -19,35 +19,51 @@ const registry   = new Map()   // name → instance — used by getAllStats()
 let diskData = {}
 try {
   if (fs.existsSync(CACHE_FILE)) {
-    diskData = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'))
-    const ns = Object.keys(diskData).length
-    const total = Object.values(diskData).reduce((s, v) => s + Object.keys(v).length, 0)
-    console.log(`[Cache] Restauré depuis disque: ${ns} namespace(s), ~${total} entrée(s)`)
+    const raw = fs.readFileSync(CACHE_FILE, 'utf8')
+    if (raw && raw.trim().length > 0) {
+      diskData = JSON.parse(raw)
+      const ns    = Object.keys(diskData).length
+      const total = Object.values(diskData).reduce((s, v) => {
+        return s + (v && typeof v === 'object' ? Object.keys(v).length : 0)
+      }, 0)
+      console.log(`[Cache] Chargé ${total} entrée(s) depuis apiCache.json (${ns} namespace(s))`)
+    } else {
+      console.log('[Cache] Fichier apiCache.json vide — démarrage avec cache vide')
+    }
+  } else {
+    console.log('[Cache] Fichier introuvable, démarrage avec cache vide')
   }
 } catch (e) {
-  console.warn('[Cache] Impossible de charger apiCache.json:', e.message)
+  console.warn('[Cache] apiCache.json corrompu ou illisible — démarrage avec cache vide. Erreur:', e.message)
   diskData = {}
+  // Supprime le fichier corrompu pour éviter le même problème au prochain démarrage
+  try { fs.unlinkSync(CACHE_FILE) } catch { /* ignore */ }
 }
 
-// ── Debounced disk write ──────────────────────────────────────────────────────
-let writeTimer = null
+// ── Debounced async disk write — NON-BLOCKING ─────────────────────────────────
+let writeTimer  = null
+let writeInFlight = false  // évite les écritures concurrentes
+
+function buildSnapshot() {
+  const snapshot = {}
+  for (const [name, inst] of registry) {
+    snapshot[name] = inst._raw()
+  }
+  return snapshot
+}
 
 function scheduleSave() {
   if (writeTimer) return
-  writeTimer = setTimeout(flushToDisk, 5000)
-}
-
-function flushToDisk() {
-  writeTimer = null
-  try {
-    const snapshot = {}
-    for (const [name, inst] of registry) {
-      snapshot[name] = inst._raw()
-    }
-    fs.writeFileSync(CACHE_FILE, JSON.stringify(snapshot), 'utf8')
-  } catch (e) {
-    console.warn('[Cache] Erreur écriture apiCache.json:', e.message)
-  }
+  writeTimer = setTimeout(() => {
+    writeTimer = null
+    if (writeInFlight) return   // skip si une écriture est déjà en cours
+    const json = JSON.stringify(buildSnapshot())
+    writeInFlight = true
+    fs.writeFile(CACHE_FILE, json, 'utf8', (err) => {
+      writeInFlight = false
+      if (err) console.warn('[Cache] Erreur écriture async apiCache.json:', err.message)
+    })
+  }, 5000)
 }
 
 // ── Graceful shutdown — flush synchronously before exit ──────────────────────
@@ -57,10 +73,16 @@ function registerShutdownHandlers() {
   shutdownRegistered = true
 
   function onShutdown(sig) {
-    console.log(`[Cache] Signal ${sig} — sauvegarde du cache sur disque…`)
+    console.log(`[Cache] Signal ${sig} — sauvegarde synchrone du cache…`)
     if (writeTimer) { clearTimeout(writeTimer); writeTimer = null }
-    flushToDisk()
-    process.exit(0)
+    try {
+      fs.writeFileSync(CACHE_FILE, JSON.stringify(buildSnapshot()), 'utf8')
+      console.log('[Cache] Cache sauvegardé.')
+    } catch (e) {
+      console.warn('[Cache] Erreur sauvegarde shutdown:', e.message)
+    }
+    // Ne pas appeler process.exit() ici — laisse le processus se terminer naturellement
+    // (nodemon et autres runners géreront la suite)
   }
   process.on('SIGTERM', () => onShutdown('SIGTERM'))
   process.on('SIGINT',  () => onShutdown('SIGINT'))
@@ -73,16 +95,16 @@ function createCache(name) {
   let hits = 0, misses = 0, sets = 0
 
   // Restore non-expired entries from disk
-  if (diskData[name]) {
+  if (diskData[name] && typeof diskData[name] === 'object') {
     let restored = 0
     for (const [k, v] of Object.entries(diskData[name])) {
-      if (v && Date.now() < v.expiresAt) {
+      if (v && typeof v === 'object' && typeof v.expiresAt === 'number' && Date.now() < v.expiresAt) {
         store.set(k, v)
         restored++
       }
     }
     if (restored > 0) {
-      console.log(`[Cache] "${name}" → ${restored} entrée(s) restaurée(s) depuis disque`)
+      console.log(`[Cache] "${name}" → ${restored} entrée(s) restaurée(s)`)
     }
   }
 
