@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { toggleSound, isSoundEnabled } from '../utils/sounds'
 
 const DEFAULT_WEIGHTS = {
   googleRating:    30,
@@ -230,6 +231,7 @@ export default function ScoringProfileDrawer({
   const [showCreate,  setShowCreate]  = useState(false)
   const [saving,      setSaving]      = useState(false)
   const [localError,  setLocalError]  = useState(null)
+  const [soundOn,     setSoundOn]     = useState(() => isSoundEnabled())
 
   // Sync sliders with active profile (not while create form is open)
   useEffect(() => {
@@ -322,6 +324,29 @@ export default function ScoringProfileDrawer({
           onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
           onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
         >×</button>
+      </div>
+
+      {/* ── Sound toggle ────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        <span style={{ fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--muted)' }}>
+          {soundOn ? '🔊' : '🔇'} Sons
+        </span>
+        <button
+          type="button"
+          onClick={() => { const next = toggleSound(); setSoundOn(next) }}
+          style={{
+            width: 36, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer', position: 'relative',
+            background: soundOn ? 'rgba(29,110,85,0.6)' : 'rgba(255,255,255,0.1)',
+            transition: 'background 0.2s',
+          }}
+        >
+          <div style={{
+            position: 'absolute', top: 3, left: soundOn ? 18 : 3,
+            width: 14, height: 14, borderRadius: '50%',
+            background: soundOn ? '#1d6e55' : 'rgba(255,255,255,0.35)',
+            transition: 'left 0.2s',
+          }} />
+        </button>
       </div>
 
       {/* ── Scrollable body ─────────────────────────────────────────────────── */}

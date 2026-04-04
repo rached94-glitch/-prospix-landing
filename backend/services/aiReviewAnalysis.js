@@ -1041,4 +1041,230 @@ Retourne UNIQUEMENT un JSON valide :
   }
 }
 
-module.exports = { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot }
+// ── Audit prospect — SEO / CONSULTANT-SEO profile ────────────────────────────
+async function generateAuditSEO({ leadData, pagespeedData, localRank, reviewsData, napData, facebookActivity, instagramActivity }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
+
+  const anthropic = new Anthropic({ apiKey })
+
+  const name        = leadData.name        ?? 'ce commerce'
+  const city        = leadData.city        ?? ''
+  const category    = leadData.category    ?? 'ce secteur'
+  const website     = leadData.website     ?? null
+  const rating      = leadData.rating      ?? null
+  const reviewCount = leadData.reviewCount ?? null
+  const address     = leadData.address     ?? null
+
+  const performance  = pagespeedData?.performance  ?? null
+  const seoScore     = pagespeedData?.seo          ?? null
+  const loadTime     = pagespeedData?.loadTime     ?? null
+  const https        = pagespeedData?.https        ?? null
+  const sitemap      = pagespeedData?.sitemap      ?? null
+  const cms          = pagespeedData?.cms?.cms     ?? null
+  const issues       = pagespeedData?.issues       ?? []
+
+  const googleAudit  = leadData.googleAudit ?? null
+  const hasPhotos    = googleAudit?.hasPhotos    ?? null
+  const photoCount   = googleAudit?.photoCount   ?? null
+  const hasHours     = googleAudit?.hasHours     ?? null
+  const hasDescription = googleAudit?.hasDescription ?? null
+
+  const rankFound = localRank?.found    ?? false
+  const rank      = localRank?.rank     ?? null
+  const topThree  = localRank?.topThree ?? false
+  const topTen    = localRank?.topTen   ?? false
+  const rankLabel = rankFound
+    ? (topThree ? `Top 3 (position ${rank})` : topTen ? `Top 10 (position ${rank})` : `Position ${rank}`)
+    : 'Hors top 20'
+
+  const unanswered    = reviewsData?.unanswered ?? 0
+  const keywords      = reviewsData?.keywords   ?? []
+  const keywordsText  = keywords.length > 0 ? keywords.slice(0, 5).join(', ') : '—'
+
+  const napScore   = napData?.napScore ?? null
+  const napIssues  = napData?.issues   ?? []
+
+  // ── Forces détectées côté JS (verrouillées dans le prompt) ─────────────────
+  const forcesHints = []
+  if (rating !== null && rating >= 4)        forcesHints.push(`Bonne note Google (${rating}/5)`)
+  if (reviewCount !== null && reviewCount > 50) forcesHints.push(`Volume d'avis significatif (${reviewCount} avis)`)
+  if (website)                               forcesHints.push('Site web présent')
+  if (rankFound && topTen)                   forcesHints.push(`Visible sur Google Maps (${rankLabel})`)
+  if (hasPhotos && photoCount > 5)           forcesHints.push(`Fiche Google illustrée (${photoCount} photos)`)
+  if (https === true)                        forcesHints.push('Site sécurisé HTTPS')
+  if (sitemap === true)                      forcesHints.push('Sitemap XML détecté')
+  if (performance !== null && performance >= 70) forcesHints.push(`Bonne performance mobile (${performance}/100)`)
+  if (forcesHints.length === 0)              forcesHints.push('Fiche Google Maps existante et indexée')
+
+  // ── Faiblesses détectées côté JS (verrouillées dans le prompt) ─────────────
+  const weaknessHints = []
+  if (!website)                              weaknessHints.push('Absence de site web — aucune présence hors Google Maps')
+  if (seoScore !== null && seoScore < 70)    weaknessHints.push(`Score SEO technique insuffisant (${seoScore}/100)`)
+  if (performance !== null && performance < 50) weaknessHints.push(`Performances mobiles faibles (${performance}/100)`)
+  if (loadTime !== null && parseFloat(loadTime) > 8) weaknessHints.push(`Temps de chargement trop élevé (${loadTime}s)`)
+  if (https === false)                       weaknessHints.push('Pas de HTTPS — signal négatif pour Google')
+  if (sitemap === false)                     weaknessHints.push('Aucun sitemap XML — indexation Google compromise')
+  if (!rankFound)                            weaknessHints.push('Hors top 20 sur Google Maps local')
+  if (hasDescription === false)             weaknessHints.push('Description fiche Google absente')
+  if (hasHours === false)                   weaknessHints.push('Horaires non renseignés sur la fiche Google')
+  if (unanswered > 0)                       weaknessHints.push(`${unanswered} avis Google sans réponse`)
+  if (napScore === 'inconsistent')          weaknessHints.push(`Incohérence NAP : ${napIssues.join(', ')}`)
+  if (napScore === 'not_found')             weaknessHints.push('Absent des annuaires locaux (PagesJaunes)')
+  if (!hasPhotos)                           weaknessHints.push('Peu ou pas de photos sur la fiche Google')
+  if (issues.length > 0)                   weaknessHints.push(`Problèmes techniques détectés : ${issues.slice(0, 3).join(', ')}`)
+
+  // ── Réseaux sociaux ─────────────────────────────────────────────────────────
+  const fbLabel = facebookActivity?.label ?? null
+  const igLabel = instagramActivity?.label ?? null
+  const socialBlock = [
+    fbLabel ? `  - Facebook  : ${fbLabel}` : '  - Facebook  : Non détecté',
+    igLabel ? `  - Instagram : ${igLabel}` : '  - Instagram : Non détecté',
+  ].join('\n')
+
+  const prompt = `Tu es un consultant SEO local expert. Rédige un audit digital pour "${name}" (${category}, ${city || 'France'}).
+Ton : consultant professionnel, factuel, bienveillant — jamais alarmiste, jamais vendeur.
+
+DONNÉES TECHNIQUES VERROUILLÉES — N'UTILISE QUE CES CHIFFRES :
+- Nom            : ${name}
+- Adresse        : ${address ?? '—'}
+- Ville          : ${city || '—'}
+- Catégorie      : ${category}
+- Site web       : ${website || 'ABSENT'}
+- Note Google    : ${rating ?? '—'}/5 (${reviewCount ?? '—'} avis)
+- Avis sans réponse : ${unanswered}
+- Mots-clés avis : ${keywordsText}
+- Performance    : ${performance ?? '—'}/100
+- Score SEO      : ${seoScore ?? '—'}/100
+- Chargement     : ${loadTime ?? '—'}s
+- HTTPS          : ${https === true ? 'Oui' : https === false ? 'Non' : '—'}
+- Sitemap        : ${sitemap === true ? 'Présent' : sitemap === false ? 'Absent' : '—'}
+- CMS            : ${cms ?? 'non identifié'}
+- Classement Maps : ${rankLabel}
+- Photos fiche   : ${hasPhotos ? `${photoCount} photo(s)` : 'Absentes'}
+- Description    : ${hasDescription ? 'Présente' : 'Absente'}
+- Horaires       : ${hasHours ? 'Renseignés' : 'Non renseignés'}
+- NAP            : ${napScore ?? 'non vérifié'}
+${socialBlock}
+
+FORCES DÉTECTÉES (base de départ obligatoire) :
+${forcesHints.map(f => `- ${f}`).join('\n')}
+
+FAIBLESSES IDENTIFIÉES (points à traiter) :
+${weaknessHints.map(w => `- ${w}`).join('\n') || '- Aucune faiblesse majeure identifiée'}
+
+INSTRUCTIONS :
+1. Commence toujours par les forces — ne jamais ouvrir sur les problèmes
+2. Les faiblesses doivent être factuelles et directement tirées des données ci-dessus
+3. Les opportunités = ce que ces corrections permettraient concrètement (visibilité, trafic, clients)
+4. Les recommandations doivent être priorisées (1 = priorité absolue) et orienter naturellement vers le référencement local, la performance web, la visibilité Google Maps, les balises, le HTTPS, la vitesse de chargement
+5. L'accroche est une phrase courte et percutante pour l'email d'accompagnement du PDF — jamais "j'ai analysé", jamais de liste
+6. N'invente aucun chiffre absent des DONNÉES TECHNIQUES ci-dessus
+
+LIMITES STRICTES DE LONGUEUR — OBLIGATOIRE :
+- resume_executif : maximum 4 phrases courtes
+- forces : exactement 3 entrées maximum
+- faiblesses : exactement 3 entrées maximum
+- opportunites : exactement 3 entrées maximum
+- recommandations : exactement 4 entrées maximum
+- Chaque titre : maximum 10 mots
+- Chaque description : maximum 2 phrases
+- accroche : 1 seule phrase
+- Sois CONCIS. Chaque description fait maximum 2 phrases. Le JSON total doit faire moins de 3000 caractères.
+
+IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide. Pas de texte avant, pas de texte après, pas de markdown, pas de \`\`\`json.
+
+Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
+{
+  "resume_executif": "3-4 phrases courtes max",
+  "forces": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
+  "faiblesses": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
+  "opportunites": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
+  "recommandations": [{"titre": "max 10 mots", "description": "max 2 phrases", "priorite": 1}],
+  "accroche": "1 seule phrase"
+}`
+
+  console.log(`[generateAuditSEO] ${name} | city:${city} | seo:${seoScore ?? 'n/a'} | rank:${rankLabel} | prompt:${prompt.length} chars`)
+
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 2500,
+      messages:   [{ role: 'user', content: prompt }],
+    })
+  } catch (err) {
+    console.error('[generateAuditSEO] ✗ Erreur Anthropic:', err.message)
+    throw new Error(`Erreur génération audit SEO: ${err.message}`)
+  }
+
+  const raw = message.content[0].text
+  console.log(`[generateAuditSEO] ✓ réponse reçue (${raw.length} chars)`)
+  console.log('[generateAuditSEO] Réponse brute Claude:', raw)
+
+  // ── Parsing robuste ────────────────────────────────────────────────────────
+  function tryParse(str) {
+    try { return JSON.parse(str) } catch (_) { return null }
+  }
+
+  function cleanAndParse(str) {
+    // 1. Tenter tel quel
+    let result = tryParse(str)
+    if (result) return result
+
+    // 2. Couper au dernier '}' valide
+    const lastBrace = str.lastIndexOf('}')
+    if (lastBrace > 0) {
+      result = tryParse(str.substring(0, lastBrace + 1))
+      if (result) return result
+    }
+
+    // 3. Nettoyer trailing commas, sauts de ligne dans les strings
+    const cleaned = str
+      .replace(/,\s*([}\]])/g, '$1')          // trailing commas
+      .replace(/[\r\n]+/g, ' ')               // newlines → espace
+      .replace(/([^\\])\\n/g, '$1 ')          // \n littéraux
+      .replace(/\t/g, ' ')                    // tabs
+    result = tryParse(cleaned)
+    if (result) return result
+
+    // 4. Dernier '}' sur le nettoyé
+    const lastBrace2 = cleaned.lastIndexOf('}')
+    if (lastBrace2 > 0) {
+      result = tryParse(cleaned.substring(0, lastBrace2 + 1))
+      if (result) return result
+    }
+
+    return null
+  }
+
+  const start = raw.indexOf('{')
+  const end   = raw.lastIndexOf('}')
+
+  if (start === -1 || end === -1 || end <= start) {
+    console.error('[generateAuditSEO] Aucun JSON trouvé dans la réponse')
+    return {
+      resume_executif: 'Audit généré avec des données partielles — veuillez relancer.',
+      forces: [], faiblesses: [], opportunites: [],
+      recommandations: [{ titre: 'Optimiser la fiche Google Business Profile', description: 'Photos, description, horaires à jour.', priorite: 1 }],
+      accroche: 'Votre présence digitale mérite une attention particulière.',
+    }
+  }
+
+  const jsonStr = raw.substring(start, end + 1)
+  const parsed  = cleanAndParse(jsonStr)
+
+  if (!parsed) {
+    console.error('[generateAuditSEO] Parse échoué après toutes les tentatives. JSON extrait:', jsonStr)
+    return {
+      resume_executif: 'Audit généré avec des données partielles — veuillez relancer.',
+      forces: [], faiblesses: [], opportunites: [],
+      recommandations: [{ titre: 'Optimiser la fiche Google Business Profile', description: 'Photos, description, horaires à jour.', priorite: 1 }],
+      accroche: 'Votre présence digitale mérite une attention particulière.',
+    }
+  }
+
+  return parsed
+}
+
+module.exports = { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateAuditSEO }

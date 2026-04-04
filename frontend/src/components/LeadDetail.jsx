@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
+import { playClick, playSuccess, playError } from '../utils/sounds'
 import ReactMarkdown from 'react-markdown'
 import { ScoreBadge } from './LeadCard'
 import { exportLeadPDF } from '../utils/exportPDF'
+import { exportAuditPDF } from '../utils/exportAuditPDF'
 import { FaFacebookF, FaLinkedinIn, FaYoutube, FaTiktok, FaInstagram } from 'react-icons/fa'
 
 const SOCIAL_CONFIG = [
@@ -114,6 +116,10 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
   const [auditData,  setAuditData]  = useState(null)  // { pagespeed, socialActivity }
   const [auditState, setAuditState] = useState('idle') // idle | loading | done | error
 
+  // AI prospect audit state — generated on demand via /api/leads/audit-prospect
+  const [prospectAudit,      setProspectAudit]      = useState(null)  // JSON from generateAuditSEO
+  const [prospectAuditState, setProspectAuditState] = useState('idle') // idle | loading | done | error
+
   // Instagram deep analysis — profil photographe uniquement
   const [igDeep,        setIgDeep]        = useState(null)
   const [igDeepLoading, setIgDeepLoading] = useState(false)
@@ -205,6 +211,9 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
       setAuditData(null)
       setAuditState('idle')
     }
+    // Reset prospect audit on lead change
+    setProspectAudit(null)
+    setProspectAuditState('idle')
   }, [lead?.id, lead?._id])
 
   const handleAnalyzePerformance = async () => {
@@ -457,11 +466,13 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
       aiCache[cacheFullKey] = data // cache per lead + profile
       setAiReport(data)
       setAiState('done')
+      try { playSuccess() } catch (_) {}
       setWide(true)
     } catch (e) {
       console.error('AI analyze error:', e)
       setAiError(e.message || 'Erreur lors de l\'analyse IA')
       setAiState('error')
+      try { playError() } catch (_) {}
     }
   }
 
@@ -558,6 +569,7 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
   })()
 
   const handleContact = () => {
+    try { playClick() } catch (_) {}
     if (lead.email) {
       window.location.href = `mailto:${lead.email}?subject=Proposition chatbot pour ${encodeURIComponent(lead.name)}&body=Bonjour%2C%20je%20vous%20contacte%20au%20sujet%20de%20l'am%C3%A9lioration%20de%20votre%20pr%C3%A9sence%20digitale.`
     } else if (lead.phone) {
@@ -571,6 +583,7 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
     setTimeout(() => setContactedConfirm(false), 2000)
   }
   const handleFavorite = () => {
+    try { playClick() } catch (_) {}
     const next = isFavorite ? 'new' : 'favorite'
     onStatusChange(leadId, next)
     saveStatus(leadId, next)
@@ -580,6 +593,7 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
     }
   }
   const handleIgnore = () => {
+    try { playClick() } catch (_) {}
     onStatusChange(leadId, 'ignored')
     saveStatus(leadId, 'ignored')
   }
@@ -836,6 +850,8 @@ Bien cordialement,
   }
 
   const [pdfLoading, setPdfLoading] = useState(false)
+  const [auditPdfLoading, setAuditPdfLoading] = useState(false)
+  const [auditPdfError,   setAuditPdfError]   = useState(null)
 
   const handleExportPDF = async () => {
     setPdfLoading(true)
@@ -845,6 +861,58 @@ Bien cordialement,
       console.error('[PDF]', err)
     } finally {
       setPdfLoading(false)
+    }
+  }
+
+  const handleExportAuditPDF = async () => {
+    setAuditPdfLoading(true)
+    setAuditPdfError(null)
+    setProspectAuditState('loading')
+    try {
+      const placeId  = lead.id || lead._id || 'unknown'
+      const profileId = activeProfile?.id ?? 'seo'
+      const leadCity  = lead.address?.split(',').pop()?.trim() || ''
+
+      // Step 1 — generate AI audit via backend
+      const r = await fetch(`${API}/api/leads/audit-prospect/${placeId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile: profileId,
+          leadData: {
+            name:        lead.name        ?? '',
+            address:     lead.address     ?? '',
+            city:        leadCity,
+            category:    lead.keyword     ?? lead.domain ?? '',
+            website:     lead.website     ?? null,
+            rating:      lead.google?.rating       ?? null,
+            reviewCount: lead.google?.totalReviews  ?? null,
+            googleAudit: lead.googleAudit ?? null,
+          },
+          pagespeedData:    auditData?.pagespeed         ?? null,
+          localRank:        auditData?.localRank         ?? null,
+          reviewsData:      reviewsData                  ?? null,
+          napData:          auditData?.napData           ?? null,
+          facebookActivity: auditData?.facebookActivity  ?? null,
+          instagramActivity:auditData?.instagramActivity ?? null,
+        }),
+      })
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}))
+        throw new Error(err.error ?? `Erreur serveur ${r.status}`)
+      }
+      const prospectAuditResult = await r.json()
+      setProspectAudit(prospectAuditResult)
+      setProspectAuditState('done')
+
+      // Step 2 — generate PDF with AI content
+      await exportAuditPDF({ lead, activeProfile, aiReport, auditData, prospectAudit: prospectAuditResult })
+    } catch (err) {
+      console.error('[AuditPDF]', err)
+      setProspectAuditState('error')
+      setAuditPdfError(err.message ?? 'Erreur inconnue')
+    } finally {
+      setAuditPdfLoading(false)
     }
   }
 
@@ -2694,6 +2762,22 @@ Bien cordialement,
               onMouseLeave={e => { e.currentTarget.style.color = pdfLoading ? '#475569' : 'rgba(255,255,255,0.48)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}>
               {pdfLoading ? '⏳ Génération en cours…' : '↓ Exporter fiche PDF'}
             </button>
+
+            {/* Audit prospect PDF */}
+            <button
+              className="ld-btn"
+              onClick={handleExportAuditPDF}
+              disabled={auditPdfLoading}
+              style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: auditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: auditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
+              onMouseEnter={e => { if (!auditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
+              {prospectAuditState === 'loading' ? '⏳ Génération de l\'audit…' : auditPdfLoading ? '⏳ Mise en page PDF…' : '↓ Générer l\'audit prospect'}
+            </button>
+            {auditPdfError && (
+              <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
+                ✗ {auditPdfError}
+              </div>
+            )}
           </div>
 
         </div>

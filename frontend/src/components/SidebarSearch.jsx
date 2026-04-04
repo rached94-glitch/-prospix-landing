@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { playClick } from '../utils/sounds'
 import {
   UtensilsCrossed, ShoppingBag, Heart, Home, Sparkles,
   Cpu, Scale, TrendingUp, BookOpen, Dumbbell, Loader, Zap,
@@ -161,10 +162,10 @@ const sectionLabel = {
 
 const tag = {
   display: 'inline-flex', alignItems: 'center', gap: 4,
-  background: 'rgba(29,110,85,0.12)',
-  border: '1px solid rgba(29,110,85,0.30)',
+  background: 'rgba(255,255,255,0.15)',
+  border: '1px solid rgba(255,255,255,0.3)',
   borderRadius: 11, padding: '2px 7px',
-  fontSize: 11, fontFamily: 'var(--font-body)', color: 'var(--accent)',
+  fontSize: 11, fontFamily: 'var(--font-body)', color: '#f5f5f0',
 }
 
 const tagsContainer = {
@@ -314,6 +315,7 @@ export default function SidebarSearch({
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!city.trim() || isLoading) return
+    try { playClick() } catch (_) {}
     let lat = null, lng = null
     setDetectedLoc(null)
     try {
@@ -507,15 +509,15 @@ export default function SidebarSearch({
           {DOMAINS.map(d => (
             <span
               key={d.value}
-              onClick={() => setDomain(d.value)}
+              onClick={() => { try { playClick() } catch (_) {} setDomain(d.value) }}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
                 padding: '0 9px', borderRadius: 11, height: 22, fontSize: 11,
                 fontFamily: 'var(--font-body)', fontWeight: 500,
                 cursor: 'pointer', userSelect: 'none',
-                border: `1px solid ${domain === d.value ? 'rgba(29,110,85,0.40)' : 'rgba(255,255,255,0.07)'}`,
-                background: domain === d.value ? 'rgba(29,110,85,0.15)' : 'rgba(255,255,255,0.05)',
-                color: domain === d.value ? '#1D6E55' : 'rgba(255,255,255,0.55)',
+                border: `1px solid ${domain === d.value ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                background: domain === d.value ? 'rgba(255,255,255,0.15)' : 'transparent',
+                color: domain === d.value ? '#f5f5f0' : 'rgba(255,255,255,0.5)',
               }}
             >
               {d.icon}{d.label}
@@ -576,11 +578,11 @@ export default function SidebarSearch({
       </div>
 
       {/* Profil actif */}
-      <div style={{ flexShrink: 0, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 14, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12 }}>
-        <span style={{ fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-body)', color: 'var(--muted)' }}>
-          Profil : <span style={{ color: 'var(--accent)' }}>{activeProfile?.name ?? 'Défaut'}</span>
+      <div style={{ flexShrink: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 14, background: 'rgba(237,250,54,0.08)', border: '1px solid rgba(237,250,54,0.25)', borderRadius: 12, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+        <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-body)', color: '#edfa36', textAlign: 'center' }}>
+          Profil : {activeProfile?.name ?? 'Défaut'}
         </span>
-        <button type="button" onClick={onOpenScoring} style={{ background: 'rgba(29,110,85,0.10)', border: '1px solid rgba(29,110,85,0.30)', borderRadius: 8, color: 'var(--accent)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-body)', padding: '8px 16px', cursor: 'pointer' }}>
+        <button type="button" onClick={onOpenScoring} style={{ fontSize: 10, fontWeight: 600, padding: '4px 12px', borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
           Modifier
         </button>
       </div>

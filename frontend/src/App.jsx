@@ -39,6 +39,7 @@ class MapErrorBoundary extends Component {
   }
 }
 
+import { toggleSound, isSoundEnabled } from './utils/sounds'
 import { useLeads } from './hooks/useLeads'
 import { useScoringProfiles } from './hooks/useScoringProfiles'
 import NavBar from './components/NavBar'
@@ -77,7 +78,7 @@ const LOADING_MESSAGES = [
   '✅ Leads prêts !',
 ]
 
-function LoadingOverlay({ isLoading, progress, leadsCount }) {
+function LoadingOverlay({ isLoading, progress, leadsCount, onForceClose }) {
   const [msgIdx,  setMsgIdx]  = useState(0)
   const [fakePct, setFakePct] = useState(0)
 
@@ -101,11 +102,25 @@ function LoadingOverlay({ isLoading, progress, leadsCount }) {
 
   return (
     <div style={{
-      position: 'absolute', inset: 0, zIndex: 50,
+      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999,
       background: 'rgba(14,28,18,0.7)',
       backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
     }}>
+
+      {/* Force-close button */}
+      {onForceClose && (
+        <button
+          onClick={onForceClose}
+          title="Fermer l'overlay"
+          style={{
+            position: 'absolute', top: 20, right: 20,
+            background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+            borderRadius: 8, color: 'rgba(255,255,255,0.5)', fontSize: 18, lineHeight: 1,
+            width: 36, height: 36, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >✕</button>
+      )}
 
       {/* Top progress bar */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'rgba(255,255,255,0.04)' }}>
@@ -295,9 +310,11 @@ function MainHeader({ totalLeads, searchCity, activeTab }) {
 function Sidebar({ children }) {
   return (
     <div style={{
-      width: 260, flexShrink: 0,
+      position: 'absolute', left: 52, top: 0, zIndex: 2,
+      width: 260,
       height: '100vh',
-      background: 'rgba(17,24,20,0.75)',
+      background: 'rgba(17,24,20,0.6)',
+      backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
       borderRight: '1px solid rgba(255,255,255,0.06)',
       display: 'flex', flexDirection: 'column',
       overflow: 'hidden',
@@ -309,11 +326,12 @@ function Sidebar({ children }) {
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 export default function App() {
-  const { leads, isLoading, progress, searchLeads, updateLeadStatus, updateLeadDecisionMaker } = useLeads()
+  const { leads, isLoading, progress, searchLeads, updateLeadStatus, updateLeadDecisionMaker, forceCloseOverlay } = useLeads()
   const safeLeads = leads || []
 
   const { profiles, activeProfile, setActiveProfile, createProfile, updateProfile, deleteProfile } = useScoringProfiles()
 
+  const [soundOn,       setSoundOn]       = useState(() => isSoundEnabled())
   const [activeTab,     setActiveTab]     = useState('search')
   const [selectedLead,  setSelectedLead]  = useState(null)
   const [searchCity,    setSearchCity]    = useState('')
@@ -375,12 +393,44 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      {/* Sound toggle — fixed, top center */}
+      <div
+        onClick={() => { const next = toggleSound(); setSoundOn(next) }}
+        title={soundOn ? 'Désactiver les sons' : 'Activer les sons'}
+        style={{
+          position: 'fixed', top: 52, left: '50%', transform: 'translateX(-50%)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', gap: 8,
+          background: 'rgba(17,24,20,0.7)',
+          backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+          borderRadius: 20, padding: '6px 12px',
+          border: '1px solid rgba(255,255,255,0.1)',
+          cursor: 'pointer',
+        }}
+      >
+        <span style={{ fontSize: 14, lineHeight: 1 }}>{soundOn ? '🔊' : '🔇'}</span>
+        <div style={{
+          position: 'relative', width: 32, height: 18, borderRadius: 9, flexShrink: 0,
+          background: soundOn ? '#1d6e55' : 'rgba(255,255,255,0.15)',
+          transition: 'background 0.3s ease',
+        }}>
+          <div style={{
+            position: 'absolute', top: 2,
+            left: soundOn ? 16 : 2,
+            width: 14, height: 14, borderRadius: '50%',
+            background: 'white',
+            transition: 'left 0.3s ease',
+          }} />
+        </div>
+      </div>
+
       <div className="orb-violet" />
       <div className="orb-cyan" />
-      <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', position: 'relative' }}>
 
         {/* 1. NavBar */}
-        <NavBar activeTab={activeTab} onTabChange={setActiveTab} />
+        <div style={{ position: 'relative', zIndex: 3, flexShrink: 0 }}>
+          <NavBar activeTab={activeTab} onTabChange={setActiveTab} />
+        </div>
 
         {/* 2. Sidebar contextuelle */}
         <Sidebar>
@@ -433,13 +483,13 @@ export default function App() {
         </Sidebar>
 
         {/* 3. Zone principale */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, position: 'relative', zIndex: 1 }}>
           <MainHeader
             totalLeads={safeLeads.length}
             searchCity={searchCity}
             activeTab={activeTab}
           />
-          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100vh', zIndex: 0 }}>
             <MapErrorBoundary>
               <LeadMap
                 leads={filteredLeads}
@@ -448,7 +498,7 @@ export default function App() {
                 onSelectLead={setSelectedLead}
               />
             </MapErrorBoundary>
-            <LoadingOverlay isLoading={isLoading} progress={progress} leadsCount={safeLeads.length} />
+            <LoadingOverlay isLoading={isLoading} progress={progress} leadsCount={safeLeads.length} onForceClose={forceCloseOverlay} />
             {selectedLead && (
               <LeadDetail
                 lead={selectedLead}

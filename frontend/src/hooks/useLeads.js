@@ -79,19 +79,22 @@ export function useLeads() {
       }
 
       // Streaming SSE via fetch
+      console.log('[useLeads] Connexion SSE → /api/leads/search/stream')
       const response = await fetch('/api/leads/search/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(params),
       })
+      console.log('[useLeads] SSE réponse reçue, status:', response.status)
 
       const reader  = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer    = ''
+      let gotDone   = false
 
       while (true) {
         const { done, value } = await reader.read()
-        if (done) break
+        if (done) { console.log('[useLeads] SSE stream fermé par le serveur (done)'); break }
 
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
@@ -101,21 +104,33 @@ export function useLeads() {
           if (!line.startsWith('data: ')) continue
           try {
             const event = JSON.parse(line.slice(6))
+            console.log('[useLeads] SSE event:', event.type, event.message ?? '', event.current != null ? `${event.current}/${event.total}` : '')
 
             if (event.type === 'page' || event.type === 'progress' || event.type === 'enrich' || event.type === 'cache') {
               setProgress({ message: event.message, current: event.current, total: event.total })
             } else if (event.type === 'done') {
+              console.log('[useLeads] ✅ type:done reçu —', event.leads?.length, 'leads — fermeture overlay dans 2s')
               setLeads(applyStatuses(event.leads))
+              gotDone = true
+              break
             } else if (event.type === 'error') {
+              console.error('[useLeads] SSE error event:', event.message)
               setError(event.message)
             }
           } catch { /* ligne incomplète ou invalide */ }
         }
+        if (gotDone) break
+      }
+
+      if (gotDone) {
+        await new Promise(r => setTimeout(r, 2000))
+        console.log('[useLeads] Fermeture overlay (2s écoulées)')
       }
     } catch (err) {
-      console.error('Search error:', err)
+      console.error('[useLeads] Search error:', err)
       setError(err.message)
     } finally {
+      console.log('[useLeads] finally → setIsLoading(false)')
       setIsLoading(false)
       setProgress(null)
     }
@@ -189,5 +204,7 @@ export function useLeads() {
     localStorage.setItem(`dm_${id}`, JSON.stringify(decisionMaker))
   }
 
-  return { leads, isLoading, error, progress, searchLeads, updateLeadStatus, updateLeadDecisionMaker, exportLeads }
+  const forceCloseOverlay = () => { console.log('[useLeads] forceCloseOverlay appelé'); setIsLoading(false); setProgress(null) }
+
+  return { leads, isLoading, error, progress, searchLeads, updateLeadStatus, updateLeadDecisionMaker, exportLeads, forceCloseOverlay }
 }

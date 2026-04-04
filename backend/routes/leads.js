@@ -6,7 +6,7 @@ const { enrichSocial }   = require('../services/socialEnrichment');
 const { calculateScore }  = require('../services/scoring');
 const { analyzeReviews }  = require('../services/reviewAnalysis');
 const { getAllReviews }      = require('../services/apifyReviews');
-const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot } = require('../services/aiReviewAnalysis');
+const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateAuditSEO } = require('../services/aiReviewAnalysis');
 const { findDecisionMaker } = require('../services/linkedinScraper');
 const { searchPappers }     = require('../services/pappersService');
 const { getPageSpeed, checkNAP, getSiteSignals } = require('../services/pagespeedService');
@@ -639,6 +639,40 @@ router.get('/tiktok-stats', async (req, res) => {
   } catch (e) {
     console.warn('[TikTokStats] Erreur:', e.message)
     res.json({ error: 'tiktok_unavailable' })
+  }
+})
+
+// ─── POST /audit-prospect/:placeId — Audit IA prospect (JSON structuré) ───────
+router.post('/audit-prospect/:placeId', async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(503).json({ error: 'ANTHROPIC_API_KEY manquante' })
+  }
+
+  try {
+    const { placeId } = req.params
+    const {
+      profile          = 'seo',
+      leadData         = {},
+      pagespeedData    = null,
+      localRank        = null,
+      reviewsData      = null,
+      napData          = null,
+      facebookActivity = null,
+      instagramActivity = null,
+    } = req.body
+
+    console.log(`[audit-prospect] placeId:${placeId} | profile:${profile} | business:"${leadData.name ?? '?'}"`)
+
+    const SUPPORTED = ['seo', 'consultant-seo']
+    if (!SUPPORTED.includes(profile)) {
+      return res.status(400).json({ error: `Profil "${profile}" non pris en charge pour l'audit prospect (supportés : ${SUPPORTED.join(', ')})` })
+    }
+
+    const result = await generateAuditSEO({ leadData, pagespeedData, localRank, reviewsData, napData, facebookActivity, instagramActivity })
+    res.json(result)
+  } catch (e) {
+    console.error('Audit route error:', e)
+    res.status(500).json({ error: e.message })
   }
 })
 
