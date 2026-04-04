@@ -483,20 +483,23 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
     setReviewsState('loading')
     setReviewsData(null)
     try {
-      const placeId = (lead._id ?? lead.id).replace(/^ChIJ/, '')
+      const placeId = lead._id ?? lead.id
       const res  = await fetch(`${API}/api/leads/reviews/${placeId}`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erreur serveur')
       setReviewsData(data)
       setReviewsState('done')
+      // Chaîne automatiquement l'analyse IA avec les données fraîches (pas depuis le state)
+      await handleAnalyzeAI(data)
     } catch (e) {
       console.error('Load reviews error:', e)
       setReviewsState('idle')
     }
   }
 
-  const handleAnalyzeAI = async () => {
-    if (aiState === 'loading' || !reviewsData) return
+  const handleAnalyzeAI = async (freshReviewsData) => {
+    const reviews = freshReviewsData ?? reviewsData
+    if (aiState === 'loading' || !reviews) return
     const placeId = (lead._id ?? lead.id).replace(/^ChIJ/, '')
 
     // Serve from cache if available
@@ -517,7 +520,7 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          reviews:      reviewsData.reviews,
+          reviews:      reviews.reviews,
           businessName: lead.name,
           profileId,
           websiteUrl:   lead.website   || null,
@@ -1154,60 +1157,68 @@ Bien cordialement,
     switch (profileId) {
       case 'chatbot':
       case 'dev-chatbot': {
-        const siteSignals     = auditData?.pagespeed?.siteSignals ?? null
-        const isBookingUrl    = siteSignals?.isBookingUrl ?? false
-        const chatDetected    = siteSignals != null ? siteSignals.chatbotDetected : !!(lead.googleAudit?.hasChatbot)
-        const chatTool        = siteSignals?.chatbotTool ?? null
-        const bookingPlatform = siteSignals?.bookingPlatform ?? null
-        // Option B: priorité chatbotDetection/faqDetection (enrichissement unlock), fallback siteSignals (audit on-demand)
-        const hasFAQ = lead.chatbotDetection?.faqDetection?.hasFAQ
-          ?? lead.faqDetection?.hasFAQ
-          ?? siteSignals?.hasFAQ
-          ?? null
-        const hasForm = lead.chatbotDetection?.contactFormDetection?.hasContactForm
-          ?? lead.contactFormDetection?.hasContactForm
-          ?? siteSignals?.hasContactForm
-          ?? null
-        const sensitive       = auditData?.pagespeed?.sensitiveData ?? null
-        const themes          = lead.reviewAnalysis?.themes?.length || 0
+        // getSiteSignals() (chatbot) retourne les signaux à plat dans pagespeed — pas imbriqués dans .siteSignals
+        const siteSignals     = auditData?.pagespeed ?? null
+        const auditDone       = siteSignals !== null
 
-        // New signals
-        const questionCount   = lead.reviewAnalysis?.questionAnalysis?.totalQuestions ?? null
-        const questionTopics  = lead.reviewAnalysis?.questionAnalysis?.questionTopics ?? {}
+        // ── Phase 1 — disponible dès le unlock ──────────────────────────────────
+        const chatDetected    = auditDone ? siteSignals.chatbotDetected : !!(lead.chatbotDetection?.hasChatbot)
+        const chatTool        = siteSignals?.chatbotTool ?? (lead.chatbotDetection?.chatbotsDetected?.[0] ?? null)
         const domainComplexity = lead.domainComplexity ?? null
 
+        // Si les 100 avis Apify sont chargés, recalculer sur les données fraîches
+        // Sinon fallback sur les 5 avis Google natifs du lead
+        const effectiveUnanswered = reviewsData?.unanswered ?? unanswered
+        const qaData        = reviewsData?.questionAnalysis ?? lead.reviewAnalysis?.questionAnalysis ?? null
+        const questionCount = qaData?.totalQuestions ?? null
+        const questionRatio = qaData?.questionRatio  ?? null
+        const questionTopics = qaData?.questionTopics ?? {}
+
+        // ── Phase 2 — disponible uniquement après "Analyser le site" (audit) ────
+        // hasFAQ et hasForm viennent EXCLUSIVEMENT de siteSignals (GET /audit)
+        // Pour ne pas afficher de données avant que l'utilisateur ait lancé l'analyse
+        const hasFAQ  = auditDone ? (siteSignals.hasFAQ          ?? null) : null
+        const hasForm = auditDone ? (siteSignals.hasContactForm   ?? null) : null
+        const bookingPlatform = siteSignals?.bookingPlatform ?? null
+        const sensitive       = siteSignals?.sensitiveData   ?? null
+
+        // Topics pour "Thèmes récurrents" — données disponibles dès le unlock
+        // mais affichées uniquement après l'audit (cohérence UX phase 2)
+        const topTopicEntries = Object.entries(questionTopics).sort((a, b) => b[1] - a[1]).slice(0, 3)
+        const topTopicsLabel  = topTopicEntries.length > 0 ? topTopicEntries.map(([t]) => t).join(', ') : null
+
         const kpis = [
-          kpi('Avis sans réponse', unanswered > 0 ? unanswered : '0', unanswered > 0 ? 'danger' : 'good'),
-          { label: 'CHATBOT EXISTANT', type: 'chatbot_detect', detected: chatDetected, tool: chatTool },
+          // Phase 1 — post-unlock
+          kpi('Avis sans réponse', effectiveUnanswered > 0 ? effectiveUnanswered : '0', effectiveUnanswered > 0 ? 'danger' : 'good'),
+          { label: 'CHATBOT EXISTANT',    type: 'chatbot_detect',    detected: chatDetected, tool: chatTool },
+          { label: 'QUESTIONS DANS AVIS', type: 'question_count',    count: questionCount, ratio: questionRatio, topics: questionTopics },
+          { label: 'COMPLEXITÉ DOMAINE',  type: 'domain_complexity', complexity: domainComplexity },
+          // Phase 2 — post-audit (null → "—" jusqu'au clic "Analyser le site")
+          { label: 'FAQ DÉTECTÉE',       type: 'faq_detect',  detected: hasFAQ },
+          { label: 'FORMULAIRE CONTACT', type: 'form_detect', detected: hasForm },
+          { label: 'THÈMES RÉCURRENTS',  type: 'topic_list',
+            topics:      auditDone ? topTopicEntries : [],
+            topicsLabel: auditDone ? topTopicsLabel  : null },
         ]
-        if (questionCount !== null)
-          kpis.push({ label: 'QUESTIONS DANS AVIS', type: 'question_count', count: questionCount, topics: questionTopics })
-        // Booking platform card — always orange, regardless of whether the URL is the platform itself
         if (bookingPlatform !== null)
           kpis.push({ label: 'PLATEFORME RÉSERVATION', type: 'booking_url', platform: bookingPlatform })
-        if (hasFAQ !== null)
-          kpis.push({ label: 'FAQ DÉTECTÉE', type: 'faq_detect', detected: hasFAQ })
-        if (hasForm !== null)
-          kpis.push({ label: 'FORMULAIRE CONTACT', type: 'form_detect', detected: hasForm })
-        if (domainComplexity !== null)
-          kpis.push({ label: 'COMPLEXITÉ DOMAINE', type: 'domain_complexity', complexity: domainComplexity })
         if (sensitive !== null)
           kpis.push({ label: 'DOMAINE SENSIBLE', type: 'sensitive', detected: sensitive })
-        if (siteSignals === null)
-          kpis.push(kpi('Thèmes récurrents', themes > 0 ? themes : '—', themes > 0 ? 'warn' : 'neutral'))
 
         return {
           kpis,
           problems: [
-            ...(unanswered > 0       ? [prob(`${unanswered} avis sans réponse — chaque silence = client perdu`, '#ef4444')] : []),
-            ...(!chatDetected        ? [prob('Aucun chatbot détecté — opportunité directe', '#22c55e')] : []),
-            ...(chatDetected         ? [prob(`Chatbot existant (${chatTool ?? 'inconnu'}) — angle différentiel requis`, '#f59e0b')] : []),
-            ...(bookingPlatform      ? [prob(`${bookingPlatform} détecté — ne pas proposer la réservation, angle FAQ/tarifs/horaires`, '#f97316')] : []),
-            ...(hasFAQ               ? [prob('FAQ détectée — base de contenu disponible', '#22c55e')] : []),
-            ...(questionCount >= 3   ? [prob(`${questionCount} questions dans les avis — chatbot peut y répondre automatiquement`, '#f59e0b')] : []),
+            ...(effectiveUnanswered > 0     ? [prob(`${effectiveUnanswered} avis sans réponse — chaque silence = client perdu`, '#ef4444')] : []),
+            ...(!chatDetected               ? [prob('Aucun chatbot détecté — opportunité directe', '#22c55e')] : []),
+            ...(chatDetected                ? [prob(`Chatbot existant (${chatTool ?? 'inconnu'}) — angle différentiel requis`, '#f59e0b')] : []),
+            ...(questionCount >= 3          ? [prob(`${questionCount} questions dans les avis — chatbot peut y répondre automatiquement`, '#f59e0b')] : []),
             ...(domainComplexity === 'complex' ? [prob('Domaine complexe — fort potentiel FAQ/chatbot', '#22c55e')] : []),
-            ...(sensitive            ? [prob('Données sensibles — serveur local recommandé', '#f97316')] : []),
-            ...(themes > 0           ? [prob(`${themes} thèmes récurrents répondables automatiquement`, '#f59e0b')] : []),
+            // Phase 2 — seulement après audit
+            ...(hasFAQ === false            ? [prob('Aucune FAQ — opportunité directe', '#10bb54')] : []),
+            ...(hasFAQ === true             ? [prob('FAQ existante — angle complémentaire ou remplacement dynamique', '#f97316')] : []),
+            ...(bookingPlatform             ? [prob(`${bookingPlatform} détecté — angle FAQ/tarifs/horaires`, '#f97316')] : []),
+            ...(sensitive                   ? [prob('Données sensibles — serveur local recommandé', '#f97316')] : []),
+            ...(auditDone && topTopicsLabel ? [prob(`Thèmes récurrents : ${topTopicsLabel}`, '#f59e0b')] : []),
           ],
         }
       }
@@ -2404,49 +2415,77 @@ Bien cordialement,
                       )
                     }
                     if (kpi.type === 'question_count') {
-                      const hasQuestions = (kpi.count ?? 0) > 0
-                      const color = kpi.count >= 3 ? '#f59e0b' : kpi.count > 0 ? '#94a3b8' : '#475569'
+                      const noData  = kpi.count === null
+                      const ratio   = kpi.ratio ?? 0
+                      const count   = kpi.count ?? 0
+                      const color   = noData ? '#475569' : ratio > 10 ? '#22c55e' : count > 0 ? '#f59e0b' : '#475569'
                       const topicList = Object.entries(kpi.topics || {})
                         .sort((a, b) => b[1] - a[1]).slice(0, 2).map(([t]) => t).join(', ')
                       return (
-                        <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
                           <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{kpi.count ?? 0}</div>
-                          {topicList && <div style={{ fontSize: 8.5, color: '#94a3b8', marginTop: 4, lineHeight: 1.35 }}>Sujets : {topicList}</div>}
-                          {!hasQuestions && <div style={{ fontSize: 8.5, color: '#475569', marginTop: 4 }}>Aucune question détectée</div>}
+                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>
+                            {noData ? '—' : `${count} (${ratio}%)`}
+                          </div>
+                          {!noData && topicList && <div style={{ fontSize: 8.5, color: '#64748b', marginTop: 4, lineHeight: 1.35 }}>Sujets : {topicList}</div>}
+                          {!noData && !topicList && count === 0 && <div style={{ fontSize: 8.5, color: '#475569', marginTop: 4 }}>Aucune question détectée</div>}
                         </div>
                       )
                     }
                     if (kpi.type === 'faq_detect') {
-                      const color = kpi.detected ? '#22c55e' : '#475569'
+                      // Non = green (opportunité — pas de FAQ existante), Oui = orange (déjà géré)
+                      const noData = kpi.detected === null || kpi.detected === undefined
+                      const color  = noData ? '#475569' : kpi.detected ? '#f97316' : '#10bb54'
                       return (
-                        <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
                           <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{kpi.detected ? 'Oui' : 'Non'}</div>
-                          {kpi.detected && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>Base de contenu disponible</div>}
+                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>
+                            {noData ? '—' : kpi.detected ? 'Oui' : 'Non'}
+                          </div>
+                          {!noData && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>
+                            {kpi.detected ? 'Déjà gérée — angle complémentaire' : 'Aucune FAQ — opportunité directe'}
+                          </div>}
                         </div>
                       )
                     }
                     if (kpi.type === 'domain_complexity') {
-                      const labels   = { complex: 'Complexe', medium: 'Mixte', simple: 'Simple' }
-                      const colors   = { complex: '#22c55e', medium: '#f59e0b', simple: '#475569' }
-                      const notes    = { complex: 'Fort potentiel FAQ / chatbot', medium: 'Potentiel modéré', simple: 'Opportunité réduite' }
-                      const c        = colors[kpi.complexity] || '#475569'
+                      const STAR_MAP   = { simple: 2, medium: 3, complex: 5 }
+                      const LABEL_MAP  = { simple: 'Simple', medium: 'Standard', complex: 'Avancé' }
+                      const COLOR_MAP  = { simple: '#64748b', medium: '#f59e0b', complex: '#22c55e' }
+                      const NOTE_MAP   = { simple: 'Opportunité réduite', medium: 'Potentiel modéré', complex: 'Fort potentiel FAQ / chatbot' }
+                      const noData     = !kpi.complexity
+                      const starCount  = STAR_MAP[kpi.complexity] ?? 0
+                      const c          = COLOR_MAP[kpi.complexity] ?? '#475569'
+                      const stars      = noData ? null : Array.from({ length: 5 }, (_, idx) => (
+                        <span key={idx} style={{ color: idx < starCount ? '#edfa36' : 'rgba(255,255,255,0.2)', fontSize: 14, lineHeight: 1 }}>★</span>
+                      ))
                       return (
-                        <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
                           <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: c, lineHeight: 1.1 }}>{labels[kpi.complexity] ?? kpi.complexity}</div>
-                          <div style={{ fontSize: 8.5, color: c, marginTop: 4, lineHeight: 1.35 }}>{notes[kpi.complexity] ?? ''}</div>
+                          {noData
+                            ? <div style={{ fontSize: 16, fontWeight: 700, color: '#475569', lineHeight: 1.1 }}>—</div>
+                            : <>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, lineHeight: 1 }}>{stars}
+                                  <span style={{ fontSize: 12, fontWeight: 600, color: c, marginLeft: 2 }}>{LABEL_MAP[kpi.complexity]}</span>
+                                </div>
+                                <div style={{ fontSize: 8.5, color: c, marginTop: 5, lineHeight: 1.35 }}>{NOTE_MAP[kpi.complexity]}</div>
+                              </>
+                          }
                         </div>
                       )
                     }
                     if (kpi.type === 'form_detect') {
-                      const color = kpi.detected ? '#22c55e' : '#475569'
+                      const noData = kpi.detected === null || kpi.detected === undefined
+                      const color  = noData ? '#475569' : kpi.detected ? '#22c55e' : '#475569'
                       return (
-                        <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
                           <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{kpi.detected ? 'Présent' : 'Absent'}</div>
-                          {kpi.detected && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>Remplacement ou complément chatbot</div>}
+                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>
+                            {noData ? '—' : kpi.detected ? 'Présent' : 'Absent'}
+                          </div>
+                          {!noData && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>
+                            {kpi.detected ? 'Canal existant — chatbot en complément' : 'Aucun formulaire — besoin non couvert'}
+                          </div>}
                         </div>
                       )
                     }
@@ -2457,6 +2496,24 @@ Bien cordialement,
                           <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
                           <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{kpi.detected ? 'Oui' : 'Non'}</div>
                           {kpi.detected && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>Serveur local recommandé</div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'topic_list') {
+                      const hasTopics = (kpi.topics || []).length > 0
+                      return (
+                        <div key={i} style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          {hasTopics
+                            ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                                {kpi.topics.map(([topic, count]) => (
+                                  <span key={topic} style={{ fontSize: 10.5, color: '#f59e0b', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 5, padding: '2px 8px' }}>
+                                    {topic} <span style={{ opacity: 0.6 }}>×{count}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            : <div style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>Aucun thème détecté</div>
+                          }
                         </div>
                       )
                     }
@@ -2961,26 +3018,10 @@ Bien cordialement,
           {/* ── EMAIL IA ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
 
-            {/* Generated email display */}
-            {aiEmailState === 'done' && aiEmail && (
-              <div style={{ background: 'rgba(29,110,85,0.06)', border: '1px solid rgba(29,110,85,0.20)', borderRadius: 10, padding: '13px 14px', marginBottom: 2 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: '#1D6E55', marginBottom: 9 }}>Email généré</div>
-                {aiEmail.subject && (
-                  <div style={{ fontSize: 11.5, fontWeight: 600, color: '#f1f5f9', marginBottom: 7, lineHeight: 1.4 }}>Objet : {aiEmail.subject}</div>
-                )}
-                <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.65, maxHeight: 180, overflowY: 'auto', whiteSpace: 'pre-wrap', marginBottom: 9, scrollbarWidth: 'thin', scrollbarColor: '#2d3748 transparent' }}>
-                  {aiEmail.body}
-                </div>
-                <button className="ld-btn" onClick={() => { navigator.clipboard.writeText(`${aiEmail.subject}\n\n${aiEmail.body}`); setCopiedEmail(true); setTimeout(() => setCopiedEmail(false), 2000) }} style={{ width: '100%', height: 30, borderRadius: 6, border: '1px solid rgba(29,110,85,0.25)', background: 'transparent', color: copiedEmail ? '#22c55e' : '#EDFA36', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
-                  {copiedEmail ? '✓ Copié !' : '📋 Copier'}
-                </button>
-              </div>
-            )}
-
             {/* Generate email button */}
             {(() => {
               const VISUAL_PROFILES = ['photographe', 'designer', 'copywriter']
-              const AUDIT_PROFILES  = ['seo', 'consultant-seo', 'dev-web', 'pub-google', 'chatbot', 'dev-chatbot']
+              const AUDIT_PROFILES  = ['seo', 'consultant-seo', 'dev-web', 'pub-google']
               const pid = activeProfile?.id
               const visualBlocked = VISUAL_PROFILES.includes(pid) && !!visualError && (visualError.includes('bloque') || visualError.includes('indisponible') || visualError.includes('ne permet pas'))
               const step2Done = VISUAL_PROFILES.includes(pid)
@@ -3011,6 +3052,28 @@ Bien cordialement,
                 </>
               )
             })()}
+
+            {/* Generated email display — shown below the button after generation */}
+            {aiEmailState === 'done' && aiEmail && (
+              <div style={{ background: 'rgba(29,110,85,0.06)', border: '1px solid rgba(29,110,85,0.20)', borderRadius: 10, padding: '13px 14px' }}>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: '#1D6E55', marginBottom: 9 }}>Email généré</div>
+                {aiEmail.subject && (
+                  <div style={{ fontSize: 11.5, fontWeight: 600, color: '#f1f5f9', marginBottom: 7, lineHeight: 1.4 }}>Objet : {aiEmail.subject}</div>
+                )}
+                <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.65, maxHeight: 180, overflowY: 'auto', whiteSpace: 'pre-wrap', marginBottom: 9, scrollbarWidth: 'thin', scrollbarColor: '#2d3748 transparent' }}>
+                  {aiEmail.body}
+                </div>
+                <button className="ld-btn" onClick={() => { navigator.clipboard.writeText(`${aiEmail.subject}\n\n${aiEmail.body}`); setCopiedEmail(true); setTimeout(() => setCopiedEmail(false), 2000) }} style={{ width: '100%', height: 30, borderRadius: 6, border: '1px solid rgba(29,110,85,0.25)', background: 'transparent', color: copiedEmail ? '#22c55e' : '#EDFA36', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
+                  {copiedEmail ? '✓ Copié !' : '📋 Copier'}
+                </button>
+              </div>
+            )}
+            {aiEmailState === 'error' && (
+              <div style={{ fontSize: 11, color: '#f87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, padding: '8px 10px' }}>
+                ✗ Erreur lors de la génération — vérifiez la console ou réessayez.
+                <button onClick={() => setAiEmailState('idle')} style={{ marginLeft: 8, fontSize: 10, color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Réessayer</button>
+              </div>
+            )}
 
             {/* Export PDF */}
             <button

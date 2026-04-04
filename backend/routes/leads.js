@@ -8,7 +8,7 @@ const { validateSearchParams, validatePlaceId } = require('../utils/validateInpu
 const { analyzePhotoQuality } = require('../services/photoQualityService');
 const { enrichSocial }   = require('../services/socialEnrichment');
 const { calculateScore, getDomainComplexity } = require('../services/scoring');
-const { analyzeReviews }  = require('../services/reviewAnalysis');
+const { analyzeReviews, countQuestionsInReviews } = require('../services/reviewAnalysis');
 const { getAllReviews }      = require('../services/apifyReviews');
 const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateAuditSEO, generateAuditPhotographe } = require('../services/aiReviewAnalysis');
 const { findDecisionMaker } = require('../services/linkedinScraper');
@@ -267,12 +267,10 @@ router.post('/reviews/:placeId', async (req, res, next) => {
   try {
     const { placeId } = req.params
     if (!validatePlaceId(placeId)) throw new AppError('placeId invalide', 400)
-    const reviews = await getAllReviews(placeId)
-    res.json({
-      reviews,
-      total:      reviews.length,
-      unanswered: reviews.filter(r => !r.ownerReply).length,
-    })
+    const reviews          = await getAllReviews(placeId)
+    const unanswered       = reviews.filter(r => !r.ownerReply).length
+    const questionAnalysis = countQuestionsInReviews(reviews)
+    res.json({ reviews, total: reviews.length, unanswered, questionAnalysis })
   } catch (e) {
     next(e)
   }
@@ -868,6 +866,16 @@ router.post('/unlock/:placeId', async (req, res, next) => {
       domain, keywords, socialPresence, pappersData, weights, profileId,
     });
     lead.locked = false;
+
+    // faqDetection et contactFormDetection sont réservés à l'audit "Analyser le site"
+    // (GET /audit → getSiteSignals) — ne pas les exposer au unlock pour éviter
+    // un affichage prématuré côté frontend avant que l'utilisateur ait lancé l'analyse
+    delete lead.faqDetection
+    delete lead.contactFormDetection
+    if (lead.chatbotDetection) {
+      delete lead.chatbotDetection.faqDetection
+      delete lead.chatbotDetection.contactFormDetection
+    }
 
     const TTL_7D = 7 * 24 * 60 * 60 * 1000;
     unlockCache.set(cacheKey, lead, TTL_7D);

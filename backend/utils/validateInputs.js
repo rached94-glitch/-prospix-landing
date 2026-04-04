@@ -92,7 +92,9 @@ function validateSearchParams({ lat, lng, radius, keywords, domain, profileId })
  * @returns {boolean}
  */
 function validatePlaceId(placeId) {
-  return typeof placeId === 'string' && placeId.startsWith('ChIJ') && placeId.length > 4
+  return typeof placeId === 'string'
+    && placeId.length > 10
+    && !/[\s<>"'`]/.test(placeId)
 }
 
 module.exports = { validateSearchParams, validatePlaceId }

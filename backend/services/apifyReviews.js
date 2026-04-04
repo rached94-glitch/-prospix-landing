@@ -6,8 +6,10 @@ const client = new ApifyClient({
 
 async function getAllReviews(placeId) {
   try {
+    // Accepte les deux formats : 'ChIJxxx' (complet) ou 'xxx' (sans préfixe)
+    const fullId = placeId.startsWith('ChIJ') ? placeId : `ChIJ${placeId}`
     const run = await client.actor('compass/google-maps-reviews-scraper').call({
-      placeIds: [`ChIJ${placeId}`],
+      placeIds: [fullId],
       maxReviews: 100,
       reviewsSort: 'newest',
       language: 'fr',
