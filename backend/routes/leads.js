@@ -17,6 +17,14 @@ const benchmarkService = require('../services/benchmarkService');
 const SOCIAL_SOURCES = ['linkedin', 'facebook', 'instagram', 'tiktok'];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+// Résout avec la valeur si la promise se termine avant ttlMs, sinon résout
+// avec `fallback` (ne rejette jamais — un enrichissement lent ne bloque pas tout)
+function withTimeout(promise, ttlMs, fallback = null) {
+  return Promise.race([
+    promise,
+    new Promise(resolve => setTimeout(() => resolve(fallback), ttlMs)),
+  ])
+}
 function haversineKm(lat1, lng1, lat2, lng2) {
   if (lat2 == null || lng2 == null) return 0;
   const R    = 6371;
@@ -111,19 +119,30 @@ function applyPostProcessing(leads, { city, domain }) {
 
 async function processPlaces(places, { lat, lng, domain, keywords, sources, city, onProgress, weights, profileId }) {
   const useSocial = sources.some(s => SOCIAL_SOURCES.includes(s));
+  const total     = places.length;
+  let   done      = 0;
 
   if (onProgress) onProgress({ type: 'progress', message: 'Scoring...' });
 
   const leads = await Promise.all(
     places.map(async place => {
+      const ENRICH_TIMEOUT = 30_000  // 30s par appel — un lead lent ne bloque pas les autres
+
       const [socialPresence, pappersData] = await Promise.all([
         useSocial
-          ? enrichSocial({ name: place.name, website: place.website, address: place.vicinity, placeId: place.place_id })
+          ? withTimeout(
+              enrichSocial({ name: place.name, website: place.website, address: place.vicinity, placeId: place.place_id }),
+              ENRICH_TIMEOUT,
+              { linkedin: null, facebook: null, instagram: null, tiktok: null, hasChatbot: false }
+            )
           : Promise.resolve({ linkedin: null, facebook: null, instagram: null, tiktok: null, hasChatbot: false }),
-        searchPappers(place.name, city || ''),
+        withTimeout(searchPappers(place.name, city || ''), ENRICH_TIMEOUT, null),
       ]);
 
-      return buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersData, weights, profileId });
+      const lead = buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersData, weights, profileId });
+      done++;
+      console.log(`[Enrich] Lead ${done}/${total} terminé : ${place.name}`);
+      return lead;
     })
   );
 
@@ -551,12 +570,13 @@ router.get('/audit', async (req, res) => {
     const needsNAP      = SEO_PROFILES.includes(profileId) && businessName && city
     const isChatbot     = CHATBOT_PROFILES.includes(profileId)
 
+    const AUDIT_TIMEOUT = 30_000  // 30s par appel d'audit
     const [pagespeed, facebookActivity, instagramActivity, localRank, napData] = await Promise.all([
-      isChatbot ? getSiteSignals(websiteForAudit, category ?? null) : getPageSpeed(websiteForAudit),
-      needsSocial ? getFacebookActivity(facebook  || null) : Promise.resolve(null),
-      needsSocial ? getInstagramActivity(instagram || null) : Promise.resolve(null),
-      needsRank   ? getLocalRank(placeId, category, city)  : Promise.resolve(null),
-      needsNAP    ? checkNAP(businessName, address || null, phone || null, city, placeId || null) : Promise.resolve(null),
+      withTimeout(isChatbot ? getSiteSignals(websiteForAudit, category ?? null) : getPageSpeed(websiteForAudit), AUDIT_TIMEOUT, null),
+      withTimeout(needsSocial ? getFacebookActivity(facebook  || null) : Promise.resolve(null), AUDIT_TIMEOUT, null),
+      withTimeout(needsSocial ? getInstagramActivity(instagram || null) : Promise.resolve(null), AUDIT_TIMEOUT, null),
+      withTimeout(needsRank   ? getLocalRank(placeId, category, city)  : Promise.resolve(null), AUDIT_TIMEOUT, null),
+      withTimeout(needsNAP    ? checkNAP(businessName, address || null, phone || null, city, placeId || null) : Promise.resolve(null), AUDIT_TIMEOUT, null),
     ])
     console.log('[PageSpeed] Résultat:', JSON.stringify(pagespeed))
 
