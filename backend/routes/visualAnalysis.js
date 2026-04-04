@@ -2,7 +2,7 @@ const express  = require('express')
 const router   = express.Router()
 const { captureScreenshot, analyzeVisual } = require('../services/visualAnalysisService')
 
-const VALID_PROFILES = ['designer', 'photographe', 'copywriter']
+const VALID_PROFILES = ['designer', 'photographe', 'copywriter', 'dev-web']
 const VALID_ZONES    = ['header', 'corps', 'full']
 const ZONE_COST      = { header: 1, corps: 2, full: 3 }
 
@@ -42,8 +42,12 @@ router.post('/visual-analysis', async (req, res) => {
 
     console.log(`[VisualAnalysis] OK — score:${analysis.score} verdict:${analysis.verdict} crédits restants:${mockCredits}`)
 
+    // Pour dev-web : inclure le screenshot (base64) dans la réponse pour affichage + PDF
+    const includeScreenshot = profile === 'dev-web'
+
     res.json({
       ...analysis,
+      screenshot:      includeScreenshot ? (screenshot ?? null) : undefined,
       creditsUsed,
       creditsRemaining: mockCredits,
     })

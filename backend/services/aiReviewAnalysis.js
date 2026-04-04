@@ -1451,6 +1451,119 @@ Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
   return parsed
 }
 
+// ── Email generator — SOCIAL-MEDIA profile ────────────────────────────────────
+async function generateEmailSocialMedia({ leadData, socialPresence, socialMediaActivity, reviewsData }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
+  const anthropic = new Anthropic({ apiKey })
+
+  const name        = leadData.name        ?? 'ce commerce'
+  const city        = leadData.city        ?? ''
+  const category    = leadData.category    ?? 'ce secteur'
+  const rating      = leadData.rating      ?? null
+  const reviewCount = leadData.reviewCount ?? null
+
+  const hasIG = !!(socialPresence?.instagram)
+  const hasFB = !!(socialPresence?.facebook)
+  const hasLI = !!(socialPresence?.linkedin)
+  const hasTK = !!(socialPresence?.tiktok)
+  const hasYT = !!(socialPresence?.youtube)
+
+  const igFollowers   = socialMediaActivity?.instagramActivity?.followers  ?? null
+  const fbFollowers   = socialMediaActivity?.facebookActivity?.followers   ?? null
+  const igDaysAgo     = socialMediaActivity?.instagramActivity?.daysAgo    ?? null
+  const fbDaysAgo     = socialMediaActivity?.facebookActivity?.daysAgo     ?? null
+
+  const missingNets = [!hasIG && 'Instagram', !hasFB && 'Facebook', !hasTK && 'TikTok'].filter(Boolean)
+  const missingLabel = missingNets.length > 0 ? missingNets.join(', ') : null
+
+  const isInactive = (igDaysAgo !== null && igDaysAgo > 30) || (fbDaysAgo !== null && fbDaysAgo > 30)
+
+  const catLow = category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const isRestaurant = /restaurant|cafe|brasserie|pizz|burger|traiteur/.test(catLow)
+  const isBeauty     = /coiffure|salon|spa|beaute|barbier/.test(catLow)
+
+  let sectorHint
+  if (isRestaurant) sectorHint = 'La restauration est le secteur où les contenus visuels ont le plus fort impact : chaque plat, chaque ambiance peut devenir un levier d\'acquisition local.'
+  else if (isBeauty) sectorHint = 'La beauté est l\'un des secteurs où la transformation visuelle génère le plus d\'engagement organique — chaque résultat est une preuve concrète.'
+  else sectorHint = 'Dans votre secteur, la régularité et la qualité du contenu social sont des facteurs directs de différenciation face aux concurrents.'
+
+  const observationLine = missingLabel
+    ? `vous n'êtes pas présent(e) sur ${missingLabel}`
+    : isInactive
+    ? `votre activité sur les réseaux est très irrégulière depuis plus de ${Math.max(igDaysAgo ?? 0, fbDaysAgo ?? 0)} jours`
+    : 'votre présence sociale a un potentiel non exploité'
+
+  const prompt = `Tu es un social media manager freelance spécialisé dans les commerces locaux. Rédige un email de prospection pour ${name}.
+
+DONNÉES VERROUILLÉES — UTILISER UNIQUEMENT CES CHIFFRES :
+- Nom : ${name}
+- Ville : ${city || '—'}
+- Catégorie : ${category}
+- Note Google : ${rating ?? '—'}/5 — Avis : ${reviewCount ?? '—'}
+- Instagram : ${hasIG ? `Présent (${igFollowers !== null ? igFollowers + ' abonnés' : 'abonnés inconnus'}, dernier post il y a ${igDaysAgo ?? '?'} jours)` : 'ABSENT'}
+- Facebook : ${hasFB ? `Présent (${fbFollowers !== null ? fbFollowers + ' abonnés' : 'abonnés inconnus'})` : 'ABSENT'}
+- LinkedIn : ${hasLI ? 'Présent' : 'Absent'}
+- TikTok : ${hasTK ? 'Présent' : 'Absent'}
+- YouTube : ${hasYT ? 'Présent' : 'Absent'}
+
+OBSERVATION DE DÉPART : ${observationLine}
+CONTEXTE SECTEUR : ${sectorHint}
+
+STRUCTURE EN 5 PARAGRAPHES :
+
+OBJET : ${missingLabel ? `${name} — Absent(e) sur ${missingLabel}` : `${name} — votre présence sociale a du potentiel`}
+
+SALUTATION : "Bonjour,"
+
+P1 — ACCROCHE (observation concrète sur la situation réelle, prose naturelle, max 2 phrases) :
+À partir de l'observation : "${observationLine}"
+
+P2 — CONTEXTE SECTORIEL (1 phrase, utiliser l'indice secteur ci-dessus sans le recopier mot pour mot) :
+Reformuler naturellement.
+
+P3 — CE QUE JE PROPOSE (2 phrases, sans nommer d'outils ni de plateformes spécifiques, sans listes) :
+Décrire la gestion de contenu social, la régularité de publication, l'engagement communautaire.
+
+P4 — RÉSULTAT CONCRET (1 phrase de preuve, recopier exactement) :
+"Les commerces que j'accompagne voient leur engagement organique progresser de 20 à 25% en 45 jours."
+
+P5 — CTA (recopier exactement) :
+"Je vous envoie des exemples de contenus réalisés pour des commerces similaires ?
+
+Social Media Manager — ${city || 'France'}"
+
+RÈGLES ABSOLUES :
+- Jamais de liste à puces dans le corps
+- Jamais "Bonjour [nom]" — uniquement "Bonjour,"
+- Jamais de noms d'outils ni de plateformes
+- Jamais de placeholder entre crochets dans l'email livré
+- Maximum 180 mots
+
+Retourne UNIQUEMENT un JSON valide :
+{"subject":"...","body":"Corps complet de l'email avec sauts de ligne \\n"}`
+
+  console.log(`[generateEmailSocialMedia] ${name} | city:${city} | missingNets:${missingLabel ?? 'aucun'} | inactive:${isInactive} | prompt:${prompt.length} chars`)
+
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6', max_tokens: 700,
+      messages: [{ role: 'user', content: prompt }],
+    })
+  } catch (err) {
+    console.error('[generateEmailSocialMedia] ✗ Erreur Anthropic:', err.message)
+    throw new Error(`Erreur génération email social media: ${err.message}`)
+  }
+
+  const raw = message.content[0].text
+  console.log(`[generateEmailSocialMedia] ✓ réponse reçue (${raw.length} chars)`)
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error('Réponse JSON invalide du modèle')
+  try { return JSON.parse(jsonMatch[0]) }
+  catch (e) { throw new Error(`Parse JSON échoué: ${e.message}`) }
+}
+
 // ─── generateAuditChatbot ─────────────────────────────────────────────────────
 async function generateAuditChatbot({ businessName, websiteUrl, chatbotDetection, reviewsData, googleRating, totalReviews, questionsAnalysis, domainComplexity, faqDetection, contactFormDetection, pagespeedData }) {
   const apiKey = process.env.ANTHROPIC_API_KEY
@@ -1654,4 +1767,535 @@ Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
   return parsed
 }
 
-module.exports = { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot }
+// ─── generateAuditSocialMedia ─────────────────────────────────────────────────
+async function generateAuditSocialMedia({ businessName, websiteUrl, socialPresence, socialMediaActivity, photoCount, reviewsData, googleRating, totalReviews, domain }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
+  const anthropic = new Anthropic({ apiKey })
+
+  const name    = businessName ?? 'ce commerce'
+  const hasIG   = !!(socialPresence?.instagram)
+  const hasFB   = !!(socialPresence?.facebook)
+  const hasLI   = !!(socialPresence?.linkedin)
+  const hasTK   = !!(socialPresence?.tiktok)
+  const hasYT   = !!(socialPresence?.youtube)
+
+  const igFollowers  = socialMediaActivity?.instagramActivity?.followers  ?? null
+  const igDaysAgo    = socialMediaActivity?.instagramActivity?.daysAgo    ?? null
+  const fbFollowers  = socialMediaActivity?.facebookActivity?.followers   ?? null
+  const fbDaysAgo    = socialMediaActivity?.facebookActivity?.daysAgo     ?? null
+  const photos       = photoCount ?? 0
+  const rating       = googleRating ?? '—'
+  const reviews      = totalReviews ?? 0
+  const unanswered   = reviewsData?.unanswered ?? 0
+
+  const missingNets = [!hasIG && 'Instagram', !hasFB && 'Facebook', !hasLI && 'LinkedIn', !hasTK && 'TikTok'].filter(Boolean)
+  const presentNets = [hasIG && 'Instagram', hasFB && 'Facebook', hasLI && 'LinkedIn', hasTK && 'TikTok', hasYT && 'YouTube'].filter(Boolean)
+
+  const photoQuality = photos === 0 ? 'Aucune photo' : photos <= 5 ? 'Insuffisant (<5)' : photos <= 15 ? 'Basique (5-15)' : photos <= 30 ? 'Correct (15-30)' : 'Excellent (30+)'
+
+  const prompt = `Tu es un auditeur expert en social media pour commerces locaux. Analyse la présence sociale de "${name}" et retourne un audit structuré.
+
+DONNÉES DISPONIBLES :
+- Domaine/catégorie : ${domain ?? 'non précisé'}
+- Site web : ${websiteUrl ?? 'absent'}
+- Note Google : ${rating}/5 — ${reviews} avis (${unanswered} sans réponse)
+- Réseaux PRÉSENTS : ${presentNets.length > 0 ? presentNets.join(', ') : 'Aucun'}
+- Réseaux ABSENTS : ${missingNets.length > 0 ? missingNets.join(', ') : 'Aucun (présence complète)'}
+- Instagram : ${hasIG ? `${igFollowers !== null ? igFollowers + ' abonnés' : 'abonnés inconnus'}, dernier post il y a ${igDaysAgo ?? '?'} jours` : 'ABSENT'}
+- Facebook : ${hasFB ? `${fbFollowers !== null ? fbFollowers + ' abonnés' : 'abonnés inconnus'}, dernier post il y a ${fbDaysAgo ?? '?'} jours` : 'ABSENT'}
+- Photos Google : ${photos} (${photoQuality})
+
+RÈGLES :
+- Prose uniquement — pas de listes à puces dans resume_executif
+- Ton neutre, factuel, orienté opportunité commerciale
+- Jamais de noms de plateformes comme outils d'achat (pas de Meta Ads, TikTok Ads)
+- Maximum 2800 caractères total pour le JSON
+- Chaque recommandation doit avoir un impact estimé concret
+
+Retourne UNIQUEMENT ce JSON valide (pas de texte avant ni après) :
+{
+  "resume_executif": "Paragraphe de 3-4 phrases résumant la situation sociale actuelle et l'opportunité principale",
+  "forces": [
+    {"titre": "...", "description": "..."},
+    {"titre": "...", "description": "..."}
+  ],
+  "faiblesses": [
+    {"titre": "...", "description": "..."},
+    {"titre": "...", "description": "..."}
+  ],
+  "opportunites": [
+    {"label": "...", "detail": "..."},
+    {"label": "...", "detail": "..."},
+    {"label": "...", "detail": "..."}
+  ],
+  "recommandations": [
+    {"titre": "...", "description": "...", "priorite": 1},
+    {"titre": "...", "description": "...", "priorite": 2},
+    {"titre": "...", "description": "...", "priorite": 3}
+  ],
+  "accroche": "Phrase d'accroche percutante pour le prospect — max 120 caractères"
+}`
+
+  console.log(`[generateAuditSocialMedia] ${name} | present:${presentNets.join(',')} | missing:${missingNets.join(',')} | prompt:${prompt.length} chars`)
+
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6', max_tokens: 1200,
+      messages: [{ role: 'user', content: prompt }],
+    })
+  } catch (err) {
+    console.error('[generateAuditSocialMedia] ✗ Erreur Anthropic:', err.message)
+    throw new Error(`Erreur génération audit social media: ${err.message}`)
+  }
+
+  const raw = message.content[0].text
+  console.log(`[generateAuditSocialMedia] ✓ réponse reçue (${raw.length} chars)`)
+
+  function tryParse(str) { try { return JSON.parse(str) } catch (_) { return null } }
+  function cleanAndParse(str) {
+    const cleaned = str.replace(/[\x00-\x1F\x7F]/g, m => m === '\n' || m === '\r' || m === '\t' ? m : ' ')
+    return tryParse(cleaned)
+  }
+
+  const start = raw.indexOf('{')
+  const end   = raw.lastIndexOf('}')
+  if (start === -1 || end === -1 || end <= start) {
+    console.error('[generateAuditSocialMedia] Aucun JSON trouvé')
+    return { resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Créer une présence sociale cohérente', description: 'Définir une ligne éditoriale et publier régulièrement sur les réseaux adaptés au secteur.', priorite: 1 }], accroche: 'Chaque client satisfait est un contenu potentiel — apprenons à le montrer.' }
+  }
+
+  const jsonStr = raw.slice(start, end + 1)
+  const parsed  = tryParse(jsonStr) || cleanAndParse(jsonStr)
+
+  if (!parsed) {
+    console.error('[generateAuditSocialMedia] Parse échoué. JSON extrait:', jsonStr)
+    return { resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Créer une présence sociale cohérente', description: 'Définir une ligne éditoriale et publier régulièrement.', priorite: 1 }], accroche: 'Chaque client satisfait est un contenu potentiel — apprenons à le montrer.' }
+  }
+
+  return parsed
+}
+
+// ── Email generator — DESIGNER profile ───────────────────────────────────────
+async function generateEmailDesigner({ leadData, photoCount, googleAudit, socialPresence, reviewsData }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
+  const anthropic = new Anthropic({ apiKey })
+
+  const name        = leadData.name        ?? 'ce commerce'
+  const city        = leadData.city        ?? ''
+  const category    = leadData.category    ?? 'ce secteur'
+  const rating      = leadData.rating      ?? null
+  const reviewCount = leadData.reviewCount ?? null
+
+  const hasIG  = !!(socialPresence?.instagram)
+  const hasFB  = !!(socialPresence?.facebook)
+  const hasPin = !!(socialPresence?.pinterest)
+  const hasDesc = !!(googleAudit?.hasDescription)
+  const photos  = photoCount ?? 0
+
+  const catLow = category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const isRestaurant = /restaurant|cafe|brasserie|pizz|burger|traiteur/.test(catLow)
+  const isBeauty     = /coiffure|salon|spa|beaute|barbier/.test(catLow)
+  const isRetail     = /boutique|commerce|magasin|retail|mode|vetement/.test(catLow)
+
+  let sectorHint
+  if (isRestaurant) sectorHint = 'En restauration, les visuels sont le premier facteur de décision — une fiche Google sans photos professionnelles perd 30 à 40% des clics potentiels.'
+  else if (isBeauty) sectorHint = 'Dans la beauté, chaque avant/après est un argument de vente. Une identité visuelle cohérente crée la confiance avant même le premier contact.'
+  else if (isRetail) sectorHint = 'Dans le commerce local, la cohérence visuelle entre la vitrine, la fiche Google et les réseaux multiplie la mémorisation de marque.'
+  else sectorHint = 'Dans votre secteur, une identité visuelle professionnelle est l\'un des premiers critères d\'évaluation avant de faire appel à un prestataire.'
+
+  const weakPoints = [
+    photos < 5                   ? `seulement ${photos} photo(s) sur Google` : null,
+    !hasDesc                     ? 'aucune description sur la fiche Google' : null,
+    !hasIG && !hasFB && !hasPin  ? 'aucun réseau visuel actif détecté' : null,
+  ].filter(Boolean)
+
+  const observationLine = weakPoints.length > 0
+    ? weakPoints.join(', ')
+    : 'l\'identité visuelle a un potentiel non exploité sur les supports digitaux'
+
+  const topQuotes = extractTopQuotes(reviewsData)
+  const quotesText = topQuotes.length > 0 ? topQuotes.map(q => `"${q}"`).join('\n') : null
+
+  const prompt = `Tu es un designer graphique et branding freelance spécialisé dans les commerces locaux. Rédige un email de prospection pour ${name}.
+
+DONNÉES VERROUILLÉES — UTILISER UNIQUEMENT CES CHIFFRES :
+- Nom : ${name}
+- Ville : ${city || '—'}
+- Catégorie : ${category}
+- Note Google : ${rating ?? '—'}/5 — Avis : ${reviewCount ?? '—'}
+- Photos Google : ${photos}
+- Description fiche : ${hasDesc ? 'Présente' : 'Absente'}
+- Instagram : ${hasIG ? 'Présent' : 'Absent'} | Facebook : ${hasFB ? 'Présent' : 'Absent'} | Pinterest : ${hasPin ? 'Présent' : 'Absent'}
+- Observation principale : ${observationLine}
+- Contexte secteur : ${sectorHint}
+${quotesText ? `- Citations clients : ${quotesText}` : ''}
+
+STRUCTURE — 5 PARAGRAPHES COURTS :
+P1 — Accroche factuelle sur le point faible visuel identifié (1-2 phrases, ne pas commencer par "Je")
+P2 — Ce que les clients perçoivent vs ce que la fiche montre (lien réputation/identité visuelle)
+P3 — Ta valeur ajoutée concrète en tant que designer local (sans mention de tarif)
+P4 — Ce que tu peux améliorer précisément pour eux (photos Google, charte, réseaux)
+P5 — Appel à l'action simple et concret (1-2 phrases)
+
+RÈGLES :
+- Ne jamais inventer de chiffres, noms ou faits non fournis ci-dessus
+- Vouvoiement tout au long de l'email
+- Ton professionnel mais accessible
+- Longueur totale : 150-220 mots
+- Objet : accrocheur, factuel, sans emoji (max 80 caractères)
+
+Retourne UNIQUEMENT un JSON valide :
+{"subject":"...","body":"Corps complet de l'email avec sauts de ligne \\n"}`
+
+  console.log(`[generateEmailDesigner] ${name} | city:${city} | photos:${photos} | instagram:${hasIG} | prompt:${prompt.length} chars`)
+
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 800,
+      messages:   [{ role: 'user', content: prompt }],
+    })
+  } catch (err) {
+    console.error('[generateEmailDesigner] ✗ Erreur Anthropic:', err.message)
+    throw new Error(`Erreur génération email designer: ${err.message}`)
+  }
+
+  const raw = message.content[0].text
+  console.log(`[generateEmailDesigner] ✓ réponse reçue (${raw.length} chars)`)
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error('Réponse JSON invalide du modèle')
+  try { return JSON.parse(jsonMatch[0]) }
+  catch { return JSON.parse(jsonMatch[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')) }
+}
+
+// ── Audit generator — DESIGNER profile ───────────────────────────────────────
+async function generateAuditDesigner({ businessName, websiteUrl, photoCount, googleAudit, socialPresence, reviewsData, googleRating, totalReviews, domain, pagespeedData }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
+  const anthropic = new Anthropic({ apiKey })
+
+  const name   = businessName ?? 'ce commerce'
+  const photos = photoCount ?? 0
+
+  const hasIG  = !!(socialPresence?.instagram)
+  const hasFB  = !!(socialPresence?.facebook)
+  const hasPin = !!(socialPresence?.pinterest)
+  const hasLI  = !!(socialPresence?.linkedin)
+  const hasDesc = !!(googleAudit?.hasDescription)
+  const hasSite = !!(websiteUrl && websiteUrl !== 'null' && websiteUrl !== 'undefined')
+
+  const visualNets = [hasIG && 'Instagram', hasFB && 'Facebook', hasPin && 'Pinterest', hasLI && 'LinkedIn'].filter(Boolean)
+  const missingVisual = [!hasIG && 'Instagram', !hasFB && 'Facebook', !hasPin && 'Pinterest'].filter(Boolean)
+
+  const catLow = (domain ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const isRestaurant = /restaurant|cafe|brasserie|pizz|burger|traiteur/.test(catLow)
+  const isBeauty     = /coiffure|salon|spa|beaute|barbier/.test(catLow)
+
+  const perfScore = pagespeedData?.performance ?? null
+  const seoScore  = pagespeedData?.seo         ?? null
+
+  const topQuotes = extractTopQuotes(reviewsData)
+  const reviews   = reviewsData?.reviews ?? []
+  const unanswered = reviews.filter(r => !r.ownerReply && !r.reply).length
+
+  const prompt = `Tu es un expert branding & identité visuelle. Génère un audit complet pour ${name}.
+
+DONNÉES :
+- Note Google : ${googleRating ?? '—'}/5 | Avis : ${totalReviews ?? 0} | Non répondus : ${unanswered}
+- Photos Google : ${photos}
+- Description fiche : ${hasDesc ? 'Présente' : 'Absente'}
+- Site web : ${hasSite ? websiteUrl : 'Absent'}${perfScore !== null ? ` | Perf: ${perfScore}/100` : ''}${seoScore !== null ? ` | SEO: ${seoScore}/100` : ''}
+- Réseaux visuels présents : ${visualNets.length > 0 ? visualNets.join(', ') : 'Aucun'}
+- Réseaux visuels absents : ${missingVisual.length > 0 ? missingVisual.join(', ') : 'Aucun'}
+- Secteur : ${domain ?? '—'}
+${topQuotes.length > 0 ? `- Citations clients (verbatim) :\n${topQuotes.map(q => `  "${q}"`).join('\n')}` : ''}
+${isRestaurant ? '- Contexte : Restauration — les visuels sont le premier facteur de décision client.' : ''}
+${isBeauty ? '- Contexte : Beauté — l\'identité visuelle crée la confiance avant le premier contact.' : ''}
+
+Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
+{
+  "resume_executif": "Synthèse en 3-4 phrases sur l'état actuel de l'identité visuelle et le potentiel de progression",
+  "forces": [
+    { "titre": "Force 1", "description": "Explication 1-2 phrases" },
+    { "titre": "Force 2", "description": "Explication 1-2 phrases" }
+  ],
+  "faiblesses": [
+    { "titre": "Faiblesse 1", "description": "Explication 1-2 phrases" },
+    { "titre": "Faiblesse 2", "description": "Explication 1-2 phrases" }
+  ],
+  "opportunites": [
+    { "titre": "Opportunité 1", "description": "Ce que tu peux apporter concrètement" },
+    { "titre": "Opportunité 2", "description": "Ce que tu peux apporter concrètement" }
+  ],
+  "recommandations": [
+    { "titre": "Action prioritaire 1", "description": "Description actionnable", "priorite": 1 },
+    { "titre": "Action prioritaire 2", "description": "Description actionnable", "priorite": 2 },
+    { "titre": "Action prioritaire 3", "description": "Description actionnable", "priorite": 3 }
+  ],
+  "accroche": "Phrase d'accroche percutante pour le prospect — max 120 caractères"
+}`
+
+  console.log(`[generateAuditDesigner] ${name} | photos:${photos} | visualNets:${visualNets.join(',')} | missing:${missingVisual.join(',')} | prompt:${prompt.length} chars`)
+
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 1800,
+      messages:   [{ role: 'user', content: prompt }],
+    })
+  } catch (err) {
+    console.error('[generateAuditDesigner] ✗ Erreur Anthropic:', err.message)
+    throw new Error(`Erreur génération audit designer: ${err.message}`)
+  }
+
+  const raw = message.content[0].text
+  console.log(`[generateAuditDesigner] ✓ réponse reçue (${raw.length} chars)`)
+
+  function tryParse(str) { try { return JSON.parse(str) } catch (_) { return null } }
+  function cleanAndParse(str) {
+    const cleaned = str.replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ').replace(/,\s*([}\]])/g, '$1')
+    return tryParse(cleaned)
+  }
+
+  const start = raw.indexOf('{')
+  const end   = raw.lastIndexOf('}')
+  if (start === -1 || end === -1 || end <= start) {
+    console.error('[generateAuditDesigner] Aucun JSON trouvé')
+    return { resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Créer une identité visuelle cohérente', description: 'Définir une charte graphique et déployer des visuels professionnels sur tous les supports.', priorite: 1 }], accroche: 'Votre réputation mérite une image à sa hauteur.' }
+  }
+
+  const jsonStr = raw.slice(start, end + 1)
+  const parsed  = tryParse(jsonStr) || cleanAndParse(jsonStr)
+
+  if (!parsed) {
+    console.error('[generateAuditDesigner] Parse échoué. JSON extrait:', jsonStr)
+    return { resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Créer une identité visuelle cohérente', description: 'Définir une charte graphique et déployer des visuels professionnels.', priorite: 1 }], accroche: 'Votre réputation mérite une image à sa hauteur.' }
+  }
+
+  return parsed
+}
+
+// ── Email generator — DEV-WEB profile ────────────────────────────────────────
+async function generateEmailWebDev({ leadData, websiteUrl, pagespeedData, cms, hasHttps, hasSitemap, reviewsData }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
+  const anthropic = new Anthropic({ apiKey })
+
+  const name        = leadData.name        ?? 'ce commerce'
+  const city        = leadData.city        ?? ''
+  const category    = leadData.category    ?? 'ce secteur'
+  const rating      = leadData.rating      ?? null
+  const reviewCount = leadData.reviewCount ?? null
+
+  const hasSite  = !!(websiteUrl && websiteUrl !== 'null' && websiteUrl !== 'undefined')
+  const rawPerf  = pagespeedData?.performance ?? null
+  const perf     = rawPerf != null ? (rawPerf <= 1 ? Math.round(rawPerf * 100) : Math.round(rawPerf)) : null
+  const mobile   = pagespeedData?.mobileFriendly ?? null
+  const sitemap  = hasSitemap ?? pagespeedData?.sitemap ?? null
+  const https    = hasHttps   ?? pagespeedData?.https   ?? null
+  const cmsKey   = (cms ?? pagespeedData?.cms?.cms ?? '').toLowerCase()
+  const CMS_LABELS = { wordpress: 'CMS open-source', wix: 'Constructeur de site', shopify: 'Plateforme e-commerce', squarespace: 'Solution tout-en-un', webflow: 'Solution no-code', jimdo: 'Constructeur de site' }
+  const cmsLabel = CMS_LABELS[cmsKey] ?? null
+
+  const weakPoints = [
+    !hasSite                             ? 'aucun site web détecté' : null,
+    hasSite && https === false           ? 'site sans certificat HTTPS' : null,
+    perf != null && perf < 50            ? `performance très faible (${perf}/100)` : null,
+    mobile === false                     ? 'site non optimisé pour mobile' : null,
+    hasSite && sitemap === false         ? 'pas de sitemap XML' : null,
+  ].filter(Boolean)
+
+  const observationLine = weakPoints.length > 0
+    ? weakPoints.slice(0, 2).join(' et ')
+    : 'les performances techniques ont un potentiel d\'amélioration'
+
+  const topQuotes = extractTopQuotes(reviewsData)
+  const catLow = category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const isRestaurant = /restaurant|cafe|brasserie|pizz|burger|traiteur/.test(catLow)
+  const isRetail     = /boutique|commerce|magasin|retail|mode|vetement/.test(catLow)
+
+  let sectorHint
+  if (isRestaurant) sectorHint = 'En restauration, un site avec menu en ligne et réservation convertit 30% de visiteurs supplémentaires.'
+  else if (isRetail) sectorHint = 'Dans le commerce local, un site rapide et mobile-friendly est le premier levier de conversion des recherches Google.'
+  else sectorHint = 'Dans votre secteur, la performance technique du site est un facteur direct de crédibilité et de conversion.'
+
+  const prompt = `Tu es développeur web freelance spécialisé dans les commerces locaux. Rédige un email de prospection pour ${name}.
+
+DONNÉES VERROUILLÉES — UTILISER UNIQUEMENT CES CHIFFRES :
+- Nom : ${name}
+- Ville : ${city || '—'}
+- Catégorie : ${category}
+- Note Google : ${rating ?? '—'}/5 — Avis : ${reviewCount ?? '—'}
+- Site web : ${hasSite ? websiteUrl : 'ABSENT'}
+- HTTPS : ${https == null ? 'Non analysé' : https ? 'Oui' : 'Non'}
+- Performance : ${perf ?? 'Non analysé'}/100
+- Mobile friendly : ${mobile == null ? 'Non analysé' : mobile ? 'Oui' : 'Non'}
+- CMS : ${cmsLabel ?? 'Non identifié'}
+- Observation principale : ${observationLine}
+- Contexte secteur : ${sectorHint}
+${topQuotes.length > 0 ? `- Citations clients : ${topQuotes.slice(0,2).map(q => `"${q}"`).join(' / ')}` : ''}
+
+STRUCTURE — 5 PARAGRAPHES COURTS :
+P1 — Accroche factuelle sur le point technique faible identifié (1-2 phrases, ne pas commencer par "Je")
+P2 — Impact concret de ce problème sur les clients et le business
+P3 — Ta valeur ajoutée concrète en tant que développeur local (sans mention de tarif)
+P4 — Ce que tu peux améliorer précisément (HTTPS, vitesse, mobile, sitemap)
+P5 — Appel à l'action simple et concret (1-2 phrases)
+
+RÈGLES :
+- Ne jamais inventer de chiffres ou faits non fournis
+- Vouvoiement tout au long de l'email
+- Ton technique mais accessible, pas de jargon inutile
+- Longueur totale : 150-220 mots
+- Objet : accrocheur, factuel, sans emoji (max 80 caractères)
+
+Retourne UNIQUEMENT un JSON valide :
+{"subject":"...","body":"Corps complet de l'email avec sauts de ligne \\n"}`
+
+  console.log(`[generateEmailWebDev] ${name} | city:${city} | hasSite:${hasSite} | perf:${perf ?? '—'} | https:${https} | prompt:${prompt.length} chars`)
+
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 800,
+      messages:   [{ role: 'user', content: prompt }],
+    })
+  } catch (err) {
+    console.error('[generateEmailWebDev] ✗ Erreur Anthropic:', err.message)
+    throw new Error(`Erreur génération email dev-web: ${err.message}`)
+  }
+
+  const raw = message.content[0].text
+  console.log(`[generateEmailWebDev] ✓ réponse reçue (${raw.length} chars)`)
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error('Réponse JSON invalide du modèle')
+  try { return JSON.parse(jsonMatch[0]) }
+  catch { return JSON.parse(jsonMatch[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')) }
+}
+
+// ── Audit generator — DEV-WEB profile ────────────────────────────────────────
+async function generateAuditWebDev({ businessName, websiteUrl, pagespeedData, cms, hasHttps, hasSitemap, hasRobots, domainAge, indexedPages, socialPresence, googleRating, totalReviews, domain }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
+  const anthropic = new Anthropic({ apiKey })
+
+  const name    = businessName ?? 'ce commerce'
+  const hasSite = !!(websiteUrl && websiteUrl !== 'null' && websiteUrl !== 'undefined')
+
+  const rawPerf  = pagespeedData?.performance ?? null
+  const perf     = rawPerf != null ? (rawPerf <= 1 ? Math.round(rawPerf * 100) : Math.round(rawPerf)) : null
+  const rawPerfD = pagespeedData?.performanceDesktop ?? pagespeedData?.desktopPerf ?? null
+  const perfD    = rawPerfD != null ? (rawPerfD <= 1 ? Math.round(rawPerfD * 100) : Math.round(rawPerfD)) : null
+  const rawAcc   = pagespeedData?.accessibility ?? null
+  const acc      = rawAcc != null ? (rawAcc <= 1 ? Math.round(rawAcc * 100) : Math.round(rawAcc)) : null
+  const rawSeo   = pagespeedData?.seo ?? null
+  const seo      = rawSeo != null ? (rawSeo <= 1 ? Math.round(rawSeo * 100) : Math.round(rawSeo)) : null
+
+  const https       = hasHttps  ?? pagespeedData?.https   ?? null
+  const sitemap     = hasSitemap ?? pagespeedData?.sitemap ?? null
+  const robots      = hasRobots  ?? pagespeedData?.robots  ?? null
+  const mobile      = pagespeedData?.mobileFriendly ?? null
+  const loadTime    = pagespeedData?.loadTime ?? null
+  const lcp         = pagespeedData?.lcp      ?? null
+  const cls         = pagespeedData?.cls      ?? null
+  const imagesOpt   = pagespeedData?.imagesOptimized  ?? null
+  const renderBlock = pagespeedData?.renderBlocking   ?? null
+
+  const cmsKey   = (cms ?? pagespeedData?.cms?.cms ?? '').toLowerCase()
+  const CMS_LABELS = { wordpress: 'CMS open-source', wix: 'Constructeur de site', shopify: 'Plateforme e-commerce', squarespace: 'Solution tout-en-un', webflow: 'Solution no-code', jimdo: 'Constructeur de site' }
+  const cmsLabel = CMS_LABELS[cmsKey] ?? (cmsKey ? cmsKey : 'Non identifié')
+
+  const daLabel  = domainAge?.ageLabel  ?? null
+  const ipLabel  = indexedPages?.label  ?? null
+
+  const prompt = `Tu es expert en développement web et performance technique. Génère un audit complet pour ${name}.
+
+DONNÉES TECHNIQUES :
+- Site web : ${hasSite ? websiteUrl : 'ABSENT — aucun site détecté'}
+- Note Google : ${googleRating ?? '—'}/5 | Avis : ${totalReviews ?? 0}
+- CMS : ${cmsLabel}
+- HTTPS : ${https == null ? 'Non analysé' : https ? 'Oui ✅' : 'Non ❌'}
+- Mobile friendly : ${mobile == null ? 'Non analysé' : mobile ? 'Oui ✅' : 'Non ❌'}
+- Performance mobile : ${perf ?? '—'}/100${perfD != null ? ` | Desktop : ${perfD}/100` : ''}
+- Temps de chargement : ${loadTime ? `${Number(loadTime).toFixed(1)}s` : '—'}${lcp ? ` | LCP : ${lcp}` : ''}${cls ? ` | CLS : ${cls}` : ''}
+- Score SEO PageSpeed : ${seo ?? '—'}/100
+- Accessibilité : ${acc ?? '—'}/100
+- Sitemap : ${sitemap == null ? 'Non vérifié' : sitemap ? 'Présent ✅' : 'Absent ❌'}
+- Robots.txt : ${robots == null ? 'Non vérifié' : robots ? 'Présent ✅' : 'Absent ❌'}
+- Images optimisées : ${imagesOpt == null ? '—' : imagesOpt ? 'Oui' : 'Non'}
+- Ressources bloquantes : ${renderBlock != null ? renderBlock : '—'}
+- Pages indexées : ${ipLabel ?? '—'}
+- Âge du domaine : ${daLabel ?? '—'}
+- Secteur : ${domain ?? '—'}
+
+Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
+{
+  "resume_executif": "Synthèse en 3-4 phrases sur l'état technique du site et les leviers d'amélioration prioritaires",
+  "forces": [
+    { "titre": "Force 1", "description": "Explication 1-2 phrases" },
+    { "titre": "Force 2", "description": "Explication 1-2 phrases" }
+  ],
+  "faiblesses": [
+    { "titre": "Faiblesse 1", "description": "Explication 1-2 phrases" },
+    { "titre": "Faiblesse 2", "description": "Explication 1-2 phrases" }
+  ],
+  "opportunites": [
+    { "titre": "Opportunité 1", "description": "Ce que tu peux apporter concrètement" },
+    { "titre": "Opportunité 2", "description": "Ce que tu peux apporter concrètement" }
+  ],
+  "recommandations": [
+    { "titre": "Action prioritaire 1", "description": "Description actionnable et précise", "priorite": 1 },
+    { "titre": "Action prioritaire 2", "description": "Description actionnable et précise", "priorite": 2 },
+    { "titre": "Action prioritaire 3", "description": "Description actionnable et précise", "priorite": 3 }
+  ],
+  "accroche": "Phrase d'accroche percutante pour le prospect — max 120 caractères"
+}`
+
+  console.log(`[generateAuditWebDev] ${name} | hasSite:${hasSite} | perf:${perf ?? '—'} | https:${https} | cms:${cmsLabel} | prompt:${prompt.length} chars`)
+
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 1800,
+      messages:   [{ role: 'user', content: prompt }],
+    })
+  } catch (err) {
+    console.error('[generateAuditWebDev] ✗ Erreur Anthropic:', err.message)
+    throw new Error(`Erreur génération audit dev-web: ${err.message}`)
+  }
+
+  const raw = message.content[0].text
+  console.log(`[generateAuditWebDev] ✓ réponse reçue (${raw.length} chars)`)
+
+  function tryParse(str) { try { return JSON.parse(str) } catch (_) { return null } }
+  function cleanAndParse(str) {
+    const cleaned = str.replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ').replace(/,\s*([}\]])/g, '$1')
+    return tryParse(cleaned)
+  }
+
+  const start = raw.indexOf('{')
+  const end   = raw.lastIndexOf('}')
+  if (start === -1 || end === -1 || end <= start) {
+    console.error('[generateAuditWebDev] Aucun JSON trouvé')
+    return { resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Corriger les fondamentaux techniques', description: 'HTTPS, sitemap, robots.txt et performance mobile à traiter en priorité.', priorite: 1 }], accroche: 'Un site rapide et sécurisé, c\'est plus de clients et moins de clients perdus.' }
+  }
+
+  const jsonStr = raw.slice(start, end + 1)
+  const parsed  = tryParse(jsonStr) || cleanAndParse(jsonStr)
+
+  if (!parsed) {
+    console.error('[generateAuditWebDev] Parse échoué. JSON extrait:', jsonStr)
+    return { resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Optimiser les performances techniques', description: 'Vitesse, sécurité et indexation à corriger.', priorite: 1 }], accroche: 'Un site rapide et sécurisé, c\'est plus de clients et moins de clients perdus.' }
+  }
+
+  return parsed
+}
+
+module.exports = { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateEmailSocialMedia, generateEmailDesigner, generateEmailWebDev, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot, generateAuditSocialMedia, generateAuditDesigner, generateAuditWebDev }

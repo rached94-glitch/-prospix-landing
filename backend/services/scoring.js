@@ -184,11 +184,196 @@ function getRecommendedStack(cms, domainComplexity, isMultilingual) {
       ? 'Solution chat autonome + serveur IA dédié (multi-langue)'
       : 'Widget JS standalone + backend cloud IA'
   }
-  if (cmsName === 'wordpress') return 'Widget chat WordPress + IA conversationnelle'
+  if (cmsName === 'wordpress') return 'Plugin chat natif CMS + IA conversationnelle'
   if (cmsName === 'wix' || cmsName === 'shopify') return 'Chat intégré boutique en ligne + backend IA'
   if (domainComplexity === 'medium') return 'Widget chat intégré au site + scénarios automatisés'
   if (isMultilingual)                return 'Widget chat multilingue + réponses automatisées'
   return 'Widget chat intégré au site + scénarios automatisés'
+}
+
+// ── Score de régularité sociale ───────────────────────────────────────────────
+function socialRegularityScore(socialPresence, socialMediaActivity, photoCount) {
+  const NETWORK_KEYS = ['facebook', 'instagram', 'linkedin', 'tiktok', 'youtube', 'pinterest']
+  const networks = NETWORK_KEYS.filter(n => !!(socialPresence?.[n])).length
+  const BASE = [0, 15, 30, 50, 70, 85, 100]
+  let score = BASE[Math.min(networks, 6)]
+
+  const igFollowers = socialMediaActivity?.instagramActivity?.followers ?? null
+  const igDaysAgo   = socialMediaActivity?.instagramActivity?.daysAgo   ?? null
+  const fbDaysAgo   = socialMediaActivity?.facebookActivity?.daysAgo    ?? null
+  const lastPost    = igDaysAgo !== null && fbDaysAgo !== null ? Math.min(igDaysAgo, fbDaysAgo)
+                    : igDaysAgo !== null ? igDaysAgo : fbDaysAgo
+
+  if (igFollowers !== null && igFollowers > 1000) score += 10
+  if (lastPost !== null && lastPost < 7)          score += 15
+  if ((photoCount ?? 0) > 15)                     score += 10
+  if (lastPost !== null && lastPost > 30)          score -= 15
+
+  score = Math.max(0, Math.min(100, score))
+  const label = score >= 80 ? 'Très actif'
+              : score >= 60 ? 'Actif'
+              : score >= 40 ? 'En développement'
+              : score >= 20 ? 'Faible'
+              : 'Inexistant'
+  return { score, label }
+}
+
+// ── Recommandation sociale par secteur ────────────────────────────────────────
+function getSocialRecommendation(domain, socialPresence, photoCount, socialMediaActivity) {
+  const raw = ((domain ?? '') + '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const hasIG = !!(socialPresence?.instagram)
+  const hasFB = !!(socialPresence?.facebook)
+  const hasLI = !!(socialPresence?.linkedin)
+  const igDays = socialMediaActivity?.instagramActivity?.daysAgo ?? null
+  const fbDays = socialMediaActivity?.facebookActivity?.daysAgo  ?? null
+  const isInactive = (igDays !== null && igDays > 30) || (fbDays !== null && fbDays > 30)
+
+  const isRestaurant = /restaurant|cafe|brasserie|pizz|burger|traiteur|bistrot|bar/.test(raw)
+  const isBeauty     = /coiffure|salon|spa|beaute|barbier|esthetique|onglerie/.test(raw)
+  const isB2B        = /avocat|notaire|comptable|assurance|cabinet|immo|consulting|finance/.test(raw)
+  const isRetail     = /boutique|commerce|magasin|retail|mode|vetement|fleuriste/.test(raw)
+  const isHealth     = /medecin|docteur|kine|psy|sante|pharmacie|dentiste|clinique/.test(raw)
+
+  if (isRestaurant) {
+    if (!hasIG) return { priority: 'Créer et animer un compte photo + vidéos courtes', actions: ['Créer un compte dédié à la cuisine et à l\'ambiance', 'Publier 3x/semaine (plats, équipe, coulisses)', 'Lancer des vidéos courtes de 15-30 sec'], estimatedPrice: '300-600€/mois' }
+    if (isInactive) return { priority: 'Relancer la publication régulière', actions: ['Reprendre une cadence 3x/semaine', 'Mettre en avant les plats du jour et événements', 'Répondre aux commentaires'], estimatedPrice: '200-400€/mois' }
+    return { priority: 'Développer les vidéos courtes et les stories', actions: ['Créer du contenu vidéo (reels, stories)', 'Mettre en avant les coulisses', 'Interagir avec la communauté locale'], estimatedPrice: '250-500€/mois' }
+  }
+  if (isBeauty) {
+    if (!hasIG) return { priority: 'Créer une présence visuelle forte', actions: ['Créer un compte centré sur les transformations', 'Publier des avant/après et ambiance du salon', 'Utiliser les tendances visuelles du secteur'], estimatedPrice: '300-600€/mois' }
+    return { priority: 'Amplifier la stratégie visuelle et augmenter l\'audience', actions: ['Publier des contenus avant/après', 'Créer des vidéos tendance', 'Développer la communauté locale'], estimatedPrice: '250-450€/mois' }
+  }
+  if (isB2B) {
+    if (!hasLI) return { priority: 'Créer une présence professionnelle et articles de fond', actions: ['Créer une page entreprise sur réseau professionnel', 'Publier des articles de fond 1x/semaine', 'Partager des actualités du secteur'], estimatedPrice: '400-800€/mois' }
+    return { priority: 'Renforcer l\'autorité professionnelle et la génération de leads', actions: ['Publier des études de cas et retours clients', 'Développer le réseau professionnel', 'Créer du contenu éducatif sur le secteur'], estimatedPrice: '400-700€/mois' }
+  }
+  if (isRetail) {
+    if (!hasIG && !hasFB) return { priority: 'Créer une présence sociale pour la boutique', actions: ['Créer une page commerce et un compte photo', 'Mettre en avant les nouveautés et promotions', 'Interagir avec la clientèle locale'], estimatedPrice: '250-500€/mois' }
+    return { priority: 'Développer les ventes sociales et la fidélisation', actions: ['Créer du contenu produit régulier', 'Animer des jeux concours', 'Mettre en avant les offres exclusives'], estimatedPrice: '250-450€/mois' }
+  }
+  if (isHealth) {
+    if (!hasFB) return { priority: 'Créer une page professionnelle rassurante', actions: ['Créer une page professionnelle', 'Partager des conseils santé et prévention', 'Mettre en avant les témoignages'], estimatedPrice: '300-600€/mois' }
+    return { priority: 'Renforcer la confiance et l\'engagement', actions: ['Partager des conseils de prévention', 'Humaniser l\'équipe', 'Informer sur les services'], estimatedPrice: '250-500€/mois' }
+  }
+  if (!hasIG && !hasFB) return { priority: 'Établir une présence sur les réseaux essentiels', actions: ['Créer des comptes sur les principaux réseaux du secteur', 'Définir une ligne éditoriale', 'Publier régulièrement (3x/semaine minimum)'], estimatedPrice: '200-400€/mois' }
+  if (isInactive) return { priority: 'Relancer la publication et réengager la communauté', actions: ['Reprendre une cadence régulière', 'Créer du contenu de valeur adapté au secteur', 'Répondre aux commentaires et messages'], estimatedPrice: '200-400€/mois' }
+  return { priority: 'Développer l\'audience et augmenter l\'engagement', actions: ['Optimiser le contenu pour l\'algorithme', 'Créer des formats variés (photo, vidéo, stories)', 'Analyser les performances et ajuster'], estimatedPrice: '200-350€/mois' }
+}
+
+// ── Score de branding ─────────────────────────────────────────────────────────
+function brandingScore(photoCount, hasDescription, descriptionSource, socialPresence, websiteUrl, cms) {
+  const VISUAL_NETS = ['facebook', 'instagram', 'pinterest']
+  const visualNets = VISUAL_NETS.filter(n => !!(socialPresence?.[n])).length
+  const BASE = [0, 20, 45, 75]
+  let score = BASE[Math.min(visualNets, 3)]
+
+  if ((photoCount ?? 0) >= 10)                        score += 15
+  else if ((photoCount ?? 0) >= 5)                    score += 7
+  if (hasDescription && descriptionSource !== 'none') score += 10
+  if (sitePresent(websiteUrl))                        score += 10
+  if (cms && cms !== 'inconnu')                       score += 5
+
+  score = Math.max(0, Math.min(100, score))
+  const label = score >= 80 ? 'Image forte'
+              : score >= 60 ? 'Image correcte'
+              : score >= 40 ? 'Image à améliorer'
+              : score >= 20 ? 'Image insuffisante'
+              : 'Identité absente'
+  return { score, label }
+}
+
+// ── Recommandation designer par secteur ──────────────────────────────────────
+function getDesignerRecommendation(photoCount, hasDescription, socialPresence, domain, websiteUrl) {
+  const raw    = ((domain ?? '') + '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const hasIG  = !!(socialPresence?.instagram)
+  const hasFB  = !!(socialPresence?.facebook)
+  const hasSite = sitePresent(websiteUrl)
+
+  const isRestaurant = /restaurant|cafe|brasserie|pizz|burger|traiteur|bistrot|bar/.test(raw)
+  const isBeauty     = /coiffure|salon|spa|beaute|barbier|esthetique|onglerie/.test(raw)
+  const isRetail     = /boutique|commerce|magasin|retail|mode|vetement|fleuriste/.test(raw)
+  const isArtisan    = /artisan|menuisier|peintre|plombier|electricien|macon|couvreur/.test(raw)
+  const isB2B        = /avocat|notaire|comptable|assurance|cabinet|immo|consulting/.test(raw)
+
+  if (isRestaurant) {
+    if ((photoCount ?? 0) < 5) return { priority: 'Créer une identité visuelle forte pour la fiche Google et les menus', actions: ['Shooting photo professionnel — plats, ambiance, équipe', 'Charte graphique cohérente (couleurs, typographie)', 'Mise à jour des visuels sur Google, Instagram et Facebook'], estimatedPrice: '800–2000€' }
+    if (!hasIG) return { priority: 'Déployer l\'identité visuelle sur Instagram', actions: ['Créer un feed Instagram cohérent', 'Templates posts aux couleurs de l\'établissement', 'Visuels story et reels adaptés'], estimatedPrice: '500–1200€' }
+    return { priority: 'Renforcer la cohérence visuelle sur tous les supports', actions: ['Audit de cohérence visuelle multi-supports', 'Uniformisation des visuels en ligne', 'Création de templates réutilisables'], estimatedPrice: '400–900€' }
+  }
+  if (isBeauty) {
+    if (!hasSite && !hasIG) return { priority: 'Créer une identité visuelle complète', actions: ['Logo + charte graphique', 'Shooting avant/après et ambiance', 'Déploiement sur réseaux et site'], estimatedPrice: '1000–2500€' }
+    return { priority: 'Renforcer l\'image premium et la cohérence visuelle', actions: ['Harmonisation des couleurs et typographies', 'Visuels avant/après professionnels', 'Templates pour les réseaux sociaux'], estimatedPrice: '600–1500€' }
+  }
+  if (isRetail) {
+    if (!hasSite) return { priority: 'Créer une identité digitale cohérente', actions: ['Logo + charte graphique boutique', 'Visuels produits professionnels', 'Supports print et digital harmonisés'], estimatedPrice: '800–2000€' }
+    return { priority: 'Uniformiser l\'image sur les supports physiques et digitaux', actions: ['Audit de cohérence visuelle', 'Mise à jour des visuels produits', 'Création de supports de communication'], estimatedPrice: '500–1200€' }
+  }
+  if (isArtisan) {
+    return { priority: 'Créer une image professionnelle et rassurante', actions: ['Logo + charte graphique artisanale', 'Photos de chantiers et réalisations', 'Supports de présentation clients'], estimatedPrice: '600–1500€' }
+  }
+  if (isB2B) {
+    return { priority: 'Construire une image professionnelle et mémorable', actions: ['Identité visuelle corporate complète', 'Supports de communication professionnels', 'Cohérence graphique sur tous les supports'], estimatedPrice: '1200–3000€' }
+  }
+  if ((photoCount ?? 0) < 5) return { priority: 'Créer des visuels professionnels pour améliorer la perception', actions: ['Shooting photo professionnel', 'Charte graphique de base', 'Mise à jour des visuels en ligne'], estimatedPrice: '600–1500€' }
+  if (!hasIG && !hasFB) return { priority: 'Déployer l\'identité visuelle sur les réseaux sociaux', actions: ['Templates adaptés aux réseaux', 'Cohérence visuelle multi-plateformes', 'Ligne éditoriale visuelle'], estimatedPrice: '400–900€' }
+  return { priority: 'Optimiser et renforcer l\'identité visuelle existante', actions: ['Audit de cohérence visuelle', 'Rafraîchissement des éléments graphiques', 'Nouveaux supports de communication'], estimatedPrice: '400–900€' }
+}
+
+// ── Score WebDev ─────────────────────────────────────────────────────────────
+function webDevScore(pagespeedData, websiteUrl, cms, hasHttps, hasSitemap, hasRobots) {
+  if (!sitePresent(websiteUrl)) return { score: 0, label: 'Inexistant' }
+
+  let score = 20  // site present
+
+  const https    = hasHttps  ?? pagespeedData?.https          ?? false
+  const sitemap  = hasSitemap ?? pagespeedData?.sitemap       ?? false
+  const robots   = hasRobots  ?? pagespeedData?.robots        ?? false
+  const mobile   = pagespeedData?.mobileFriendly              ?? false
+
+  const rawPerf  = pagespeedData?.performance ?? null
+  const perf     = rawPerf != null ? (rawPerf <= 1 ? Math.round(rawPerf * 100) : Math.round(rawPerf)) : null
+
+  const rawAcc   = pagespeedData?.accessibility ?? null
+  const acc      = rawAcc  != null ? (rawAcc  <= 1 ? Math.round(rawAcc  * 100) : Math.round(rawAcc))  : null
+
+  if (https)   score += 15
+  if (mobile)  score += 15
+  if (sitemap) score += 10
+  if (robots)  score += 10
+  if (perf != null) {
+    if (perf >= 80)      score += 20
+    else if (perf >= 50) score += 10
+    else                 score += 5
+  }
+  if (acc != null && acc >= 80) score += 10
+
+  score = Math.min(100, score)
+  const label = score < 25 ? 'Critique'
+              : score < 50 ? 'Basique'
+              : score < 75 ? 'Correct'
+              : 'Optimisé'
+  return { score, label }
+}
+
+// ── Recommandation WebDev ────────────────────────────────────────────────────
+function getWebDevRecommendation(websiteUrl, cms, pagespeedData, hasHttps, hasSitemap) {
+  if (!sitePresent(websiteUrl)) {
+    return { priority: 'Création site vitrine complet', estimatedPrice: '2000–5000€' }
+  }
+
+  const rawPerf = pagespeedData?.performance ?? null
+  const perf    = rawPerf != null ? (rawPerf <= 1 ? Math.round(rawPerf * 100) : Math.round(rawPerf)) : null
+  const https   = hasHttps   ?? pagespeedData?.https   ?? false
+  const sitemap = hasSitemap ?? pagespeedData?.sitemap ?? false
+
+  const cmsKey  = ((cms ?? pagespeedData?.cms?.cms ?? '')).toLowerCase()
+  const isOld   = ['wix', 'jimdo', 'squarespace'].includes(cmsKey)
+
+  if (!https && perf != null && perf < 40) return { priority: 'Refonte technique complète', estimatedPrice: '1500–4000€' }
+  if (!https || !sitemap)                  return { priority: 'Corrections techniques fondamentales', estimatedPrice: '500–1500€' }
+  if (perf != null && perf < 60)           return { priority: 'Optimisation performances', estimatedPrice: '800–2000€' }
+  if (isOld)                               return { priority: 'Migration vers une solution moderne et maintenable', estimatedPrice: '1500–3500€' }
+  return { priority: 'Maintenance technique et optimisations avancées', estimatedPrice: '500–1500€' }
 }
 
 // ── Opportunité SEO → score /100 ─────────────────────────────────────────────
@@ -283,4 +468,4 @@ function calculateScore(placeData, socialPresence, reviewAnalysis, weights = DEF
   }
 }
 
-module.exports = { calculateScore, DEFAULT_WEIGHTS, getDomainComplexity, getRecommendedRAGType, estimateMonthlyConversations, getRecommendedStack }
+module.exports = { calculateScore, DEFAULT_WEIGHTS, getDomainComplexity, getRecommendedRAGType, estimateMonthlyConversations, getRecommendedStack, socialRegularityScore, getSocialRecommendation, brandingScore, getDesignerRecommendation, webDevScore, getWebDevRecommendation }

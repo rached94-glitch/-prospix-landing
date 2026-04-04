@@ -3,7 +3,7 @@ import { playClick, playSuccess, playError } from '../utils/sounds'
 import ReactMarkdown from 'react-markdown'
 import { ScoreBadge } from './LeadCard'
 import { exportLeadPDF } from '../utils/exportPDF'
-import { exportAuditPDF, exportAuditPhotographePDF, exportAuditChatbotPDF } from '../utils/exportAuditPDF'
+import { exportAuditPDF, exportAuditPhotographePDF, exportAuditChatbotPDF, exportAuditSocialMediaPDF, exportAuditDesignerPDF, exportAuditWebDevPDF } from '../utils/exportAuditPDF'
 import { FaFacebookF, FaLinkedinIn, FaYoutube, FaTiktok, FaInstagram } from 'react-icons/fa'
 
 const SOCIAL_CONFIG = [
@@ -237,6 +237,18 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
     setChatbotAuditState('idle')
     setChatbotAuditPdfLoading(false)
     setChatbotAuditPdfError(null)
+    setSocialAudit(null)
+    setSocialAuditState('idle')
+    setSocialAuditPdfLoading(false)
+    setSocialAuditPdfError(null)
+    setDesignerAudit(null)
+    setDesignerAuditState('idle')
+    setDesignerAuditPdfLoading(false)
+    setDesignerAuditPdfError(null)
+    setWebDevAudit(null)
+    setWebDevAuditState('idle')
+    setWebDevAuditPdfLoading(false)
+    setWebDevAuditPdfError(null)
     // Reset SEMrush on lead change
     setSemrushData(null); setSemrushLoading(false); setSemrushError(null)
   }, [lead?.id, lead?._id])
@@ -309,6 +321,30 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
       if (auditKey) auditCache[auditKey] = d
       setAuditData(d)
       setAuditState('done')
+
+      // ── dev-web : analyse visuelle en arrière-plan après PageSpeed ──────────
+      if (activeProfile?.id === 'dev-web' && lead.website) {
+        console.log('[VisualAnalysis dev-web] Démarrage —', lead.website)
+        setVisualLoading(true)
+        setVisualError(null)
+        setVisualAnalysis(null)
+        fetch(`${API}/api/leads/visual-analysis`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ url: lead.website, zone: 'header', profile: 'dev-web' }),
+        })
+          .then(r => r.json().then(body => ({ ok: r.ok, body })))
+          .then(({ ok, body }) => {
+            if (!ok) throw new Error(body.error || 'Erreur serveur')
+            console.log('[VisualAnalysis dev-web] Résultat —', body.verdict, body.score)
+            setVisualAnalysis(body)
+          })
+          .catch(e => {
+            console.warn('[VisualAnalysis dev-web] Erreur —', e.message)
+            setVisualError(e.message)
+          })
+          .finally(() => setVisualLoading(false))
+      }
     } catch (e) {
       console.error('[Audit] erreur:', e)
       setAuditState('error')
@@ -586,6 +622,7 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
           facebookActivity:  auditData?.facebookActivity  ?? null,
           instagramActivity: auditData?.instagramActivity ?? null,
           photoQuality:      photoQuality                  ?? null,
+          socialPresence:    lead.social                  ?? null,
           decisionMaker:     lead.decisionMaker            ?? null,
           city:              lead.city ?? lead.vicinity    ?? null,
           category:          lead.types?.[0]               ?? null,
@@ -945,6 +982,21 @@ Bien cordialement,
   const [chatbotAuditPdfLoading, setChatbotAuditPdfLoading] = useState(false)
   const [chatbotAuditPdfError,   setChatbotAuditPdfError]   = useState(null)
 
+  const [socialAudit,           setSocialAudit]           = useState(null)
+  const [socialAuditState,      setSocialAuditState]      = useState('idle') // idle | loading | done | error
+  const [socialAuditPdfLoading, setSocialAuditPdfLoading] = useState(false)
+  const [socialAuditPdfError,   setSocialAuditPdfError]   = useState(null)
+
+  const [designerAudit,           setDesignerAudit]           = useState(null)
+  const [designerAuditState,      setDesignerAuditState]      = useState('idle') // idle | loading | done | error
+  const [designerAuditPdfLoading, setDesignerAuditPdfLoading] = useState(false)
+  const [designerAuditPdfError,   setDesignerAuditPdfError]   = useState(null)
+
+  const [webDevAudit,           setWebDevAudit]           = useState(null)
+  const [webDevAuditState,      setWebDevAuditState]      = useState('idle') // idle | loading | done | error
+  const [webDevAuditPdfLoading, setWebDevAuditPdfLoading] = useState(false)
+  const [webDevAuditPdfError,   setWebDevAuditPdfError]   = useState(null)
+
   const handleExportPDF = async () => {
     setPdfLoading(true)
     try {
@@ -1091,6 +1143,124 @@ Bien cordialement,
       setChatbotAuditPdfError(err.message ?? 'Erreur inconnue')
     } finally {
       setChatbotAuditPdfLoading(false)
+    }
+  }
+
+  const handleExportSocialAuditPDF = async () => {
+    setSocialAuditPdfLoading(true)
+    setSocialAuditPdfError(null)
+    setSocialAuditState('loading')
+    try {
+      const placeId = lead.id || lead._id
+      if (!placeId) throw new Error('placeId manquant')
+      const r = await fetch(`${API}/api/leads/audit-social/${placeId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessName:        lead.name,
+          websiteUrl:          lead.website        ?? null,
+          socialPresence:      lead.social         ?? null,
+          socialMediaActivity: {
+            instagramActivity: auditData?.instagramActivity ?? null,
+            facebookActivity:  auditData?.facebookActivity  ?? null,
+          },
+          photoCount:   lead.googleAudit?.photoCount ?? 0,
+          reviewsData:  reviewsData                  ?? null,
+          googleRating: lead.google?.rating          ?? null,
+          totalReviews: lead.google?.totalReviews    ?? 0,
+          domain:       lead.domain || lead.keyword  || null,
+        }),
+      })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const result = await r.json()
+      setSocialAudit(result)
+      setSocialAuditState('done')
+      await exportAuditSocialMediaPDF({ lead, activeProfile, socialAudit: result, auditData })
+    } catch (err) {
+      console.error('[SocialAuditPDF]', err)
+      setSocialAuditState('error')
+      setSocialAuditPdfError(err.message ?? 'Erreur inconnue')
+    } finally {
+      setSocialAuditPdfLoading(false)
+    }
+  }
+
+  const handleExportDesignerAuditPDF = async () => {
+    if (designerAuditState === 'loading') return
+    setDesignerAuditPdfLoading(true)
+    setDesignerAuditPdfError(null)
+    setDesignerAuditState('loading')
+    try {
+      const placeId = lead.id || lead._id
+      if (!placeId) throw new Error('placeId manquant')
+      const r = await fetch(`${API}/api/leads/audit-designer/${placeId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessName:  lead.name,
+          websiteUrl:    lead.website           ?? null,
+          photoCount:    lead.googleAudit?.photoCount ?? 0,
+          googleAudit:   lead.googleAudit        ?? null,
+          socialPresence: lead.social            ?? null,
+          reviewsData:   reviewsData             ?? null,
+          googleRating:  lead.google?.rating     ?? null,
+          totalReviews:  lead.google?.totalReviews ?? 0,
+          domain:        lead.domain || lead.keyword || null,
+          pagespeedData: auditData?.pagespeed    ?? null,
+        }),
+      })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const result = await r.json()
+      setDesignerAudit(result)
+      setDesignerAuditState('done')
+      await exportAuditDesignerPDF({ lead, activeProfile, designerAudit: result, auditData })
+    } catch (err) {
+      console.error('[DesignerAuditPDF]', err)
+      setDesignerAuditState('error')
+      setDesignerAuditPdfError(err.message ?? 'Erreur inconnue')
+    } finally {
+      setDesignerAuditPdfLoading(false)
+    }
+  }
+
+  const handleExportWebDevAuditPDF = async () => {
+    if (webDevAuditState === 'loading') return
+    setWebDevAuditPdfLoading(true)
+    setWebDevAuditPdfError(null)
+    setWebDevAuditState('loading')
+    try {
+      const placeId = lead.id || lead._id
+      if (!placeId) throw new Error('placeId manquant')
+      const r = await fetch(`/api/leads/audit-webdev/${placeId}`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          businessName:  lead.name ?? '',
+          websiteUrl:    lead.website ?? null,
+          pagespeedData: auditData?.pagespeed ?? null,
+          cms:           auditData?.pagespeed?.cms?.cms ?? null,
+          hasHttps:      auditData?.pagespeed?.https ?? null,
+          hasSitemap:    auditData?.pagespeed?.sitemap ?? null,
+          hasRobots:     auditData?.pagespeed?.robots ?? null,
+          domainAge:     auditData?.pagespeed?.domainAge ?? null,
+          indexedPages:  auditData?.pagespeed?.indexedPages ?? null,
+          socialPresence: lead.social ?? null,
+          googleRating:  lead.google?.rating ?? lead.rating ?? null,
+          totalReviews:  lead.google?.totalReviews ?? lead.totalReviews ?? 0,
+          domain:        lead.domain ?? lead.keyword ?? null,
+        }),
+      })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const result = await r.json()
+      setWebDevAudit(result)
+      setWebDevAuditState('done')
+      await exportAuditWebDevPDF({ lead, activeProfile, webDevAudit: result, auditData, visualAnalysis })
+    } catch (err) {
+      console.error('[WebDevAuditPDF]', err)
+      setWebDevAuditState('error')
+      setWebDevAuditPdfError(err.message ?? 'Erreur inconnue')
+    } finally {
+      setWebDevAuditPdfLoading(false)
     }
   }
 
@@ -1258,9 +1428,7 @@ Bien cordialement,
           { label: 'APPELS TÉLÉPHONE',    type: 'phone_mentions',    mentions: phoneData?.totalMentions ?? null, difficulty: phoneData?.difficultyCount ?? 0, hasDifficulty: phoneData?.hasDifficulty ?? null },
           { label: 'HORS HORAIRES',       type: 'off_hours',         hasNeed: offHoursData?.hasOffHoursNeed ?? null, count: offHoursData?.count ?? null, ratio: offHoursData?.ratio ?? 0 },
           { label: 'LANGUES DÉTECTÉES',   type: 'languages',         isMultilingual: langData?.isMultilingual ?? null, languages: langData?.languages ?? ['fr'], foreignRatio: langData?.foreignRatio ?? 0 },
-          { label: 'TYPE DE CHATBOT',     type: 'rag_type',          ragType: lead.recommendedRAGType ?? null },
           { label: 'CONV./MOIS EST.',     type: 'monthly_conv',      count: lead.estimatedConversations ?? null },
-          { label: 'STACK RECOMMANDÉ',    type: 'stack_rec',         stack: lead.recommendedStack ?? null },
           // Phase 2 — post-audit (null/auditDone=false → "—" jusqu'au clic "Analyser le site")
           { label: 'CMS DÉTECTÉ',         type: 'cms_detect',        cms: cmsName, noSite: !lead.website, auditDone },
           { label: 'FAQ DÉTECTÉE',       type: 'faq_detect',  detected: hasFAQ },
@@ -1454,37 +1622,161 @@ Bien cordialement,
       }
 
       case 'social-media': {
-        const missingCount = [!hasFacebook, !hasInstagram, !hasLinkedin, !hasTiktok].filter(Boolean).length
+        const hasYoutube  = !!(social.youtube)
+        const hasPinterest = !!(social.pinterest)
+
+        // ── Données activité (phase 2 — après clic "Analyser les réseaux") ───────
+        const igActivity  = auditData?.instagramActivity ?? null
+        const fbActivity  = auditData?.facebookActivity  ?? null
+        const auditDoneSM = !!(igActivity || fbActivity)
+
+        const igFollowers  = igActivity?.followers  ?? null
+        const igDaysAgo    = igActivity?.daysAgo    ?? null
+        const fbFollowers  = fbActivity?.followers  ?? null
+        const fbDaysAgo    = fbActivity?.daysAgo    ?? null
+
+        // ── Score régularité (inline — scoring.js est CommonJS backend) ──────────
+        const NETWORK_COUNT = [hasFacebook, hasInstagram, hasLinkedin, hasTiktok, hasYoutube, hasPinterest].filter(Boolean).length
+        const BASE_REG = [0, 15, 30, 50, 70, 85, 100]
+        let regScore = BASE_REG[Math.min(NETWORK_COUNT, 6)]
+        const lastPost = igDaysAgo !== null && fbDaysAgo !== null ? Math.min(igDaysAgo, fbDaysAgo) : igDaysAgo ?? fbDaysAgo
+        if (igFollowers !== null && igFollowers > 1000) regScore += 10
+        if (lastPost !== null && lastPost < 7)          regScore += 15
+        if (photoCount > 15)                            regScore += 10
+        if (lastPost !== null && lastPost > 30)         regScore -= 15
+        regScore = Math.max(0, Math.min(100, regScore))
+        const regLabel = regScore >= 80 ? 'Très actif' : regScore >= 60 ? 'Actif' : regScore >= 40 ? 'En développement' : regScore >= 20 ? 'Faible' : 'Inexistant'
+
+        // ── Recommandation sectorielle (inline) ───────────────────────────────────
+        const domainRaw = (lead.domain || lead.keyword || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        const isRestaurant = /restaurant|cafe|brasserie|pizz|burger|traiteur|bistrot|bar/.test(domainRaw)
+        const isBeauty     = /coiffure|salon|spa|beaute|barbier|esthetique/.test(domainRaw)
+        const isB2B        = /avocat|notaire|comptable|assurance|cabinet|immo|consulting|finance/.test(domainRaw)
+        const isRetail     = /boutique|commerce|magasin|retail|mode|vetement|fleuriste/.test(domainRaw)
+        const isHealth     = /medecin|docteur|kine|psy|sante|pharmacie|dentiste|clinique/.test(domainRaw)
+        let sectorRec = 'Instagram + Facebook recommandés'
+        if (isRestaurant)       sectorRec = 'Instagram + vidéos courtes essentiels'
+        else if (isBeauty)      sectorRec = 'Instagram + contenus visuels + vidéos tendance'
+        else if (isB2B)         sectorRec = 'Réseau professionnel essentiel + page entreprise'
+        else if (isRetail)      sectorRec = 'Instagram + Facebook + contenus produits'
+        else if (isHealth)      sectorRec = 'Page pro + conseils santé + témoignages'
+
+        // ── Qualité photos ────────────────────────────────────────────────────────
+        const photoQualityVal = photoCount === 0 ? 'Aucune' : photoCount <= 5 ? 'Insuffisant' : photoCount <= 15 ? 'Basique' : photoCount <= 30 ? 'Correct' : 'Excellent'
+        const photoQualityStatus = photoCount === 0 ? 'danger' : photoCount <= 5 ? 'danger' : photoCount <= 15 ? 'warn' : 'good'
+
+        // ── Présents / manquants ──────────────────────────────────────────────────
+        const ALL_NETS = [
+          { key: 'facebook',  label: 'FB',  present: hasFacebook },
+          { key: 'instagram', label: 'IG',  present: hasInstagram },
+          { key: 'linkedin',  label: 'LI',  present: hasLinkedin },
+          { key: 'tiktok',    label: 'TK',  present: hasTiktok },
+          { key: 'youtube',   label: 'YT',  present: hasYoutube },
+        ]
+        const missingCount = ALL_NETS.filter(n => !n.present).length
+
+        const kpis = [
+          // Phase 1 — post-unlock
+          { label: 'RÉSEAUX PRÉSENTS',   type: 'social_present', nets: ALL_NETS.filter(n => n.present) },
+          { label: 'RÉSEAUX MANQUANTS',  type: 'social_missing', nets: ALL_NETS.filter(n => !n.present) },
+          kpi('Note Google',   rating      != null ? `${rating}/5` : '—',    rating >= 4 ? 'good' : rating >= 3 ? 'warn' : 'danger'),
+          kpi('Volume avis',   totalReviews > 0 ? totalReviews : '0',         totalReviews >= 50 ? 'good' : totalReviews >= 20 ? 'warn' : 'danger'),
+          kpi('Photos Google', `${photoCount} — ${photoQualityVal}`,          photoQualityStatus),
+          { label: 'SECTEUR',            type: 'sector_rec',     sector: domainRaw ? (lead.domain || lead.keyword) : null, rec: sectorRec },
+          // Phase 2 — post-audit (null → "—" jusqu'au clic "Analyser les réseaux")
+          { label: 'FOLLOWERS INSTAGRAM', type: 'social_followers', network: 'Instagram', followers: igFollowers, daysAgo: igDaysAgo, auditDone: auditDoneSM },
+          { label: 'FOLLOWERS FACEBOOK',  type: 'social_followers', network: 'Facebook',  followers: fbFollowers, daysAgo: fbDaysAgo, auditDone: auditDoneSM },
+          { label: 'DERNIER POST IG',     type: 'social_last_post', network: 'Instagram', daysAgo: igDaysAgo, auditDone: auditDoneSM },
+          { label: 'DERNIER POST FB',     type: 'social_last_post', network: 'Facebook',  daysAgo: fbDaysAgo, auditDone: auditDoneSM },
+        ]
+
         return {
-          kpis: [
-            kpi('Facebook',  hasFacebook  ? 'Présent' : 'Absent', hasFacebook  ? 'good' : 'danger'),
-            kpi('Instagram', hasInstagram ? 'Présent' : 'Absent', hasInstagram ? 'good' : 'danger'),
-            kpi('LinkedIn',  hasLinkedin  ? 'Présent' : 'Absent', hasLinkedin  ? 'good' : 'neutral'),
-            kpi('TikTok',    hasTiktok    ? 'Présent' : 'Absent', hasTiktok    ? 'good' : 'warn'),
-          ],
+          kpis,
+          regScore,
+          regLabel,
+          socialAuditDone: auditDoneSM,
           problems: [
-            ...(!hasFacebook  ? [prob('Facebook absent — opportunité de visibilité manquée', '#ef4444')] : []),
-            ...(!hasInstagram ? [prob('Instagram absent — opportunité de visibilité manquée', '#ef4444')] : []),
-            ...(!hasTiktok    ? [prob('TikTok absent — canal de croissance non exploité', '#f59e0b')] : []),
-            ...(missingCount >= 3 ? [prob(`${missingCount} réseaux manquants sur 4 — présence digitale insuffisante`, '#ef4444')] : []),
+            ...(!hasInstagram ? [prob('Instagram absent — canal visuel prioritaire non exploité', '#ef4444')] : []),
+            ...(!hasFacebook  ? [prob('Facebook absent — audience locale non couverte', '#ef4444')] : []),
+            ...(!hasTiktok    ? [prob('Vidéos courtes absentes — levier de croissance organique', '#f59e0b')] : []),
+            ...(missingCount >= 3 ? [prob(`${missingCount} réseaux manquants sur 5 — présence digitale incomplète`, '#ef4444')] : []),
+            ...(photoCount < 5 ? [prob(`Seulement ${photoCount} photo${photoCount > 1 ? 's' : ''} Google — visuels insuffisants`, '#f59e0b')] : []),
+            ...(auditDoneSM && lastPost !== null && lastPost > 30 ? [prob(`Inactif depuis ${lastPost} jours — audience non engagée`, '#ef4444')] : []),
           ].slice(0, 3),
         }
       }
 
       case 'dev-web': {
-        const hasBooking = !!(lead.googleAudit?.hasBooking)
+        const auditDoneWD = !!(auditData?.pagespeed)
+        const cmsRawWD    = auditData?.pagespeed?.cms
+        const CMS_NAMES_WD = { wordpress: 'WordPress', shopify: 'Shopify', webflow: 'Webflow', wix: 'Wix', squarespace: 'Squarespace', jimdo: 'Jimdo' }
+        const cmsNameWD   = cmsRawWD ? (CMS_NAMES_WD[cmsRawWD.cms ?? cmsRawWD] ?? cmsRawWD.cms ?? String(cmsRawWD)) : null
+        const domainAgeData  = auditData?.pagespeed?.domainAge  ?? null
+        const indexedDataWD  = auditData?.pagespeed?.indexedPages ?? null
+
+        // webDev score (mirrors scoring.js webDevScore)
+        let wdScore = hasWebsite ? 20 : 0
+        if (psHttps)    wdScore += 15
+        if (perfScore != null) wdScore += perfScore >= 80 ? 20 : perfScore >= 50 ? 10 : 5
+        if (psSitemap)  wdScore += 10
+        if (psRobots)   wdScore += 10
+        if (psAccessibility != null && psAccessibility >= 80) wdScore += 10
+        wdScore = Math.min(100, wdScore)
+        const wdLabel = wdScore === 0 ? 'Inexistant' : wdScore < 30 ? 'Critique' : wdScore < 60 ? 'Basique' : wdScore < 80 ? 'Correct' : 'Optimisé'
+
+        // Diagnostic text
+        const diagLines = []
+        if (!hasWebsite) {
+          diagLines.push('Aucun site web — priorité absolue')
+        } else {
+          if (auditDoneWD && !psHttps)                              diagLines.push('HTTPS absent — site non sécurisé')
+          if (perfScore != null && perfScore < 50)                  diagLines.push(`Performance critique : ${perfScore}/100`)
+          else if (perfScore != null && perfScore < 70)             diagLines.push(`Performance insuffisante : ${perfScore}/100`)
+          if (auditDoneWD && !psSitemap)                            diagLines.push('Sitemap XML manquant')
+          if (auditDoneWD && !psRobots)                             diagLines.push('Robots.txt absent')
+          if (psRenderBlocking != null && psRenderBlocking > 0)     diagLines.push(`${psRenderBlocking} ressource${psRenderBlocking > 1 ? 's' : ''} bloquant le rendu`)
+        }
+        const diagText = diagLines.length > 0
+          ? diagLines.join(' · ')
+          : auditDoneWD
+            ? 'Aucun problème critique détecté'
+            : 'Audit non effectué — cliquez sur "Analyser les performances"'
+
+        // Stack recommendation
+        const oldCMSWD = ['wix', 'jimdo', 'squarespace'].includes(cmsRawWD?.cms ?? cmsRawWD)
+        let stackRec = hasWebsite ? 'Optimisation du site existant' : 'Création d\'un site vitrine modern'
+        if (!hasWebsite)                                          stackRec = 'Site vitrine — CMS moderne ou solution sur mesure'
+        else if (auditDoneWD && !psHttps && perfScore != null && perfScore < 50) stackRec = 'Refonte technique complète recommandée'
+        else if (oldCMSWD)                                        stackRec = 'Migration vers une solution moderne et maintenable'
+        else if (perfScore != null && perfScore < 50 && auditDoneWD) stackRec = 'Optimisation critique — cache + images + scripts'
+        else if (cmsNameWD)                                       stackRec = 'Optimisation technique — cache, images, scripts'
+
+        const kpis = [
+          // Phase 1 — post-unlock
+          kpi('Site web',    hasWebsite ? 'Présent' : 'Absent',              hasWebsite ? 'good' : 'danger'),
+          kpi('HTTPS / SSL', auditDoneWD ? (psHttps ? 'Sécurisé' : 'Absent') : '—', auditDoneWD ? (psHttps ? 'good' : 'danger') : 'neutral'),
+          kpi('Perf. mobile', perfScore != null ? `${perfScore}/100` : '—', perfScore != null ? (perfScore >= 70 ? 'good' : perfScore >= 50 ? 'warn' : 'danger') : 'neutral'),
+          kpi('Chargement',  loadTimeSec ? `${loadTimeSec}s` : '—',          loadTimeSec ? (parseFloat(loadTimeSec) <= 3 ? 'good' : 'danger') : 'neutral'),
+          kpi('Sitemap XML', auditDoneWD ? (psSitemap ? 'Présent' : 'Absent') : '—', auditDoneWD ? (psSitemap ? 'good' : 'warn') : 'neutral'),
+          kpi('Robots.txt',  auditDoneWD ? (psRobots  ? 'Présent' : 'Absent') : '—', auditDoneWD ? (psRobots  ? 'good' : 'warn') : 'neutral'),
+          { label: 'CMS DÉTECTÉ',    type: 'cms_detect',   cms: cmsNameWD, noSite: !hasWebsite, auditDone: auditDoneWD },
+          { label: 'ÂGE DU DOMAINE', type: 'domainAge',    domainAge: domainAgeData },
+          { label: 'PAGES INDEXÉES', type: 'indexedPages', indexedData: indexedDataWD },
+          kpi('Accessibilité', psAccessibility != null ? `${Math.round(psAccessibility)}/100` : '—', psAccessibility != null ? (psAccessibility >= 80 ? 'good' : psAccessibility >= 60 ? 'warn' : 'danger') : 'neutral'),
+          { type: 'webdev_full', subtype: 'diagnostic', label: 'DIAGNOSTIC TECHNIQUE', text: diagText, auditDone: auditDoneWD },
+          { type: 'webdev_full', subtype: 'stack',      label: 'STACK RECOMMANDÉE',    text: stackRec },
+        ]
+
         return {
-          kpis: [
-            kpi('Perf. mobile',       perfScore != null ? `${perfScore}/100` : '—', perfScore != null ? (perfScore >= 70 ? 'good' : 'danger') : 'neutral'),
-            kpi('Chargement',         loadTimeSec ? `${loadTimeSec}s` : '—',        loadTimeSec ? (parseFloat(loadTimeSec) <= 3 ? 'good' : 'danger') : 'neutral'),
-            kpi('Site web',           hasWebsite ? 'Présent' : 'Absent',              hasWebsite ? 'good' : 'danger'),
-            kpi('Réservation en ligne', hasBooking ? 'Oui' : 'Absente',              hasBooking ? 'good' : 'warn'),
-          ],
+          kpis,
+          wdScore,
+          wdLabel,
           problems: [
-            ...(!hasWebsite                                          ? [prob('Aucun site web — les clients ne peuvent pas vous trouver en ligne', '#ef4444')] : []),
-            ...(perfScore != null && perfScore < 70                  ? [prob(`Site charge en ${loadTimeSec || '?'}s — 53% des visiteurs abandonnent`, '#ef4444')] : []),
-            ...(loadTimeSec && parseFloat(loadTimeSec) > 3           ? [prob("Expérience mobile mauvaise — clients perdus avant de voir l'offre", '#f59e0b')] : []),
-          ],
+            ...(!hasWebsite                                              ? [prob('Aucun site web — les clients ne peuvent pas vous trouver en ligne', '#ef4444')] : []),
+            ...(auditDoneWD && !psHttps                                  ? [prob('HTTPS absent — site non sécurisé, pénalisé par Google', '#ef4444')] : []),
+            ...(perfScore != null && perfScore < 50                      ? [prob(`Performance critique : ${perfScore}/100 — taux de rebond élevé`, '#ef4444')] : []),
+            ...(perfScore != null && perfScore >= 50 && perfScore < 70   ? [prob(`Performance insuffisante : ${perfScore}/100 — à optimiser`, '#f59e0b')] : []),
+          ].slice(0, 3),
         }
       }
 
@@ -1541,20 +1833,74 @@ Bien cordialement,
       }
 
       case 'designer': {
-        const nets    = [hasFacebook, hasInstagram, hasTiktok].filter(Boolean).length
-        const coherent = nets >= 2
+        const hasPinterest = !!(social.pinterest)
+
+        // ── Données activité (phase 2 — après "Analyser les réseaux") ─────────────
+        const igActivityD  = auditData?.instagramActivity ?? null
+        const auditDoneD   = !!(igActivityD)
+        const igFollowersD = igActivityD?.followers ?? null
+        const igDaysAgoD   = igActivityD?.daysAgo   ?? null
+
+        // ── Score branding (inline — scoring.js est CommonJS backend) ─────────────
+        const VISUAL_NETS_D = [hasFacebook, hasInstagram, hasPinterest].filter(Boolean).length
+        const BASE_D = [0, 20, 45, 75]
+        let brandScore = BASE_D[Math.min(VISUAL_NETS_D, 3)]
+        const hasDescD = !!(lead.googleAudit?.hasDescription)
+        if (photoCount >= 10)  brandScore += 15
+        else if (photoCount >= 5) brandScore += 7
+        if (hasDescD)          brandScore += 10
+        if (hasWebsite)        brandScore += 10
+        brandScore = Math.max(0, Math.min(100, brandScore))
+        const brandLabel = brandScore >= 80 ? 'Image forte' : brandScore >= 60 ? 'Image correcte' : brandScore >= 40 ? 'Image à améliorer' : brandScore >= 20 ? 'Image insuffisante' : 'Identité absente'
+
+        // ── Recommandation sectorielle ────────────────────────────────────────────
+        const domainRawD = (lead.domain || lead.keyword || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        const isRestaurantD = /restaurant|cafe|brasserie|pizz|burger|traiteur|bistrot|bar/.test(domainRawD)
+        const isBeautyD     = /coiffure|salon|spa|beaute|barbier|esthetique/.test(domainRawD)
+        const isRetailD     = /boutique|commerce|magasin|retail|mode|vetement|fleuriste/.test(domainRawD)
+        const isArtisanD    = /artisan|menuisier|peintre|plombier|electricien|macon|couvreur/.test(domainRawD)
+        let designerRec = 'Charte graphique + visuels réseaux recommandés'
+        if (isRestaurantD)   designerRec = 'Shooting pro + charte graphique + templates réseaux'
+        else if (isBeautyD)  designerRec = 'Visuels avant/après + identité visuelle premium'
+        else if (isRetailD)  designerRec = 'Identité boutique + visuels produits + supports print/digital'
+        else if (isArtisanD) designerRec = 'Logo + photos de réalisations + carte de visite pro'
+
+        // ── Qualité photos ────────────────────────────────────────────────────────
+        const photoQualityD      = photoCount === 0 ? 'Aucune' : photoCount <= 5 ? 'Insuffisant' : photoCount <= 15 ? 'Basique' : photoCount <= 30 ? 'Correct' : 'Excellent'
+        const photoQualityStatus = photoCount === 0 ? 'danger' : photoCount <= 5 ? 'danger' : photoCount <= 15 ? 'warn' : 'good'
+
+        const VISUAL_NETS_ALL = [
+          { key: 'instagram', label: 'IG',  present: hasInstagram },
+          { key: 'facebook',  label: 'FB',  present: hasFacebook },
+          { key: 'pinterest', label: 'Pin', present: hasPinterest },
+        ]
+
+        const kpis = [
+          // Phase 1 — post-unlock
+          { label: 'RÉSEAUX VISUELS',        type: 'social_present', nets: VISUAL_NETS_ALL.filter(n => n.present) },
+          { label: 'RÉSEAUX MANQUANTS',       type: 'social_missing', nets: VISUAL_NETS_ALL.filter(n => !n.present) },
+          kpi('Photos Google',               `${photoCount} — ${photoQualityD}`, photoQualityStatus),
+          kpi('Description fiche',           hasDescD ? 'Présente' : 'Absente',  hasDescD ? 'good' : 'warn'),
+          kpi('Site web',                    hasWebsite ? 'Présent' : 'Absent',  hasWebsite ? 'good' : 'danger'),
+          { label: 'SECTEUR',                type: 'sector_rec', sector: domainRawD ? (lead.domain || lead.keyword) : null, rec: designerRec },
+          // Phase 2 — post-audit (null → "—" jusqu'au clic "Analyser les réseaux")
+          { label: 'FOLLOWERS INSTAGRAM',    type: 'social_followers', network: 'Instagram', followers: igFollowersD, daysAgo: igDaysAgoD, auditDone: auditDoneD },
+          { label: 'DERNIER POST IG',        type: 'social_last_post', network: 'Instagram', daysAgo: igDaysAgoD, auditDone: auditDoneD },
+          kpi('Note Google',   rating != null ? `${rating}/5` : '—',  rating >= 4 ? 'good' : rating >= 3 ? 'warn' : 'danger'),
+          kpi('Volume avis',   totalReviews > 0 ? totalReviews : '0', totalReviews >= 50 ? 'good' : 'warn'),
+        ]
+
         return {
-          kpis: [
-            kpi('Photos Google',     photoCount > 0 ? photoCount : '0',         photoCount >= 5 ? 'good' : 'danger'),
-            kpi('Cohérence visuelle', coherent ? 'Bonne' : 'Insuffisante',      coherent ? 'good' : 'danger'),
-            kpi('Instagram',         hasInstagram ? 'Présent' : 'Absent',       hasInstagram ? 'good' : 'danger'),
-            kpi('Logo / Charte',     hasWebsite ? 'À vérifier' : 'Absent',      hasWebsite ? 'warn' : 'danger'),
-          ],
+          kpis,
+          brandScore,
+          brandLabel,
+          designerAuditDone: auditDoneD,
           problems: [
-            ...(photoCount < 5  ? [prob('Identité visuelle faible sur Google', '#ef4444')] : []),
-            ...(!coherent       ? [prob('Présence visuelle non cohérente entre les plateformes', '#f59e0b')] : []),
-            ...(!hasInstagram   ? [prob('Instagram absent — vitrine visuelle manquante', '#ef4444')] : []),
-          ],
+            ...(!hasInstagram  ? [prob('Instagram absent — vitrine visuelle principale manquante', '#ef4444')] : []),
+            ...(photoCount < 5 ? [prob(`Seulement ${photoCount} photo${photoCount > 1 ? 's' : ''} Google — identité visuelle faible`, '#ef4444')] : []),
+            ...(!hasDescD      ? [prob('Description fiche absente — personnalité de marque non exprimée', '#f59e0b')] : []),
+            ...(!hasFacebook && !hasPinterest ? [prob('Aucun réseau visuel secondaire — audience limitée', '#f59e0b')] : []),
+          ].slice(0, 3),
         }
       }
 
@@ -2449,6 +2795,75 @@ Bien cordialement,
                         </div>
                       )
                     }
+                    if (kpi.type === 'social_present') {
+                      const NET_COLORS = { facebook: '#1877f2', instagram: '#e1306c', linkedin: '#0a66c2', tiktok: '#010101', youtube: '#ff0000' }
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 8 }}>{kpi.label}</div>
+                          {kpi.nets.length === 0
+                            ? <div style={{ fontSize: 13, color: '#ef4444', fontWeight: 700 }}>Aucun</div>
+                            : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                                {kpi.nets.map(n => (
+                                  <span key={n.key} style={{ fontSize: 10.5, fontWeight: 700, color: NET_COLORS[n.key] ?? '#22c55e', background: (NET_COLORS[n.key] ?? '#22c55e') + '18', border: `1px solid ${NET_COLORS[n.key] ?? '#22c55e'}44`, borderRadius: 5, padding: '2px 8px' }}>{n.label}</span>
+                                ))}
+                              </div>
+                          }
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'social_missing') {
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 8 }}>{kpi.label}</div>
+                          {kpi.nets.length === 0
+                            ? <div style={{ fontSize: 13, color: '#22c55e', fontWeight: 700 }}>Aucun ✓</div>
+                            : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                                {kpi.nets.map(n => (
+                                  <span key={n.key} style={{ fontSize: 10.5, fontWeight: 600, color: '#10bb54', background: 'rgba(16,187,84,0.08)', border: '1px solid rgba(16,187,84,0.25)', borderRadius: 5, padding: '2px 8px' }}>{n.label} +</span>
+                                ))}
+                              </div>
+                          }
+                          {kpi.nets.length > 0 && <div style={{ fontSize: 8.5, color: '#10bb54', marginTop: 5 }}>Opportunité à saisir</div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'sector_rec') {
+                      return (
+                        <div key={i} style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 5 }}>{kpi.label}</div>
+                          {kpi.sector && <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4, textTransform: 'capitalize' }}>{kpi.sector}</div>}
+                          <div style={{ fontSize: 11.5, fontWeight: 600, color: '#EDFA36', lineHeight: 1.3 }}>{kpi.rec}</div>
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'social_followers') {
+                      const noData = !kpi.auditDone
+                      const count  = kpi.followers
+                      const color  = noData ? '#475569' : count === null ? '#475569' : count >= 10000 ? '#22c55e' : count >= 2000 ? '#10bb54' : count >= 500 ? '#f59e0b' : '#64748b'
+                      const label  = noData ? '—' : count === null ? '—' : count.toLocaleString('fr-FR')
+                      const note   = noData ? null : count === null ? null : count >= 10000 ? 'Excellent' : count >= 2000 ? 'Bon' : count >= 500 ? 'Moyen' : 'Faible'
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{label}</div>
+                          {note && <div style={{ fontSize: 8.5, color, marginTop: 4 }}>{note}</div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'social_last_post') {
+                      const noData = !kpi.auditDone
+                      const days   = kpi.daysAgo
+                      const color  = noData ? '#475569' : days === null ? '#ef4444' : days < 7 ? '#22c55e' : days < 30 ? '#f59e0b' : '#ef4444'
+                      const label  = noData ? '—' : days === null ? 'Aucune activité' : days === 0 ? "Aujourd'hui" : `Il y a ${days}j`
+                      const note   = noData ? null : days === null ? null : days < 7 ? 'Très actif' : days < 30 ? 'Actif' : 'Inactif'
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color, lineHeight: 1.1 }}>{label}</div>
+                          {note && <div style={{ fontSize: 8.5, color, marginTop: 4 }}>{note}</div>}
+                        </div>
+                      )
+                    }
                     if (kpi.type === 'booking_url') {
                       return (
                         <div key={i} style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.30)', borderRadius: 8, padding: '10px 12px' }}>
@@ -2650,6 +3065,17 @@ Bien cordialement,
                         </div>
                       )
                     }
+                    if (kpi.type === 'webdev_full') {
+                      const isStack    = kpi.subtype === 'stack'
+                      const accentClr  = isStack ? '#00d4ff' : '#0ea5e9'
+                      return (
+                        <div key={i} style={{ gridColumn: '1 / -1', background: isStack ? 'rgba(0,212,255,0.06)' : 'rgba(14,165,233,0.06)', border: `1px solid ${accentClr}30`, borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: accentClr, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 5 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 11.5, fontWeight: 600, color: isStack ? '#00d4ff' : '#e2e8f0', lineHeight: 1.4 }}>{kpi.text}</div>
+                          {!isStack && !kpi.auditDone && <div style={{ fontSize: 9, color: '#475569', marginTop: 4 }}>Effectuez l'audit de performance pour un diagnostic complet</div>}
+                        </div>
+                      )
+                    }
                     if (kpi.type === 'sensitive') {
                       const color = kpi.detected ? '#f97316' : '#22c55e'
                       return (
@@ -2697,6 +3123,180 @@ Bien cordialement,
                     )
                   })}
                 </div>
+
+                {/* SCORE RÉGULARITÉ + RECOMMANDATION — social-media uniquement */}
+                {activeProfile?.id === 'social-media' && (() => {
+                  const rs    = profileData.regScore ?? 0
+                  const rl    = profileData.regLabel ?? '—'
+                  const rc    = rs >= 60 ? '#22c55e' : rs >= 40 ? '#f59e0b' : '#ef4444'
+                  const adSM  = profileData.socialAuditDone
+                  // Social recommendation (same logic as scoring.js getSocialRecommendation, inline)
+                  const domainRaw2 = (lead.domain || lead.keyword || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                  const isResto2   = /restaurant|cafe|brasserie|pizz|burger|traiteur|bistrot|bar/.test(domainRaw2)
+                  const isBeauty2  = /coiffure|salon|spa|beaute|barbier|esthetique/.test(domainRaw2)
+                  const isB2B2     = /avocat|notaire|comptable|assurance|cabinet|immo|consulting|finance/.test(domainRaw2)
+                  const isRetail2  = /boutique|commerce|magasin|retail|mode|vetement|fleuriste/.test(domainRaw2)
+                  const isHealth2  = /medecin|docteur|kine|psy|sante|pharmacie|dentiste/.test(domainRaw2)
+                  const hasFB2  = !!(lead.social?.facebook)
+                  const hasIG2  = !!(lead.social?.instagram)
+                  const hasLI2  = !!(lead.social?.linkedin)
+                  let recPriority = 'Développer l\'audience et augmenter l\'engagement'
+                  let recPrice    = '200-350€/mois'
+                  if (isResto2 && !hasIG2)       { recPriority = 'Créer et animer un compte photo + vidéos courtes'; recPrice = '300-600€/mois' }
+                  else if (isBeauty2 && !hasIG2) { recPriority = 'Créer une présence visuelle forte'; recPrice = '300-600€/mois' }
+                  else if (isB2B2 && !hasLI2)    { recPriority = 'Créer une présence professionnelle et articles de fond'; recPrice = '400-800€/mois' }
+                  else if (isRetail2 && !hasFB2 && !hasIG2) { recPriority = 'Créer une présence sociale pour la boutique'; recPrice = '250-500€/mois' }
+                  else if (isHealth2 && !hasFB2) { recPriority = 'Créer une page professionnelle rassurante'; recPrice = '300-600€/mois' }
+                  return (
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px', marginBottom: 6 }}>
+                        <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>SCORE RÉGULARITÉ</div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: rc }}>{rl}</span>
+                          <span style={{ fontSize: 16, fontWeight: 900, color: rc }}>{rs}/100</span>
+                        </div>
+                        <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 3, height: 5, overflow: 'hidden' }}>
+                          <div style={{ width: `${rs}%`, height: '100%', background: rc, borderRadius: 3 }} />
+                        </div>
+                      </div>
+                      {adSM && (
+                        <div style={{ background: 'rgba(29,110,85,0.06)', border: '1px solid rgba(29,110,85,0.2)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#1d6e55', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 5 }}>RECOMMANDATION</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#4ade80', lineHeight: 1.3, marginBottom: 4 }}>{recPriority}</div>
+                          <div style={{ fontSize: 10, color: '#64748b' }}>Budget estimé : {recPrice}</div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {/* AUDIT RÉSEAUX + PDF — social-media uniquement */}
+                {activeProfile?.id === 'social-media' && (() => {
+                  if (auditState === 'idle' && !lead.social?.facebook && !lead.social?.instagram)
+                    return <div style={{ fontSize: 11, color: '#475569', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, padding: '7px 12px', marginBottom: 8, textAlign: 'center' }}>Pas de réseaux détectés — analyse impossible</div>
+                  if (auditState === 'idle')
+                    return <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ width: '100%', height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#64748b', fontSize: 10.5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 8 }}>Analyser les réseaux — followers + activité</button>
+                  if (auditState === 'loading')
+                    return <div style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, color: '#64748b', marginBottom: 8 }}>Récupération en cours…</div>
+                  return null
+                })()}
+
+                {activeProfile?.id === 'social-media' && (
+                  <>
+                    <button className="ld-btn" onClick={handleExportSocialAuditPDF} disabled={socialAuditPdfLoading}
+                      style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: socialAuditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: socialAuditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginBottom: 4 }}
+                      onMouseEnter={e => { if (!socialAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
+                      {socialAuditState === 'loading' ? '⏳ Génération de l\'audit…' : socialAuditPdfLoading ? '⏳ Mise en page PDF…' : '📱 Générer l\'audit social media'}
+                    </button>
+                    {socialAuditPdfError && (
+                      <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 3, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
+                        ✗ {socialAuditPdfError}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* SCORE IMAGE DE MARQUE + RECOMMANDATION — designer uniquement */}
+                {activeProfile?.id === 'designer' && (() => {
+                  const bs = profileData.brandScore ?? 0
+                  const bl = profileData.brandLabel ?? '—'
+                  const bc = bs >= 60 ? '#22c55e' : bs >= 40 ? '#f59e0b' : '#ef4444'
+                  const adD = profileData.designerAuditDone
+                  const photoCountD = lead.googleAudit?.photoCount ?? 0
+                  // Designer recommendation (inline)
+                  const domainRawD2 = (lead.domain || lead.keyword || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                  const isResto3    = /restaurant|cafe|brasserie|pizz|burger|traiteur|bistrot|bar/.test(domainRawD2)
+                  const isBeauty3   = /coiffure|salon|spa|beaute|barbier|esthetique/.test(domainRawD2)
+                  const isRetail3   = /boutique|commerce|magasin|retail|mode|vetement|fleuriste/.test(domainRawD2)
+                  const isArtisan3  = /artisan|menuisier|peintre|plombier|electricien|macon|couvreur/.test(domainRawD2)
+                  const hasIG3  = !!(lead.social?.instagram)
+                  const hasSite3 = !!(lead.website && lead.website !== 'null' && lead.website !== 'undefined')
+                  let designerPriority = 'Optimiser et renforcer l\'identité visuelle existante'
+                  let designerPrice    = '400–900€'
+                  if (isResto3 && photoCountD < 5)             { designerPriority = 'Créer une identité visuelle forte pour la fiche Google'; designerPrice = '800–2000€' }
+                  else if (isResto3 && !hasIG3)                { designerPriority = 'Déployer l\'identité visuelle sur Instagram'; designerPrice = '500–1200€' }
+                  else if (isBeauty3 && !hasSite3 && !hasIG3)  { designerPriority = 'Créer une identité visuelle complète'; designerPrice = '1000–2500€' }
+                  else if (isRetail3 && !hasSite3)             { designerPriority = 'Créer une identité digitale cohérente'; designerPrice = '800–2000€' }
+                  else if (isArtisan3)                         { designerPriority = 'Créer une image professionnelle et rassurante'; designerPrice = '600–1500€' }
+                  else if (photoCountD < 5)                    { designerPriority = 'Créer des visuels professionnels pour améliorer la perception'; designerPrice = '600–1500€' }
+                  return (
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px', marginBottom: 6 }}>
+                        <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>SCORE IMAGE DE MARQUE</div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: bc }}>{bl}</span>
+                          <span style={{ fontSize: 16, fontWeight: 900, color: bc }}>{bs}/100</span>
+                        </div>
+                        <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 3, height: 5, overflow: 'hidden' }}>
+                          <div style={{ width: `${bs}%`, height: '100%', background: bc, borderRadius: 3 }} />
+                        </div>
+                      </div>
+                      {adD && (
+                        <div style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#a78bfa', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 5 }}>RECOMMANDATION</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#c4b5fd', lineHeight: 1.3, marginBottom: 4 }}>{designerPriority}</div>
+                          <div style={{ fontSize: 10, color: '#64748b' }}>Budget estimé : {designerPrice}</div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {/* SCORE TECHNIQUE — dev-web uniquement */}
+                {activeProfile?.id === 'dev-web' && (() => {
+                  const ws = profileData.wdScore ?? 0
+                  const wl = profileData.wdLabel ?? '—'
+                  const wc = ws >= 80 ? '#22c55e' : ws >= 60 ? '#f59e0b' : '#ef4444'
+                  return (
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                        <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>SCORE TECHNIQUE</div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: wc }}>{wl}</span>
+                          <span style={{ fontSize: 16, fontWeight: 900, color: wc }}>{ws}/100</span>
+                        </div>
+                        <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 3, height: 5, overflow: 'hidden' }}>
+                          <div style={{ width: `${ws}%`, height: '100%', background: wc, borderRadius: 3 }} />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* AUDIT RÉSEAUX — designer (reuse handleAnalyzePerformance) */}
+                {activeProfile?.id === 'designer' && (() => {
+                  if (auditState === 'idle' && !lead.social?.instagram && !lead.social?.facebook)
+                    return <div style={{ fontSize: 11, color: '#475569', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, padding: '7px 12px', marginBottom: 8, textAlign: 'center' }}>Pas de réseaux visuels détectés — analyse impossible</div>
+                  if (auditState === 'idle')
+                    return <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ width: '100%', height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#64748b', fontSize: 10.5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 8 }}>Analyser les réseaux — followers Instagram</button>
+                  if (auditState === 'loading')
+                    return <div style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, color: '#64748b', marginBottom: 8 }}>Récupération en cours…</div>
+                  return null
+                })()}
+
+                {/* TYPE DE CHATBOT + STACK RECOMMANDÉ — chatbot uniquement, juste avant le bouton audit */}
+                {['chatbot', 'dev-chatbot'].includes(activeProfile?.id) && (() => {
+                  const ragType = lead.recommendedRAGType ?? null
+                  const stack   = lead.recommendedStack   ?? null
+                  if (!ragType && !stack) return null
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                      {ragType && (
+                        <div style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>TYPE DE CHATBOT</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: ragType.color ?? '#64748b', lineHeight: 1.2 }}>{ragType.label}</div>
+                        </div>
+                      )}
+                      {stack && (
+                        <div style={{ gridColumn: '1 / -1', background: 'rgba(29,110,85,0.06)', border: '1px solid rgba(29,110,85,0.2)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#1d6e55', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>STACK RECOMMANDÉ</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#4ade80', lineHeight: 1.2 }}>{stack}</div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
 
                 {/* Compact perf-audit — SEO / dev-web / pub-google / chatbot */}
                 {['seo', 'consultant-seo', 'dev-web', 'pub-google', 'chatbot', 'dev-chatbot'].includes(activeProfile?.id) && (lead.website || lead.social?.facebook || lead.social?.instagram) && (() => {
@@ -2842,9 +3442,10 @@ Bien cordialement,
             <div style={{ marginBottom: 12, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#64748b' }}>Audit en cours…</div>
           )}
 
-          {/* ── ANALYSE VISUELLE IA ── designer / photographe / copywriter */}
-          {['designer', 'photographe', 'copywriter'].includes(activeProfile?.id) && lead.website && (() => {
-            const ZONE_OPTIONS = [
+          {/* ── ANALYSE VISUELLE IA ── designer / photographe / copywriter / dev-web */}
+          {['designer', 'photographe', 'copywriter', 'dev-web'].includes(activeProfile?.id) && lead.website && (() => {
+            const isDevWeb      = activeProfile?.id === 'dev-web'
+            const ZONE_OPTIONS  = [
               { id: 'header', label: 'Header uniquement', desc: 'Première impression du site',    cost: 1, badge: null },
               { id: 'corps',  label: 'Header + corps',    desc: 'Analyse complète de la page',    cost: 2, badge: 'Recommandé' },
               { id: 'full',   label: 'Page complète',     desc: 'Audit total avec scroll',         cost: 3, badge: null },
@@ -2861,52 +3462,86 @@ Bien cordialement,
                   <span style={{ fontSize: 9, fontWeight: 400, color: '#475569', letterSpacing: 0 }}>{MOCK_CREDITS} crédits</span>
                 </div>
 
-                {/* Sélecteur de zone — liste verticale */}
-                <div style={{ marginBottom: 10 }}>
-                  {ZONE_OPTIONS.map(z => {
-                    const sel = selectedZone === z.id
-                    return (
-                      <div key={z.id} onClick={() => !visualLoading && setSelectedZone(z.id)}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 8, background: sel ? 'rgba(29,110,85,0.06)' : 'rgba(255,255,255,0.02)', border: `1px solid ${sel ? 'rgba(29,110,85,0.3)' : 'rgba(255,255,255,0.06)'}`, marginBottom: 6, cursor: visualLoading ? 'default' : 'pointer', transition: 'all .15s' }}>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 500, color: sel ? '#EDFA36' : '#e2e8f0', marginBottom: 2 }}>{z.label}</div>
-                          <div style={{ fontSize: 11, color: '#475569' }}>{z.desc}</div>
+                {/* Sélecteur de zone — masqué pour dev-web (auto-déclenché après audit perf) */}
+                {!isDevWeb && (
+                  <div style={{ marginBottom: 10 }}>
+                    {ZONE_OPTIONS.map(z => {
+                      const sel = selectedZone === z.id
+                      return (
+                        <div key={z.id} onClick={() => !visualLoading && setSelectedZone(z.id)}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 8, background: sel ? 'rgba(29,110,85,0.06)' : 'rgba(255,255,255,0.02)', border: `1px solid ${sel ? 'rgba(29,110,85,0.3)' : 'rgba(255,255,255,0.06)'}`, marginBottom: 6, cursor: visualLoading ? 'default' : 'pointer', transition: 'all .15s' }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 500, color: sel ? '#EDFA36' : '#e2e8f0', marginBottom: 2 }}>{z.label}</div>
+                            <div style={{ fontSize: 11, color: '#475569' }}>{z.desc}</div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                            <span style={{ fontSize: 11, color: '#475569' }}>{z.cost} crédit{z.cost > 1 ? 's' : ''}</span>
+                            {z.badge && (
+                              <span style={{ fontSize: 10, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b', borderRadius: 4, padding: '2px 7px', fontWeight: 500 }}>{z.badge}</span>
+                            )}
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                          <span style={{ fontSize: 11, color: '#475569' }}>{z.cost} crédit{z.cost > 1 ? 's' : ''}</span>
-                          {z.badge && (
-                            <span style={{ fontSize: 10, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b', borderRadius: 4, padding: '2px 7px', fontWeight: 500 }}>{z.badge}</span>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
+                      )
+                    })}
+                  </div>
+                )}
 
-                {/* Bouton lancer */}
-                <button onClick={handleVisualAnalysis} disabled={visualLoading}
-                  style={{ width: '100%', height: 40, borderRadius: 10, border: '1px solid rgba(29,110,85,0.25)', background: visualLoading ? 'rgba(29,110,85,0.04)' : 'rgba(29,110,85,0.12)', color: visualLoading ? '#64748b' : '#1d6e55', fontSize: 12, fontWeight: 500, cursor: visualLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 8 }}>
-                  {visualLoading ? (
-                    <>
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ animation: 'spin 1s linear infinite' }}>
-                        <circle cx="7" cy="7" r="5.5" stroke="rgba(29,110,85,0.3)" strokeWidth="2"/>
-                        <path d="M7 1.5A5.5 5.5 0 0 1 12.5 7" stroke="#1D6E55" strokeWidth="2" strokeLinecap="round"/>
-                      </svg>
-                      Analyse en cours…
-                    </>
-                  ) : `Lancer l'analyse — ${currentCost} crédit${currentCost > 1 ? 's' : ''}`}
-                </button>
+                {/* Bouton lancer — masqué pour dev-web (a son propre bouton cyan ci-dessous) */}
+                {!isDevWeb && (
+                  <button onClick={handleVisualAnalysis} disabled={visualLoading}
+                    style={{ width: '100%', height: 40, borderRadius: 10, border: '1px solid rgba(29,110,85,0.25)', background: visualLoading ? 'rgba(29,110,85,0.04)' : 'rgba(29,110,85,0.12)', color: visualLoading ? '#64748b' : '#1d6e55', fontSize: 12, fontWeight: 500, cursor: visualLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 8 }}>
+                    {visualLoading ? (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ animation: 'spin 1s linear infinite' }}>
+                          <circle cx="7" cy="7" r="5.5" stroke="rgba(29,110,85,0.3)" strokeWidth="2"/>
+                          <path d="M7 1.5A5.5 5.5 0 0 1 12.5 7" stroke="#1D6E55" strokeWidth="2" strokeLinecap="round"/>
+                        </svg>
+                        Analyse en cours…
+                      </>
+                    ) : `Lancer l'analyse — ${currentCost} crédit${currentCost > 1 ? 's' : ''}`}
+                  </button>
+                )}
+
+                {/* Spinner dev-web (analyse auto après PageSpeed) */}
+                {isDevWeb && visualLoading && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0', marginBottom: 8, fontSize: 11, color: '#64748b' }}>
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }}>
+                      <circle cx="7" cy="7" r="5.5" stroke="rgba(29,110,85,0.3)" strokeWidth="2"/>
+                      <path d="M7 1.5A5.5 5.5 0 0 1 12.5 7" stroke="#1D6E55" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                    Capture du site en cours… (déclenché automatiquement)
+                  </div>
+                )}
+
+                {/* dev-web : bouton si analyse pas encore lancée */}
+                {isDevWeb && !visualLoading && !visualAnalysis && !visualError && (
+                  <button onClick={handleVisualAnalysis} disabled={visualLoading}
+                    style={{ width: '100%', height: 36, borderRadius: 10, border: '1px solid rgba(14,165,233,0.3)', background: 'rgba(14,165,233,0.08)', color: '#0ea5e9', fontSize: 11.5, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 8 }}>
+                    Analyser visuellement le site — 1 crédit
+                  </button>
+                )}
 
                 {/* Erreur */}
                 {visualError && (
-                  <div style={{ padding: '8px 11px', background: visualError.includes('bloque') ? 'rgba(245,158,11,0.06)' : 'rgba(239,68,68,0.06)', borderLeft: `3px solid ${visualError.includes('bloque') ? '#f59e0b' : '#ef4444'}`, borderRadius: '0 8px 8px 0', fontSize: 10.5, color: visualError.includes('bloque') ? '#fcd34d' : '#fca5a5', lineHeight: 1.5, marginBottom: 8 }}>
-                    ⚠ {visualError.includes('ne permet pas') ? 'Ce site bloque les captures automatiques — fonctionnalité indisponible pour ce prospect' : visualError}
+                  <div style={{ padding: '8px 11px', background: 'rgba(239,68,68,0.06)', borderLeft: '3px solid #ef4444', borderRadius: '0 8px 8px 0', fontSize: 10.5, color: '#fca5a5', lineHeight: 1.5, marginBottom: 8 }}>
+                    ⚠ {visualError.includes('ne permet pas') || visualError.includes('bloque') ? 'Ce site bloque les captures automatiques' : visualError.includes('indisponible') ? 'Capture indisponible — réessayez dans quelques secondes' : visualError}
                   </div>
                 )}
 
                 {/* Résultat */}
                 {visualAnalysis && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {/* Screenshot — dev-web uniquement (backend l'inclut dans la réponse) */}
+                    {visualAnalysis.screenshot && (
+                      <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', maxHeight: 180, position: 'relative' }}>
+                        <img
+                          src={`data:image/png;base64,${visualAnalysis.screenshot}`}
+                          alt="Screenshot du site"
+                          style={{ width: '100%', display: 'block', objectFit: 'cover', objectPosition: 'top' }}
+                        />
+                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 40, background: 'linear-gradient(to bottom, transparent, rgba(10,20,30,0.7))' }} />
+                      </div>
+                    )}
                     {/* Grille score / époque / verdict */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
                       <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
@@ -3247,20 +3882,24 @@ Bien cordialement,
               {pdfLoading ? '⏳ Génération en cours…' : '↓ Exporter fiche PDF'}
             </button>
 
-            {/* Audit prospect PDF */}
-            <button
-              className="ld-btn"
-              onClick={handleExportAuditPDF}
-              disabled={auditPdfLoading}
-              style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: auditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: auditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
-              onMouseEnter={e => { if (!auditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
-              {prospectAuditState === 'loading' ? '⏳ Génération de l\'audit…' : auditPdfLoading ? '⏳ Mise en page PDF…' : '↓ Générer l\'audit prospect'}
-            </button>
-            {auditPdfError && (
-              <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
-                ✗ {auditPdfError}
-              </div>
+            {/* Audit prospect PDF — masqué pour designer et dev-web (ont leurs propres audits) */}
+            {!['designer', 'dev-web'].includes(activeProfile?.id) && (
+              <>
+                <button
+                  className="ld-btn"
+                  onClick={handleExportAuditPDF}
+                  disabled={auditPdfLoading}
+                  style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: auditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: auditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
+                  onMouseEnter={e => { if (!auditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
+                  {prospectAuditState === 'loading' ? '⏳ Génération de l\'audit…' : auditPdfLoading ? '⏳ Mise en page PDF…' : '↓ Générer l\'audit prospect'}
+                </button>
+                {auditPdfError && (
+                  <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
+                    ✗ {auditPdfError}
+                  </div>
+                )}
+              </>
             )}
 
             {/* Audit chatbot — profils Chatbot / Dev-Chatbot uniquement */}
@@ -3298,6 +3937,46 @@ Bien cordialement,
                 {photoAuditPdfError && (
                   <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
                     ✗ {photoAuditPdfError}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Audit branding — profil Designer uniquement */}
+            {activeProfile?.id === 'designer' && (
+              <>
+                <button
+                  className="ld-btn"
+                  onClick={handleExportDesignerAuditPDF}
+                  disabled={designerAuditPdfLoading}
+                  style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: designerAuditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: designerAuditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
+                  onMouseEnter={e => { if (!designerAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
+                  {designerAuditState === 'loading' ? '⏳ Génération de l\'audit…' : designerAuditPdfLoading ? '⏳ Mise en page PDF…' : '🎨 Générer l\'audit branding'}
+                </button>
+                {designerAuditPdfError && (
+                  <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
+                    ✗ {designerAuditPdfError}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Audit technique — profil Dev-Web uniquement */}
+            {activeProfile?.id === 'dev-web' && (
+              <>
+                <button
+                  className="ld-btn"
+                  onClick={handleExportWebDevAuditPDF}
+                  disabled={webDevAuditPdfLoading}
+                  style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: webDevAuditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: webDevAuditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
+                  onMouseEnter={e => { if (!webDevAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
+                  {webDevAuditState === 'loading' ? '⏳ Génération de l\'audit…' : webDevAuditPdfLoading ? '⏳ Mise en page PDF…' : '💻 Générer l\'audit technique'}
+                </button>
+                {webDevAuditPdfError && (
+                  <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
+                    ✗ {webDevAuditPdfError}
                   </div>
                 )}
               </>

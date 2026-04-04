@@ -10,7 +10,7 @@ const { enrichSocial }   = require('../services/socialEnrichment');
 const { calculateScore, getDomainComplexity, getRecommendedRAGType, estimateMonthlyConversations, getRecommendedStack } = require('../services/scoring');
 const { analyzeReviews, countQuestionsInReviews, countPhoneCallMentions, detectOffHoursActivity, detectLanguages } = require('../services/reviewAnalysis');
 const { getAllReviews }      = require('../services/apifyReviews');
-const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot } = require('../services/aiReviewAnalysis');
+const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateEmailSocialMedia, generateEmailDesigner, generateEmailWebDev, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot, generateAuditSocialMedia, generateAuditDesigner, generateAuditWebDev } = require('../services/aiReviewAnalysis');
 const { findDecisionMaker } = require('../services/linkedinScraper');
 const { searchPappers }     = require('../services/pappersService');
 const { getPageSpeed, checkNAP, getSiteSignals } = require('../services/pagespeedService');
@@ -550,6 +550,50 @@ Retourne UNIQUEMENT un JSON valide (pas de texte avant ou après) :
       return res.json(emailResult)
     }
 
+    // ── Email spécialisé SOCIAL-MEDIA → fonction dédiée ─────────────────────────
+    if (profileId === 'social-media') {
+      console.log(`[generate-email] Délégation SOCIAL-MEDIA → generateEmailSocialMedia`)
+      const leadCity = leadData?.address?.split(',').pop()?.trim() || req.body.city || ''
+      const emailResult = await generateEmailSocialMedia({
+        leadData:           { name: businessName, city: leadCity, category: req.body.category ?? null, rating: leadData.rating ?? avgRating, reviewCount: leadData.reviewCount ?? totalReviews, website: leadData.website ?? null },
+        socialPresence:     req.body.socialPresence  ?? leadData.social ?? null,
+        socialMediaActivity:{ instagramActivity: instagramActivity ?? null, facebookActivity: facebookActivity ?? null },
+        reviewsData:        { unanswered, avgRating, keywords: reviewsData?.keywords ?? [] },
+      })
+      return res.json(emailResult)
+    }
+
+    // ── Email spécialisé DESIGNER → fonction dédiée ──────────────────────────────
+    if (profileId === 'designer') {
+      console.log(`[generate-email] Délégation DESIGNER → generateEmailDesigner`)
+      const leadCity = leadData?.address?.split(',').pop()?.trim() || req.body.city || ''
+      const emailResult = await generateEmailDesigner({
+        leadData:     { name: businessName, city: leadCity, category: req.body.category ?? null, rating: leadData.rating ?? avgRating, reviewCount: leadData.reviewCount ?? totalReviews },
+        photoCount:   googleData?.photoCount ?? req.body.photoCount ?? 0,
+        googleAudit:  req.body.leadData?.googleAudit ?? null,
+        socialPresence: req.body.socialPresence ?? leadData.social ?? null,
+        reviewsData:  { unanswered, avgRating, reviews: reviewsData?.reviews ?? [] },
+      })
+      return res.json(emailResult)
+    }
+
+    // ── Email spécialisé DEV-WEB → fonction dédiée ──────────────────────────────
+    if (profileId === 'dev-web') {
+      console.log(`[generate-email] Délégation DEV-WEB → generateEmailWebDev`)
+      const leadCity2  = leadData?.address?.split(',').pop()?.trim() || req.body.city || ''
+      const psData     = req.body.pagespeedData ?? null
+      const emailResult = await generateEmailWebDev({
+        leadData:      { name: businessName, city: leadCity2, category: req.body.category ?? null, rating: leadData.rating ?? avgRating, reviewCount: leadData.reviewCount ?? totalReviews },
+        websiteUrl:    leadData.website ?? null,
+        pagespeedData: psData,
+        cms:           psData?.cms?.cms ?? null,
+        hasHttps:      psData?.https ?? null,
+        hasSitemap:    psData?.sitemap ?? null,
+        reviewsData:   { unanswered, avgRating, reviews: reviewsData?.reviews ?? [] },
+      })
+      return res.json(emailResult)
+    }
+
     const MODEL = 'claude-sonnet-4-6'
     console.log(`[generate-email] → appel Anthropic (model: ${MODEL}, prompt: ${prompt.length} chars)`)
 
@@ -859,6 +903,85 @@ router.post('/audit-chatbot/:placeId', async (req, res, next) => {
       contactFormDetection,
       pagespeedData,
     })
+    res.json(result)
+  } catch (e) {
+    next(e)
+  }
+})
+
+// ─── POST /audit-social/:placeId — Audit Social Media IA ─────────────────────
+router.post('/audit-social/:placeId', async (req, res, next) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) throw new AppError('ANTHROPIC_API_KEY manquante', 503)
+    const { placeId } = req.params
+    if (!validatePlaceId(placeId)) throw new AppError('placeId invalide', 400)
+    const {
+      businessName        = 'ce commerce',
+      websiteUrl          = null,
+      socialPresence      = null,
+      socialMediaActivity = null,
+      photoCount          = 0,
+      reviewsData         = null,
+      googleRating        = null,
+      totalReviews        = 0,
+      domain              = null,
+    } = req.body
+    console.log(`[audit-social] placeId:${placeId} | business:"${businessName}" | present:${Object.keys(socialPresence ?? {}).filter(k => (socialPresence ?? {})[k]).join(',')}`)
+    const result = await generateAuditSocialMedia({ businessName, websiteUrl, socialPresence, socialMediaActivity, photoCount, reviewsData, googleRating, totalReviews, domain })
+    res.json(result)
+  } catch (e) {
+    next(e)
+  }
+})
+
+// ─── POST /audit-designer/:placeId — Audit Branding & Design IA ──────────────
+router.post('/audit-designer/:placeId', async (req, res, next) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) throw new AppError('ANTHROPIC_API_KEY manquante', 503)
+    const { placeId } = req.params
+    if (!validatePlaceId(placeId)) throw new AppError('placeId invalide', 400)
+    const {
+      businessName  = 'ce commerce',
+      websiteUrl    = null,
+      photoCount    = 0,
+      googleAudit   = null,
+      socialPresence = null,
+      reviewsData   = null,
+      googleRating  = null,
+      totalReviews  = 0,
+      domain        = null,
+      pagespeedData = null,
+    } = req.body
+    console.log(`[audit-designer] placeId:${placeId} | business:"${businessName}" | photos:${photoCount} | site:${websiteUrl ?? 'absent'}`)
+    const result = await generateAuditDesigner({ businessName, websiteUrl, photoCount, googleAudit, socialPresence, reviewsData, googleRating, totalReviews, domain, pagespeedData })
+    res.json(result)
+  } catch (e) {
+    next(e)
+  }
+})
+
+// ─── POST /audit-webdev/:placeId — Audit Technique Web IA ──────────────────────
+router.post('/audit-webdev/:placeId', async (req, res, next) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) throw new AppError('ANTHROPIC_API_KEY manquante', 503)
+    const { placeId } = req.params
+    const {
+      businessName   = '',
+      websiteUrl     = null,
+      pagespeedData  = null,
+      cms            = null,
+      hasHttps       = null,
+      hasSitemap     = null,
+      hasRobots      = null,
+      domainAge      = null,
+      indexedPages   = null,
+      socialPresence = null,
+      googleRating   = null,
+      totalReviews   = 0,
+      domain         = null,
+    } = req.body
+    console.log(`[audit-webdev] placeId:${placeId} | business:"${businessName}" | site:${websiteUrl ?? 'absent'}`)
+    const result = await generateAuditWebDev({ businessName, websiteUrl, pagespeedData, cms, hasHttps, hasSitemap, hasRobots, domainAge, indexedPages, socialPresence, googleRating, totalReviews, domain })
     res.json(result)
   } catch (e) {
     next(e)

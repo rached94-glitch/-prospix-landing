@@ -2,6 +2,7 @@ const puppeteer      = require('puppeteer-extra')
 const StealthPlugin  = require('puppeteer-extra-plugin-stealth')
 puppeteer.use(StealthPlugin())
 const Anthropic  = require('@anthropic-ai/sdk')
+const { existsSync } = require('fs')
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -93,6 +94,32 @@ Réponds UNIQUEMENT en JSON valide sans markdown :
   ]
 }
 Maximum 3 observations.`,
+
+  'dev-web': `Tu es un développeur web senior expert en UX et performance. Analyse ce screenshot de site web pour une PME locale.
+Évalue : modernité du design, qualité UX, lisibilité, responsive apparent, structure de navigation, crédibilité visuelle.
+Sois direct — ce rapport sert à convaincre le propriétaire qu'il a besoin d'un développeur web.
+
+Réponds UNIQUEMENT en JSON valide sans markdown :
+{
+  "score": number (0-100, sois sévère : un site vraiment moderne et pro mérite 70+),
+  "epoch": string (ex: "2012-2016", estime l'âge apparent du design),
+  "verdict": string — choisir parmi UNIQUEMENT :
+    "Moderne"              → design actuel, UX fluide, visuellement professionnel
+    "Correct"              → acceptable mais perfectible, pas repoussant
+    "Daté"                 → design vieilli, expérience utilisateur médiocre
+    "Obsolète"             → site très ancien, contre-productif commercialement
+    "Refonte urgente"      → site nuisible à l'image de l'entreprise
+  "observations": [
+    { "level": "red"|"orange"|"green", "text": string (max 100 chars, argument de vente direct) }
+  ]
+}
+Règles :
+- Maximum 3 observations
+- red   → problème qui fait fuir les clients aujourd'hui (UX cassée, design repoussant, pas mobile-friendly)
+- orange → point d'amélioration clair (navigation confuse, hiérarchie visuelle faible, CTA invisible)
+- green  → seul point positif s'il existe (contenu présent, structure logique, etc.)
+- Chaque observation = argument concret qu'un dev web peut utiliser pour vendre sa prestation
+- Jamais de texte hors JSON`,
 }
 
 // ── captureScreenshot ──────────────────────────────────────────────────────────
@@ -111,8 +138,9 @@ async function captureScreenshot(url, zone = 'header') {
   const tryCapture = async (waitUntil) => {
     let browser
     try {
-      const execPath = process.platform === 'win32'
-        ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+      const WIN_CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+      const execPath = process.platform === 'win32' && existsSync(WIN_CHROME)
+        ? WIN_CHROME
         : undefined
       browser = await puppeteer.launch({
         headless: true,
