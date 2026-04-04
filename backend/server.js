@@ -1,6 +1,12 @@
 require('dotenv').config();
+require('./utils/validateEnv')();
 const express = require('express');
 const cors = require('cors');
+const errorHandler = require('./middleware/errorHandler');
+
+// ── Capture tout crash silencieux ─────────────────────────────────────────────
+process.on('uncaughtException',  err => console.error('[CRASH] uncaughtException:',  err))
+process.on('unhandledRejection', err => console.error('[CRASH] unhandledRejection:', err))
 
 const leadsRoutes  = require('./routes/leads');
 const exportRoutes = require('./routes/export');
@@ -24,6 +30,8 @@ console.log('[server] Routes mounted: /api/leads, /api/export, /api/sheets, /api
 app.get('/', (req, res) => {
   res.json({ status: 'LeadGen API running' });
 });
+
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {

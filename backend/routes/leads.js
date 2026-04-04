@@ -1,6 +1,9 @@
 const express        = require('express');
 const router         = express.Router();
-const { searchPlaces, getPlaceDetails, getPhotoUrls, getLocalRank } = require('../services/googlePlaces');
+const AppError       = require('../utils/AppError');
+const { searchPlaces, getPlaceDetails, getPhotoUrls, getLocalRank, cleanWebsiteUrl, scrapeDescription } = require('../services/googlePlaces');
+const { createCache } = require('../cache/searchCache');
+const { validateSearchParams, validatePlaceId } = require('../utils/validateInputs');
 const { analyzePhotoQuality } = require('../services/photoQualityService');
 const { enrichSocial }   = require('../services/socialEnrichment');
 const { calculateScore }  = require('../services/scoring');
@@ -15,6 +18,8 @@ const { analyzeNetworkPhotos } = require('../services/visualSocialService');
 const benchmarkService = require('../services/benchmarkService');
 
 const SOCIAL_SOURCES = ['linkedin', 'facebook', 'instagram', 'tiktok'];
+
+const unlockCache = createCache('unlock'); // TTL 7j — évite de re-facturer un déblocage
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 // Résout avec la valeur si la promise se termine avant ttlMs, sinon résout
@@ -117,29 +122,20 @@ function applyPostProcessing(leads, { city, domain }) {
   }
 }
 
-async function processPlaces(places, { lat, lng, domain, keywords, sources, city, onProgress, weights, profileId }) {
-  const useSocial = sources.some(s => SOCIAL_SOURCES.includes(s));
-  const total     = places.length;
+async function processPlaces(places, { lat, lng, domain, keywords, city, onProgress, weights, profileId }) {
+  const total = places.length;
   let   done      = 0;
 
   if (onProgress) onProgress({ type: 'progress', message: 'Scoring...' });
 
   const leads = await Promise.all(
     places.map(async place => {
-      const ENRICH_TIMEOUT = 30_000  // 30s par appel — un lead lent ne bloque pas les autres
-
-      const [socialPresence, pappersData] = await Promise.all([
-        useSocial
-          ? withTimeout(
-              enrichSocial({ name: place.name, website: place.website, address: place.vicinity, placeId: place.place_id }),
-              ENRICH_TIMEOUT,
-              { linkedin: null, facebook: null, instagram: null, tiktok: null, hasChatbot: false }
-            )
-          : Promise.resolve({ linkedin: null, facebook: null, instagram: null, tiktok: null, hasChatbot: false }),
-        withTimeout(searchPappers(place.name, city || ''), ENRICH_TIMEOUT, null),
-      ]);
+      // Phase 1 : pas d'appel social/pappers — différé à l'unlock
+      const socialPresence = { linkedin: null, facebook: null, instagram: null, tiktok: null, hasChatbot: false };
+      const pappersData    = null;
 
       const lead = buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersData, weights, profileId });
+      lead.locked = true;
       done++;
       console.log(`[Enrich] Lead ${done}/${total} terminé : ${place.name}`);
       return lead;
@@ -152,29 +148,48 @@ async function processPlaces(places, { lat, lng, domain, keywords, sources, city
 
 // ─── POST /search/stream (SSE) ────────────────────────────────────────────────
 router.post('/search/stream', async (req, res) => {
+  console.log('[Stream] Requête reçue — body:', JSON.stringify(req.body))
+
   res.setHeader('Content-Type',  'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection',    'keep-alive');
   res.flushHeaders();
+  console.log('[Stream] Headers SSE envoyés')
 
-  const send = data => res.write(`data: ${JSON.stringify(data)}\n\n`);
+  const send = data => {
+    if (res.writableEnded) return
+    try {
+      res.write(`data: ${JSON.stringify(data)}\n\n`)
+    } catch (e) {
+      console.error('[Stream] res.write error:', e.message)
+    }
+  }
 
   try {
     const { city, lat, lng, radius, domain, keywords = [], sources = [], weights = null, profileId = null } = req.body;
+    console.log(`[Stream] Params — city:${city} lat:${lat} lng:${lng} radius:${radius} domain:${domain}`)
 
-    if (!lat || !lng) { send({ type: 'error', message: 'lat/lng manquants' }); return res.end(); }
+    const { valid, errors } = validateSearchParams({ lat, lng, radius, keywords, domain, profileId })
+    if (!valid) {
+      send({ type: 'error', message: errors.join(', ') })
+      return res.end()
+    }
 
+    console.log('[Stream] Lancement searchPlaces…')
     const { places, fromCache } = await searchPlaces({
       lat, lng, radius, keywords, domain,
       onProgress: send,
     });
+    console.log(`[Stream] searchPlaces terminé — ${places.length} lieux (fromCache:${fromCache})`)
 
+    console.log('[Stream] Lancement processPlaces…')
     const leads = await processPlaces(places, {
       lat, lng, domain, keywords, sources, city,
       onProgress: send,
       weights,
       profileId,
     });
+    console.log(`[Stream] processPlaces terminé — ${leads.length} leads`)
 
     applyPostProcessing(leads, { city, domain })
 
@@ -185,21 +200,23 @@ router.post('/search/stream', async (req, res) => {
       fromCache,
       searchParams: { city, lat, lng, radius, domain, keywords, sources },
     });
+    console.log('[Stream] Événement done envoyé')
   } catch (err) {
-    console.error('Stream search error:', err.message);
+    console.error('[Stream] ERREUR non catchée:', err)
     send({ type: 'error', message: err.message });
   }
 
   res.end();
+  console.log('[Stream] res.end() appelé')
 });
 
 // ─── POST /search (classique, rétrocompatibilité) ─────────────────────────────
-router.post('/search', async (req, res) => {
+router.post('/search', async (req, res, next) => {
   try {
     const { city, lat, lng, radius, domain, keywords = [], sources = [], weights = null, profileId = null } = req.body;
 
-    if (!lat || !lng)    return res.status(400).json({ error: 'lat/lng manquants' });
-    if (radius == null)  return res.status(400).json({ error: 'radius manquant' });
+    if (!lat || !lng)    throw new AppError('lat/lng manquants', 400);
+    if (radius == null)  throw new AppError('radius manquant', 400);
 
     const { places, fromCache } = await searchPlaces({ lat, lng, radius, keywords, domain });
     const leads = await processPlaces(places, { lat, lng, domain, keywords, sources, city, weights, profileId });
@@ -213,27 +230,27 @@ router.post('/search', async (req, res) => {
       searchParams: { city, lat, lng, radius, domain, keywords, sources },
     });
   } catch (err) {
-    console.error('POST /search error:', err.message);
-    res.status(500).json({ error: 'Internal server error', details: err.message });
+    next(err);
   }
 });
 
 // ─── POST /decision-maker — LinkedIn scraping ─────────────────────────────────
-router.post('/decision-maker', async (req, res) => {
+router.post('/decision-maker', async (req, res, next) => {
   try {
     const { businessName, city, website } = req.body
-    if (!businessName) return res.status(400).json({ error: 'businessName requis' })
+    if (!businessName) throw new AppError('businessName requis', 400)
     const decisionMaker = await findDecisionMaker(businessName, city || '', website || null)
     res.json({ decisionMaker })
   } catch (e) {
-    res.status(500).json({ error: e.message })
+    next(e)
   }
 })
 
 // ─── POST /reviews/:placeId — Récupération Apify ─────────────────────────────
-router.post('/reviews/:placeId', async (req, res) => {
+router.post('/reviews/:placeId', async (req, res, next) => {
   try {
     const { placeId } = req.params
+    if (!validatePlaceId(placeId)) throw new AppError('placeId invalide', 400)
     const reviews = await getAllReviews(placeId)
     res.json({
       reviews,
@@ -241,26 +258,27 @@ router.post('/reviews/:placeId', async (req, res) => {
       unanswered: reviews.filter(r => !r.ownerReply).length,
     })
   } catch (e) {
-    res.status(500).json({ error: e.message })
+    next(e)
   }
 })
 
 // ─── POST /pappers — Enrichissement financier Pappers.fr ─────────────────────
-router.post('/pappers', async (req, res) => {
+router.post('/pappers', async (req, res, next) => {
   try {
     const { businessName, city, siret } = req.body
-    if (!businessName) return res.status(400).json({ error: 'businessName requis' })
+    if (!businessName) throw new AppError('businessName requis', 400)
     const data = await searchPappers(businessName, city || '', siret || '')
     res.json({ pappers: data })
   } catch (e) {
-    res.status(500).json({ error: e.message })
+    next(e)
   }
 })
 
 // ─── POST /analyze/:placeId — Analyse IA Claude ───────────────────────────────
-router.post('/analyze/:placeId', async (req, res) => {
+router.post('/analyze/:placeId', async (req, res, next) => {
   try {
     const { placeId } = req.params
+    if (!validatePlaceId(placeId)) throw new AppError('placeId invalide', 400)
     const {
       reviews     = [],
       businessName = 'ce business',
@@ -276,25 +294,24 @@ router.post('/analyze/:placeId', async (req, res) => {
     console.log(`[analyze] auditData reçu: ${auditData ? 'oui' : 'non'}`)
 
     if (reviews.length === 0) {
-      return res.status(400).json({ error: 'Aucun avis fourni. Chargez les avis d\'abord.' })
+      throw new AppError('Aucun avis fourni. Chargez les avis d\'abord.', 400)
     }
 
     const result = await analyzeWithAI(reviews, businessName, profileId, { websiteUrl, city, rating, reviewCount, category: category || 'ce secteur' }, auditData)
     res.json(result)
   } catch (e) {
-    res.status(500).json({ error: e.message })
+    next(e)
   }
 })
 
 // ─── POST /generate-email — Email personnalisé basé sur l'analyse IA ──────────
-router.post('/generate-email', async (req, res) => {
+router.post('/generate-email', async (req, res, next) => {
   const Anthropic = require('@anthropic-ai/sdk')
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return res.status(503).json({ error: 'ANTHROPIC_API_KEY manquante — la génération d\'email IA est indisponible' })
-  }
-
   try {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new AppError('ANTHROPIC_API_KEY manquante — la génération d\'email IA est indisponible', 503)
+    }
     const {
       businessName   = 'ce business',
       profileId      = 'chatbot',
@@ -313,7 +330,7 @@ router.post('/generate-email', async (req, res) => {
     } = req.body
 
     if (!aiAnalysis?.report) {
-      return res.status(400).json({ error: 'aiAnalysis.report est requis pour générer un email personnalisé' })
+      throw new AppError('aiAnalysis.report est requis pour générer un email personnalisé', 400)
     }
 
     // Prioritise the "Problèmes critiques" section of the report
@@ -512,28 +529,26 @@ Retourne UNIQUEMENT un JSON valide (pas de texte avant ou après) :
 
     res.json({ subject: parsed.subject, body: parsed.body })
   } catch (e) {
-    console.error('[generate-email] erreur finale:', e.message)
-    res.status(500).json({ error: e.message })
+    next(e)
   }
 })
 
 // ─── POST /photo-quality — Analyse qualité photos Google via IA ──────────────
-router.post('/photo-quality', async (req, res) => {
+router.post('/photo-quality', async (req, res, next) => {
   try {
     const { photoUrls } = req.body
     if (!photoUrls || photoUrls.length === 0) {
-      return res.status(400).json({ error: 'photoUrls requis' })
+      throw new AppError('photoUrls requis', 400)
     }
     const result = await analyzePhotoQuality(photoUrls)
     res.json(result)
   } catch (err) {
-    console.error('[photo-quality]', err.message)
-    res.status(500).json({ error: err.message })
+    next(err)
   }
 })
 
 // ─── GET /audit — PageSpeed + Facebook + Instagram (chargement à la demande) ──
-router.get('/audit', async (req, res) => {
+router.get('/audit', async (req, res, next) => {
   try {
     const { website, facebook, instagram, placeId, profileId, category, city, businessName, address, phone } = req.query
     console.log('[PageSpeed] website reçu (query):', website ?? 'undefined')
@@ -593,40 +608,40 @@ router.get('/audit', async (req, res) => {
 
     res.json({ pagespeed, facebookActivity, instagramActivity, photoUrls, localRank, napData })
   } catch (e) {
-    res.status(500).json({ error: e.message })
+    next(e)
   }
 })
 
-router.post('/instagram-deep', async (req, res) => {
+router.post('/instagram-deep', async (req, res, next) => {
   try {
     const { instagramUrl } = req.body
-    if (!instagramUrl) return res.status(400).json({ error: 'instagramUrl manquant' })
+    if (!instagramUrl) throw new AppError('instagramUrl manquant', 400)
     const result = await getInstagramPosts(instagramUrl)
     res.json(result)
   } catch (e) {
-    res.status(500).json({ error: e.message })
+    next(e)
   }
 })
 
 // ─── GET /facebook-stats — Facebook activity on-demand (slim, no pagespeed) ────
-router.get('/facebook-stats', async (req, res) => {
+router.get('/facebook-stats', async (req, res, next) => {
   try {
     const { url } = req.query
-    if (!url) return res.status(400).json({ error: 'url requis' })
+    if (!url) throw new AppError('url requis', 400)
     const result = await getFacebookActivity(url)
     res.json(result)
   } catch (e) {
-    res.status(500).json({ error: e.message })
+    next(e)
   }
 })
 
 // ─── GET /tiktok-stats — TikTok stats via HTML scraping (free, no Apify) ────────
-router.get('/tiktok-stats', async (req, res) => {
+router.get('/tiktok-stats', async (req, res, next) => {
   const axios   = require('axios')
   const cheerio = require('cheerio')
   try {
     const { url } = req.query
-    if (!url) return res.status(400).json({ error: 'url requis' })
+    if (!url) throw new AppError('url requis', 400)
     const cleanUrl = url.split('?')[0]
     console.log('[TikTokStats] Scraping:', cleanUrl)
     const { data: html } = await axios.get(cleanUrl, {
@@ -663,29 +678,28 @@ router.get('/tiktok-stats', async (req, res) => {
 })
 
 // ─── GET /semrush — Données SEMrush via Apify (authority, trafic, keywords) ─────
-router.get('/semrush', async (req, res) => {
+router.get('/semrush', async (req, res, next) => {
   const { scrapeSemrushData } = require('../services/semrushService')
   try {
     const { domain } = req.query
-    if (!domain) return res.status(400).json({ error: 'domain requis' })
-    if (!process.env.APIFY_API_TOKEN) return res.status(503).json({ error: 'APIFY_API_TOKEN manquant' })
+    if (!domain) throw new AppError('domain requis', 400)
+    if (!process.env.APIFY_API_TOKEN) throw new AppError('APIFY_API_TOKEN manquant', 503)
     const result = await scrapeSemrushData(domain)
-    if (!result) return res.status(404).json({ error: 'Aucune donnée SEMrush disponible pour ce domaine' })
+    if (!result) throw new AppError('Aucune donnée SEMrush disponible pour ce domaine', 404)
     res.json(result)
   } catch (e) {
-    console.error('[SEMrush route] Erreur:', e)
-    res.status(500).json({ error: e.message })
+    next(e)
   }
 })
 
 // ─── POST /audit-prospect/:placeId — Audit IA prospect (JSON structuré) ───────
-router.post('/audit-prospect/:placeId', async (req, res) => {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return res.status(503).json({ error: 'ANTHROPIC_API_KEY manquante' })
-  }
-
+router.post('/audit-prospect/:placeId', async (req, res, next) => {
   try {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new AppError('ANTHROPIC_API_KEY manquante', 503)
+    }
     const { placeId } = req.params
+    if (!validatePlaceId(placeId)) throw new AppError('placeId invalide', 400)
     const {
       profile          = 'seo',
       leadData         = {},
@@ -701,27 +715,117 @@ router.post('/audit-prospect/:placeId', async (req, res) => {
 
     const SUPPORTED = ['seo', 'consultant-seo']
     if (!SUPPORTED.includes(profile)) {
-      return res.status(400).json({ error: `Profil "${profile}" non pris en charge pour l'audit prospect (supportés : ${SUPPORTED.join(', ')})` })
+      throw new AppError(`Profil "${profile}" non pris en charge pour l'audit prospect (supportés : ${SUPPORTED.join(', ')})`, 400)
     }
 
     const result = await generateAuditSEO({ leadData, pagespeedData, localRank, reviewsData, napData, facebookActivity, instagramActivity })
     res.json(result)
   } catch (e) {
-    console.error('Audit route error:', e)
-    res.status(500).json({ error: e.message })
+    next(e)
   }
 })
 
-router.post('/network-visual', async (req, res) => {
+// ─── POST /unlock/:placeId ────────────────────────────────────────────────────
+router.post('/unlock/:placeId', async (req, res, next) => {
+  try {
+    // TODO: [CREDITS] Déduire 1 crédit via Supabase avant enrichissement
+    // TODO: [CREDITS] Requiert: supabase.from('credits').decrement({ user_id })
+
+    const { placeId } = req.params;
+    if (!validatePlaceId(placeId)) throw new AppError('placeId invalide', 400)
+    const {
+      profileId = null,
+      weights   = null,
+      lat       = null,
+      lng       = null,
+      domain    = null,
+      keywords  = [],
+      city      = '',
+      name      = '',
+      vicinity  = '',
+      rating    = null,
+      user_ratings_total = null,
+      price_level        = null,
+      photoCount         = 0,
+    } = req.body;
+
+    if (!placeId) throw new AppError('placeId requis', 400);
+
+    const cacheKey = `unlock_${placeId}_${profileId || 'default'}`;
+    const cached   = unlockCache.get(cacheKey);
+    if (cached) return res.json(cached);
+
+    const ENRICH_TIMEOUT = 30_000;
+
+    // Détails complets (phone, website, reviews, opening_hours)
+    const details    = await getPlaceDetails(placeId);
+    const websiteUrl = cleanWebsiteUrl(details.website);
+
+    const [socialPresence, pappersData, descResult] = await Promise.all([
+      withTimeout(
+        enrichSocial({ name, website: websiteUrl, address: vicinity, placeId }),
+        ENRICH_TIMEOUT,
+        { linkedin: null, facebook: null, instagram: null, tiktok: null, hasChatbot: false }
+      ),
+      withTimeout(searchPappers(name, city), ENRICH_TIMEOUT, null),
+      withTimeout(scrapeDescription(websiteUrl, details.editorial_summary), ENRICH_TIMEOUT,
+        { hasDescription: false, descriptionText: null, descriptionSource: null }),
+    ]);
+
+    const totalRatings   = details.user_ratings_total ?? user_ratings_total ?? 0;
+    const repliedCount   = (details.reviews ?? []).filter(r => r.author_reply).length;
+    const isActiveOwner  = totalRatings >= 5 && repliedCount >= 3;
+    const ownerReplyRatio = totalRatings > 0 ? repliedCount / Math.min(totalRatings, 5) : 0;
+
+    const fullPlace = {
+      place_id:           placeId,
+      name,
+      vicinity,
+      lat,
+      lng,
+      rating:             details.rating             ?? rating             ?? null,
+      user_ratings_total: details.user_ratings_total ?? user_ratings_total ?? null,
+      price_level:        details.price_level        ?? price_level        ?? null,
+      photoCount:         details.photos?.length     ?? photoCount,
+      phone:              details.formatted_phone_number ?? null,
+      website:            websiteUrl,
+      opening_hours:      details.opening_hours      ?? null,
+      reviews:            details.reviews            ?? [],
+      hasDescription:     descResult.hasDescription,
+      descriptionText:    descResult.descriptionText,
+      descriptionSource:  descResult.descriptionSource,
+      hasHours:           !!(details.opening_hours),
+      isActiveOwner,
+      ownerReplyRatio,
+    };
+
+    const lead = buildLead(fullPlace, {
+      lat: lat ?? fullPlace.lat,
+      lng: lng ?? fullPlace.lng,
+      domain, keywords, socialPresence, pappersData, weights, profileId,
+    });
+    lead.locked = false;
+
+    const TTL_7D = 7 * 24 * 60 * 60 * 1000;
+    unlockCache.set(cacheKey, lead, TTL_7D);
+
+    console.log(`[Unlock] ${name} (${placeId}) déverrouillé`);
+    res.json(lead);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post('/network-visual', async (req, res, next) => {
   try {
     const { networkUrl, network } = req.body
-    if (!networkUrl || !network) return res.status(400).json({ error: 'networkUrl et network requis' })
+    if (!networkUrl || !network) throw new AppError('networkUrl et network requis', 400)
     const VALID = ['instagram', 'facebook', 'tiktok', 'pinterest', 'youtube']
-    if (!VALID.includes(network)) return res.status(400).json({ error: `Réseau invalide : ${network}` })
+    if (!VALID.includes(network)) throw new AppError(`Réseau invalide : ${network}`, 400)
     const result = await analyzeNetworkPhotos(networkUrl, network)
     res.json(result)
   } catch (e) {
-    res.status(500).json({ error: e.message })
+    next(e)
   }
 })
 
