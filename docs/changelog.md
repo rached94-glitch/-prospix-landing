@@ -668,3 +668,12 @@
 | 2026-04-04 17:05:06 | modifié | `frontend/src/components/LeadDetail.jsx` |
 | 2026-04-04 17:17:44 | modifié | `frontend/src/components/LeadDetail.jsx` |
 | 2026-04-04 17:17:54 | modifié | `frontend/src/components/LeadDetail.jsx` |
+| 2026-04-04 17:28:36 | modifié | `backend/services/aiReviewAnalysis.js` |
+| 2026-04-04 17:28:48 | modifié | `backend/routes/leads.js` |
+| 2026-04-04 17:29:00 | modifié | `backend/routes/leads.js` |
+| 2026-04-04 17:32:02 | modifié | `frontend/src/utils/exportAuditPDF.js` |
+| 2026-04-04 17:32:14 | modifié | `frontend/src/components/LeadDetail.jsx` |
+| 2026-04-04 17:32:23 | modifié | `frontend/src/components/LeadDetail.jsx` |
+| 2026-04-04 17:32:47 | modifié | `frontend/src/components/LeadDetail.jsx` |
+| 2026-04-04 17:33:02 | modifié | `frontend/src/components/LeadDetail.jsx` |
+| 2026-04-04 17:33:14 | modifié | `frontend/src/components/LeadDetail.jsx` |

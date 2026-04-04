@@ -1451,4 +1451,207 @@ Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
   return parsed
 }
 
-module.exports = { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateAuditSEO, generateAuditPhotographe }
+// ─── generateAuditChatbot ─────────────────────────────────────────────────────
+async function generateAuditChatbot({ businessName, websiteUrl, chatbotDetection, reviewsData, googleRating, totalReviews, questionsAnalysis, domainComplexity, faqDetection, contactFormDetection, pagespeedData }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
+
+  const anthropic = new Anthropic({ apiKey })
+
+  const name        = businessName ?? 'ce commerce'
+  const website     = websiteUrl   ?? null
+  const rating      = googleRating ?? null
+  const reviewCount = totalReviews ?? null
+
+  // Chatbot detection signals
+  const hasChatbot      = chatbotDetection?.hasChatbot       ?? false
+  const chatbotTool     = chatbotDetection?.chatbotsDetected?.[0] ?? null
+  const bookingPlatform = chatbotDetection?.bookingPlatform  ?? null
+
+  // Reviews
+  const unanswered   = reviewsData?.unanswered ?? 0
+  const keywords     = reviewsData?.keywords   ?? []
+  const keywordsText = keywords.length > 0 ? keywords.slice(0, 5).join(', ') : '—'
+
+  // Questions analysis
+  const questionCount  = questionsAnalysis?.totalQuestions ?? 0
+  const questionRatio  = questionsAnalysis?.questionRatio  ?? 0
+  const questionTopics = questionsAnalysis?.questionTopics ?? {}
+  const topTopics      = Object.entries(questionTopics)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 3)
+    .map(([k, v]) => `${k} (${v}x)`)
+  const topicsText = topTopics.length > 0 ? topTopics.join(', ') : '—'
+
+  // Site signals
+  const hasFAQ         = faqDetection         ?? false
+  const hasContactForm = contactFormDetection  ?? false
+  const complexity     = domainComplexity      ?? 'simple'
+  const cms            = pagespeedData?.cms?.cms ?? pagespeedData?.cms ?? null
+
+  // Type de RAG recommandé
+  let ragType
+  if (bookingPlatform) {
+    ragType = `Assistant réservation intégré (connexion ${bookingPlatform})`
+  } else if (complexity === 'complex') {
+    ragType = 'Assistant IA avancé — RAG multi-source avec base documentaire métier'
+  } else if (complexity === 'medium') {
+    ragType = 'Assistant réservation & FAQ hybride'
+  } else {
+    ragType = 'FAQ bot simple — questions/réponses automatisées'
+  }
+
+  // Forces
+  const forcesHints = []
+  if (rating !== null && rating >= 4)           forcesHints.push(`Bonne note Google (${rating}/5) — engagement client avéré, base solide pour le RAG`)
+  if (reviewCount !== null && reviewCount > 50) forcesHints.push(`Volume d'avis significatif (${reviewCount}) — corpus de données pour l'entraînement`)
+  if (website)                                  forcesHints.push('Site web présent — déploiement widget chatbot immédiatement possible')
+  if (cms === 'wordpress' || cms === 'wix')     forcesHints.push(`CMS ${cms} détecté — intégration chatbot simplifiée via plugin natif`)
+  if (bookingPlatform)                          forcesHints.push(`Plateforme ${bookingPlatform} détectée — connexion API pour automatiser les réservations`)
+  if (!hasChatbot && website)                   forcesHints.push('Aucun chatbot concurrent détecté — marché local disponible')
+  if (forcesHints.length === 0)                 forcesHints.push('Fiche Google Maps existante et indexée')
+
+  // Faiblesses
+  const weaknessHints = []
+  if (!hasChatbot)                              weaknessHints.push('Aucun assistant conversationnel — toutes les demandes sont traitées manuellement')
+  if (unanswered > 0)                           weaknessHints.push(`${unanswered} avis Google sans réponse — indicateur de charge non maîtrisée`)
+  if (questionCount > 0)                        weaknessHints.push(`${questionCount} questions récurrentes dans les avis (${topicsText}) — aucun self-service disponible`)
+  if (!hasFAQ && website)                       weaknessHints.push('Aucune FAQ détectée sur le site — les visiteurs ne trouvent pas leurs réponses en autonomie')
+  if (!website)                                 weaknessHints.push('Absence de site web — déploiement chatbot limité aux réseaux sociaux (Messenger, Instagram DM)')
+  if (complexity === 'complex')                 weaknessHints.push('Domaine à forte complexité métier — sans chatbot qualifiant, les délais de réponse pénalisent la conversion')
+
+  const prompt = `Tu es un développeur IA spécialisé dans les assistants conversationnels pour commerces locaux. Rédige un audit chatbot pour "${name}".
+Ton : expert technique, factuel, bienveillant — jamais alarmiste, jamais vendeur.
+
+DONNÉES VERROUILLÉES — N'UTILISE QUE CES CHIFFRES :
+- Nom               : ${name}
+- Site web          : ${website || 'ABSENT'}
+- CMS               : ${cms ?? 'non identifié'}
+- Note Google       : ${rating ?? '—'}/5 (${reviewCount ?? '—'} avis)
+- Avis sans réponse : ${unanswered}
+- Mots-clés avis    : ${keywordsText}
+- Chatbot existant  : ${hasChatbot ? `Oui (${chatbotTool ?? 'outil non identifié'})` : 'Non'}
+- Plateforme résa   : ${bookingPlatform ?? 'Aucune détectée'}
+- Questions dans avis : ${questionCount} (${questionRatio}% des avis contiennent une question)
+- Sujets récurrents : ${topicsText}
+- FAQ sur site      : ${hasFAQ ? 'Oui' : 'Non'}
+- Formulaire contact : ${hasContactForm ? 'Oui' : 'Non'}
+- Complexité domaine : ${complexity}
+- Type RAG recommandé : ${ragType}
+
+FORCES DÉTECTÉES (base de départ obligatoire) :
+${forcesHints.map(f => `- ${f}`).join('\n')}
+
+FAIBLESSES IDENTIFIÉES (points à traiter) :
+${weaknessHints.map(w => `- ${w}`).join('\n') || '- Aucune faiblesse majeure identifiée'}
+
+INSTRUCTIONS :
+1. Commence toujours par les forces — ne jamais ouvrir sur les problèmes
+2. Les faiblesses doivent être factuelles et directement tirées des données ci-dessus
+3. Les opportunités = bénéfices concrets d'un assistant IA (réduction charge manuelle, disponibilité 24h/24, qualification automatique des leads)
+4. Les recommandations doivent orienter vers le type de RAG recommandé (${ragType}) et son intégration concrète
+5. L'accroche est une phrase courte et percutante pour l'email — jamais "j'ai analysé", jamais de liste
+6. N'invente aucun chiffre absent des DONNÉES VERROUILLÉES ci-dessus
+
+LIMITES STRICTES DE LONGUEUR — OBLIGATOIRE :
+- resume_executif : maximum 4 phrases courtes
+- forces : exactement 3 entrées maximum
+- faiblesses : exactement 3 entrées maximum
+- opportunites : exactement 3 entrées maximum
+- recommandations : exactement 4 entrées maximum
+- Chaque titre : maximum 10 mots
+- Chaque description : maximum 2 phrases
+- accroche : 1 seule phrase
+- Sois CONCIS. Le JSON total doit faire moins de 3000 caractères.
+
+IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide. Pas de texte avant, pas de texte après, pas de markdown, pas de \`\`\`json.
+
+Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
+{
+  "resume_executif": "3-4 phrases courtes max",
+  "forces": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
+  "faiblesses": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
+  "opportunites": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
+  "recommandations": [{"titre": "max 10 mots", "description": "max 2 phrases", "priorite": 1}],
+  "accroche": "1 seule phrase"
+}`
+
+  console.log(`[generateAuditChatbot] ${name} | hasChatbot:${hasChatbot} | unanswered:${unanswered} | questions:${questionCount} | complexity:${complexity} | prompt:${prompt.length} chars`)
+
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 2500,
+      messages:   [{ role: 'user', content: prompt }],
+    })
+  } catch (err) {
+    console.error('[generateAuditChatbot] ✗ Erreur Anthropic:', err.message)
+    throw new Error(`Erreur génération audit chatbot: ${err.message}`)
+  }
+
+  const raw = message.content[0].text
+  console.log(`[generateAuditChatbot] ✓ réponse reçue (${raw.length} chars)`)
+
+  // ── Parsing robuste (même logique que les autres audits) ──────────────────
+  function tryParse(str) {
+    try { return JSON.parse(str) } catch (_) { return null }
+  }
+
+  function cleanAndParse(str) {
+    let result = tryParse(str)
+    if (result) return result
+
+    const lastBrace = str.lastIndexOf('}')
+    if (lastBrace > 0) {
+      result = tryParse(str.substring(0, lastBrace + 1))
+      if (result) return result
+    }
+
+    const cleaned = str
+      .replace(/,\s*([}\]])/g, '$1')
+      .replace(/[\r\n]+/g, ' ')
+      .replace(/([^\\])\\n/g, '$1 ')
+      .replace(/\t/g, ' ')
+    result = tryParse(cleaned)
+    if (result) return result
+
+    const lastBrace2 = cleaned.lastIndexOf('}')
+    if (lastBrace2 > 0) {
+      result = tryParse(cleaned.substring(0, lastBrace2 + 1))
+      if (result) return result
+    }
+
+    return null
+  }
+
+  const start = raw.indexOf('{')
+  const end   = raw.lastIndexOf('}')
+
+  if (start === -1 || end === -1 || end <= start) {
+    console.error('[generateAuditChatbot] Aucun JSON trouvé dans la réponse')
+    return {
+      resume_executif: 'Audit généré avec des données partielles — veuillez relancer.',
+      forces: [], faiblesses: [], opportunites: [],
+      recommandations: [{ titre: 'Déployer un assistant IA sur le site', description: 'Un chatbot répond aux questions fréquentes 24h/24 et réduit la charge manuelle de 40%.', priorite: 1 }],
+      accroche: 'Chaque question sans réponse est une vente perdue — automatisons.',
+    }
+  }
+
+  const jsonStr = raw.substring(start, end + 1)
+  const parsed  = cleanAndParse(jsonStr)
+
+  if (!parsed) {
+    console.error('[generateAuditChatbot] Parse échoué. JSON extrait:', jsonStr)
+    return {
+      resume_executif: 'Audit généré avec des données partielles — veuillez relancer.',
+      forces: [], faiblesses: [], opportunites: [],
+      recommandations: [{ titre: 'Déployer un assistant IA sur le site', description: 'Un chatbot répond aux questions fréquentes 24h/24 et réduit la charge manuelle de 40%.', priorite: 1 }],
+      accroche: 'Chaque question sans réponse est une vente perdue — automatisons.',
+    }
+  }
+
+  return parsed
+}
+
+module.exports = { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot }

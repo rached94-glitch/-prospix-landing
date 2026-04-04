@@ -916,3 +916,311 @@ export async function exportAuditPhotographePDF({ lead, activeProfile, photoAudi
     document.body.removeChild(container)
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// exportAuditChatbotPDF — Rapport "Audit Chatbot & IA Conversationnelle"
+// Page 1 : Couverture dark vert + nom business + score
+// Page 2 : Résumé exécutif + forces/faiblesses + KPIs chatbot
+// Page 3 : Recommandations priorisées + CTA dev chatbot
+// ─────────────────────────────────────────────────────────────────────────────
+export async function exportAuditChatbotPDF({ lead, activeProfile, chatbotAudit, reviewsData, auditData }) {
+  const { jsPDF }      = await import('jspdf')
+  const html2canvasLib = (await import('html2canvas')).default
+
+  const businessName  = esc(lead.name ?? 'Ce commerce')
+  const score         = lead.score?.total ?? 0
+  const rating        = lead.google?.rating       ?? '—'
+  const totalReviews  = lead.google?.totalReviews ?? 0
+  const date          = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  const city          = (lead.address ?? '').split(',').pop()?.trim() || ''
+  const profileName   = activeProfile?.name ?? 'Développeur Chatbot IA'
+
+  const sColor = score >= 75 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444'
+
+  // Données audit
+  const resumeExecutif  = esc(chatbotAudit?.resume_executif ?? '')
+  const forces          = chatbotAudit?.forces          ?? []
+  const faiblesses      = chatbotAudit?.faiblesses      ?? []
+  const opportunites    = chatbotAudit?.opportunites    ?? []
+  const recommandations = chatbotAudit?.recommandations ?? []
+  const accroche        = esc(chatbotAudit?.accroche ?? '')
+
+  // KPIs chatbot
+  const unanswered     = reviewsData?.unanswered ?? lead.reviewAnalysis?.negative?.unanswered ?? 0
+  const questionCount  = reviewsData?.questionAnalysis?.totalQuestions ?? 0
+  const questionRatio  = reviewsData?.questionAnalysis?.questionRatio  ?? 0
+  const hasChatbot     = !!(lead.chatbotDetection?.hasChatbot)
+  const hasFAQ         = auditData?.pagespeed?.hasFAQ         ?? null
+  const hasForm        = auditData?.pagespeed?.hasContactForm  ?? null
+  const complexity     = lead.domainComplexity ?? null
+  const bookingPlatform = lead.chatbotDetection?.bookingPlatform ?? null
+  const cms            = auditData?.pagespeed?.cms?.cms ?? auditData?.pagespeed?.cms ?? null
+
+  // Type RAG
+  let ragType = 'FAQ bot simple'
+  if (bookingPlatform)               ragType = `Assistant réservation (${bookingPlatform})`
+  else if (complexity === 'complex') ragType = 'Assistant IA avancé (RAG multi-source)'
+  else if (complexity === 'medium')  ragType = 'Assistant réservation & FAQ'
+
+  // Helpers
+  const forceFaiblCard = (items, color) => items.slice(0, 3).map(item => `
+    <div class="ff-item" style="border-left-color:${color}">
+      <div class="ff-title">${esc(item.titre ?? '')}</div>
+      <div class="ff-desc">${esc(item.description ?? '')}</div>
+    </div>`).join('')
+
+  const kpiRow = (label, value, note) => `
+    <div class="stat-row">
+      <span class="stat-label">${label}</span>
+      <span class="stat-value">${value}${note ? `<span style="font-size:9px;color:#94a3b8;font-weight:400"> ${note}</span>` : ''}</span>
+    </div>`
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Audit Chatbot — ${businessName}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:#fff; color:#0f172a; }
+  .cover {
+    width:100%; height:1123px;
+    background:linear-gradient(145deg,#0d1410 0%,#0a1a10 55%,#0d1117 100%);
+    display:flex; flex-direction:column; justify-content:space-between;
+    padding:56px 60px 0 60px; position:relative; overflow:hidden;
+    page-break-after:always;
+  }
+  .cover::before {
+    content:''; position:absolute; inset:0;
+    background:radial-gradient(ellipse 50% 50% at 80% 20%,#edfa3614 0%,transparent 65%),
+               radial-gradient(ellipse 35% 35% at 15% 75%,#1d6e5510 0%,transparent 55%);
+    pointer-events:none;
+  }
+  .cover-logo { font-size:8px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:rgba(255,255,255,0.3); }
+  .cover-eyebrow { font-size:10px; font-weight:700; letter-spacing:5px; text-transform:uppercase; color:#edfa36; margin-bottom:12px; }
+  .cover-title { font-size:42px; font-weight:900; color:#fff; line-height:1.0; letter-spacing:-1.5px; }
+  .cover-subtitle { font-size:16px; font-weight:600; color:#1d6e55; letter-spacing:0.5px; margin-top:8px; }
+  .cover-business { font-size:26px; font-weight:700; color:rgba(255,255,255,0.85); line-height:1.2; max-width:460px; letter-spacing:-0.3px; margin-top:28px; }
+  .cover-main { flex:1; display:flex; flex-direction:column; justify-content:center; gap:0; }
+  .cover-score-ring { width:110px; height:110px; border-radius:50%; border:4px solid ${sColor}; display:flex; align-items:center; justify-content:center; flex-direction:column; box-shadow:0 0 36px ${sColor}44,0 0 70px ${sColor}18; background:${sColor}0d; margin-top:36px; }
+  .cover-score-number { font-size:32px; font-weight:900; color:${sColor}; line-height:1; }
+  .cover-score-label  { font-size:8px; color:rgba(255,255,255,0.4); letter-spacing:2px; margin-top:2px; }
+  .cover-score-row { display:flex; align-items:center; gap:20px; margin-top:36px; }
+  .cover-score-meta { display:flex; flex-direction:column; gap:8px; }
+  .cover-score-meta-item { display:flex; flex-direction:column; gap:1px; }
+  .cover-score-meta-label { font-size:8px; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:2px; }
+  .cover-score-meta-value { font-size:13px; color:rgba(255,255,255,0.82); font-weight:700; }
+  .cover-footer { padding-bottom:32px; display:flex; flex-direction:column; gap:5px; }
+  .cover-freelancer { font-size:12px; color:rgba(255,255,255,0.45); }
+  .cover-freelancer strong { color:rgba(255,255,255,0.75); }
+  .cover-date { font-size:10px; color:rgba(255,255,255,0.25); }
+  .cover-watermark { font-size:7px; color:rgba(255,255,255,0.1); letter-spacing:1px; }
+  .report { padding:48px 52px; }
+  .page-break { page-break-before:always; padding:48px 52px; }
+  .section-title { font-size:8.5px; font-weight:800; letter-spacing:3.5px; text-transform:uppercase; color:#1d6e55; border-bottom:2px solid #1d6e55; padding-bottom:7px; margin-bottom:18px; margin-top:32px; }
+  .section-title:first-child { margin-top:0; }
+  .exec-box { background:linear-gradient(135deg,#f0fdf4,#f8fafc); border:1px solid #bbf7d0; border-left:3px solid #1d6e55; border-radius:8px; padding:16px 18px; font-size:11.5px; line-height:1.8; color:#1e293b; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .card { background:#f8fafc; border-radius:10px; padding:16px 18px; border:1px solid #e2e8f0; }
+  .card-title { font-size:8.5px; color:#94a3b8; text-transform:uppercase; letter-spacing:2px; font-weight:700; margin-bottom:12px; }
+  .ff-item { padding:10px 14px; border-left:3px solid; border-radius:0 8px 8px 0; background:#f8fafc; margin-bottom:8px; }
+  .ff-title { font-size:11.5px; font-weight:700; color:#0f172a; margin-bottom:3px; }
+  .ff-desc  { font-size:10px; color:#64748b; line-height:1.5; }
+  .stat-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f1f5f9; }
+  .stat-row:last-child { border-bottom:none; }
+  .stat-label { font-size:11px; color:#64748b; }
+  .stat-value { font-size:12px; font-weight:700; color:#0f172a; }
+  .badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:10px; font-weight:700; margin:3px; }
+  .badge-green { background:#dcfce7; color:#16a34a; }
+  .badge-red   { background:#fee2e2; color:#dc2626; }
+  .opp-item { display:flex; gap:12px; align-items:flex-start; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:8px; background:#fafbfc; }
+  .opp-icon { font-size:16px; flex-shrink:0; }
+  .opp-content { flex:1; }
+  .opp-label  { font-size:11.5px; font-weight:700; color:#0f172a; margin-bottom:2px; }
+  .opp-detail { font-size:10px; color:#64748b; line-height:1.5; }
+  .rec-item { padding:13px 16px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:8px; background:#f8fafc; display:flex; gap:14px; align-items:flex-start; }
+  .rec-num { width:24px; height:24px; border-radius:50%; background:#1d6e55; color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+  .rec-content { flex:1; }
+  .rec-title  { font-size:12px; font-weight:700; color:#0f172a; margin-bottom:3px; }
+  .rec-detail { font-size:10.5px; color:#64748b; line-height:1.5; }
+  .cta-block { background:linear-gradient(135deg,#0d1410 0%,#0a1a10 100%); border:1px solid #1d6e5540; border-radius:12px; padding:22px 28px; margin-top:16px; }
+  .cta-badge    { display:inline-block; background:#edfa36; color:#0d1410; font-size:8px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; padding:3px 10px; border-radius:4px; margin-bottom:12px; }
+  .cta-headline { font-size:18px; font-weight:800; color:#fff; margin-bottom:6px; }
+  .cta-sub      { font-size:11px; color:rgba(255,255,255,0.6); margin-bottom:20px; line-height:1.5; }
+  .cta-grid     { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .cta-item     { display:flex; align-items:center; gap:9px; }
+  .cta-item-icon { font-size:14px; flex-shrink:0; }
+  .cta-item-text { font-size:11px; color:rgba(255,255,255,0.85); font-weight:600; }
+  .rag-badge { display:inline-block; background:#fef9c3; color:#854d0e; border:1px solid #fde68a; border-radius:6px; padding:4px 12px; font-size:10.5px; font-weight:700; margin-top:6px; }
+  .page-footer { font-size:7.5px; color:rgba(0,0,0,0.18); text-align:center; margin-top:32px; letter-spacing:0.5px; }
+  .card,.ff-item,.opp-item,.rec-item,.cta-block,.exec-box,.grid-2 { page-break-inside:avoid; break-inside:avoid; }
+  @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } @page { size:A4 portrait; margin:0; } }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1 -->
+<div class="cover">
+  <div class="cover-logo">LeadGenPro</div>
+  <div class="cover-main">
+    <div>
+      <div class="cover-eyebrow">Audit prospect</div>
+      <div class="cover-title">Chatbot<br>&amp; IA</div>
+      <div class="cover-subtitle">Audit Chatbot &amp; IA Conversationnelle</div>
+      <div class="cover-business">${businessName}</div>
+    </div>
+    <div class="cover-score-row">
+      <div class="cover-score-ring">
+        <div class="cover-score-number">${score}</div>
+        <div class="cover-score-label">/ 100</div>
+      </div>
+      <div class="cover-score-meta">
+        <div class="cover-score-meta-item">
+          <div class="cover-score-meta-label">Note Google</div>
+          <div class="cover-score-meta-value">⭐ ${rating}/5</div>
+        </div>
+        <div class="cover-score-meta-item">
+          <div class="cover-score-meta-label">Avis clients</div>
+          <div class="cover-score-meta-value">${totalReviews} avis</div>
+        </div>
+        <div class="cover-score-meta-item">
+          <div class="cover-score-meta-label">Chatbot actuel</div>
+          <div class="cover-score-meta-value">${hasChatbot ? '✓ Présent' : '✗ Absent'}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="cover-footer">
+    <div class="cover-freelancer">Rapport préparé par <strong>${esc(profileName)}</strong>${city ? ` — ${esc(city)}` : ''}</div>
+    <div class="cover-date">${date}</div>
+    <div class="cover-watermark">Rapport généré via LeadGenPro</div>
+  </div>
+</div>
+
+<!-- PAGE 2 -->
+<div class="report">
+  <div class="section-title">1 · Résumé exécutif</div>
+  <div class="exec-box">${resumeExecutif}</div>
+
+  <div class="section-title" style="margin-top:28px">2 · Forces &amp; faiblesses</div>
+  <div class="grid-2">
+    <div>
+      <div class="card-title" style="color:#16a34a;font-size:8px;letter-spacing:2px;font-weight:700;text-transform:uppercase;margin-bottom:10px">✓ Forces</div>
+      ${forceFaiblCard(forces, '#1d6e55')}
+    </div>
+    <div>
+      <div class="card-title" style="color:#dc2626;font-size:8px;letter-spacing:2px;font-weight:700;text-transform:uppercase;margin-bottom:10px">✗ Faiblesses</div>
+      ${forceFaiblCard(faiblesses, '#ef4444')}
+    </div>
+  </div>
+
+  <div class="section-title" style="margin-top:28px">3 · KPIs chatbot détectés</div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Signaux d'automatisation</div>
+      ${kpiRow('Chatbot existant', hasChatbot ? '✓ Oui' : '✗ Non')}
+      ${kpiRow('Avis sans réponse', unanswered > 0 ? String(unanswered) : '0', unanswered > 0 ? '— charge non gérée' : '')}
+      ${kpiRow('Questions dans avis', questionCount > 0 ? `${questionCount} (${questionRatio}%)` : '—')}
+    </div>
+    <div class="card">
+      <div class="card-title">Présence sur le site</div>
+      ${kpiRow('FAQ détectée', hasFAQ === null ? '—' : hasFAQ ? '✓ Oui' : '✗ Non')}
+      ${kpiRow('Formulaire contact', hasForm === null ? '—' : hasForm ? '✓ Oui' : '✗ Non')}
+      ${kpiRow('CMS détecté', cms ? esc(cms) : '—')}
+    </div>
+  </div>
+  <div style="margin-top:14px">
+    <div class="card-title" style="font-size:8px;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:8px">Type de RAG recommandé</div>
+    <div class="rag-badge">🤖 ${esc(ragType)}</div>
+    ${complexity ? `<div style="font-size:10px;color:#64748b;margin-top:8px">Complexité domaine : <strong>${esc(complexity)}</strong> — ${complexity === 'complex' ? 'configuration avancée requise' : complexity === 'medium' ? 'configuration intermédiaire' : 'déploiement rapide possible'}</div>` : ''}
+  </div>
+</div>
+
+<!-- PAGE 3 -->
+<div class="page-break">
+  <div class="section-title" style="margin-top:0">4 · Opportunités identifiées</div>
+  ${opportunites.slice(0, 3).map(o => `
+  <div class="opp-item">
+    <div class="opp-icon">🤖</div>
+    <div class="opp-content">
+      <div class="opp-label">${esc(o.titre ?? '')}</div>
+      <div class="opp-detail">${esc(o.description ?? '')}</div>
+    </div>
+  </div>`).join('')}
+
+  <div class="section-title" style="margin-top:28px">5 · Recommandations prioritaires</div>
+  ${recommandations.slice(0, 4).map((r, i) => `
+  <div class="rec-item">
+    <div class="rec-num">${i + 1}</div>
+    <div class="rec-content">
+      <div class="rec-title">${esc(r.titre ?? '')}</div>
+      <div class="rec-detail">${esc(r.description ?? '')}</div>
+    </div>
+  </div>`).join('')}
+
+  <div class="cta-block">
+    <div class="cta-badge">Passons à l'action</div>
+    <div class="cta-headline">Automatisons vos échanges clients</div>
+    <div class="cta-sub">${accroche || 'Chaque question sans réponse est une vente perdue — automatisons.'}</div>
+    <div class="cta-grid">
+      <div class="cta-item"><div class="cta-item-icon">🤖</div><div class="cta-item-text">[Votre prénom]</div></div>
+      <div class="cta-item"><div class="cta-item-icon">📍</div><div class="cta-item-text">${city ? esc(city) : '[Votre ville]'}</div></div>
+      <div class="cta-item"><div class="cta-item-icon">📞</div><div class="cta-item-text">[Votre numéro]</div></div>
+      <div class="cta-item"><div class="cta-item-icon">🌐</div><div class="cta-item-text">[Votre site]</div></div>
+    </div>
+  </div>
+
+  <div class="page-footer">Rapport généré via LeadGenPro — ${date}</div>
+</div>
+
+</body>
+</html>`
+
+  const container = document.createElement('div')
+  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;z-index:-1'
+  container.innerHTML = html
+  document.body.appendChild(container)
+
+  try {
+    const canvas = await html2canvasLib(container, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      width: 794,
+      windowWidth: 794,
+    })
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const pageWidthMm  = 210
+    const pageHeightMm = 297
+    const imgWidthMm   = pageWidthMm
+    const pxPerMm      = canvas.width / imgWidthMm
+    const pageHeightPx = Math.round(pageHeightMm * pxPerMm)
+    const imgHeightMm  = (canvas.height * imgWidthMm) / canvas.width
+    const totalPages   = Math.ceil(imgHeightMm / pageHeightMm)
+
+    let firstPage = true
+    for (let i = 0; i < totalPages; i++) {
+      const srcY = i * pageHeightPx
+      const srcH = Math.min(pageHeightPx, canvas.height - srcY)
+      if (srcH < pageHeightPx * 0.10) continue
+      if (!firstPage) pdf.addPage()
+      firstPage = false
+      const slice   = document.createElement('canvas')
+      slice.width   = canvas.width
+      slice.height  = pageHeightPx
+      const ctx     = slice.getContext('2d')
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, slice.width, slice.height)
+      ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH)
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, imgWidthMm, pageHeightMm)
+    }
+
+    const fileName = `AuditChatbot-${(lead.name ?? 'prospect').replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().slice(0, 10)}.pdf`
+    pdf.save(fileName)
+
+  } finally {
+    document.body.removeChild(container)
+  }
+}

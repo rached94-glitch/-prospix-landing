@@ -213,9 +213,9 @@ frontend/src/
 5. `SearchPanel.jsx` (962 lignes) inutilisé dans `App.jsx` → à supprimer ou brancher
 
 ## Dernières modifications
-- `2026-04-04 17:17:54` — modifié `frontend/src/components/LeadDetail.jsx`
-- `2026-04-04 17:17:44` — modifié `frontend/src/components/LeadDetail.jsx`
-- `2026-04-04 17:05:06` — modifié `frontend/src/components/LeadDetail.jsx`
-- `2026-04-04 16:52:35` — modifié `frontend/src/components/LeadDetail.jsx`
-- `2026-04-04 16:52:29` — modifié `frontend/src/components/LeadDetail.jsx`
+- `2026-04-04 17:33:14` — modifié `frontend/src/components/LeadDetail.jsx`
+- `2026-04-04 17:33:02` — modifié `frontend/src/components/LeadDetail.jsx`
+- `2026-04-04 17:32:47` — modifié `frontend/src/components/LeadDetail.jsx`
+- `2026-04-04 17:32:23` — modifié `frontend/src/components/LeadDetail.jsx`
+- `2026-04-04 17:32:14` — modifié `frontend/src/components/LeadDetail.jsx`
 

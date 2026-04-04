@@ -10,7 +10,7 @@ const { enrichSocial }   = require('../services/socialEnrichment');
 const { calculateScore, getDomainComplexity } = require('../services/scoring');
 const { analyzeReviews, countQuestionsInReviews } = require('../services/reviewAnalysis');
 const { getAllReviews }      = require('../services/apifyReviews');
-const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateAuditSEO, generateAuditPhotographe } = require('../services/aiReviewAnalysis');
+const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot } = require('../services/aiReviewAnalysis');
 const { findDecisionMaker } = require('../services/linkedinScraper');
 const { searchPappers }     = require('../services/pappersService');
 const { getPageSpeed, checkNAP, getSiteSignals } = require('../services/pagespeedService');
@@ -779,6 +779,50 @@ router.post('/audit-photo/:placeId', async (req, res, next) => {
       reviewsData,
       googleRating,
       totalReviews,
+    })
+    res.json(result)
+  } catch (e) {
+    next(e)
+  }
+})
+
+// ─── POST /audit-chatbot/:placeId — Audit IA prospect profil Chatbot ─────────
+router.post('/audit-chatbot/:placeId', async (req, res, next) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new AppError('ANTHROPIC_API_KEY manquante', 503)
+    }
+    const { placeId } = req.params
+    if (!validatePlaceId(placeId)) throw new AppError('placeId invalide', 400)
+
+    const {
+      businessName         = 'ce commerce',
+      websiteUrl           = null,
+      chatbotDetection     = null,
+      reviewsData          = null,
+      googleRating         = null,
+      totalReviews         = null,
+      questionsAnalysis    = null,
+      domainComplexity     = null,
+      faqDetection         = null,
+      contactFormDetection = null,
+      pagespeedData        = null,
+    } = req.body
+
+    console.log(`[audit-chatbot] placeId:${placeId} | business:"${businessName}" | hasChatbot:${chatbotDetection?.hasChatbot ?? false} | questions:${questionsAnalysis?.totalQuestions ?? 0}`)
+
+    const result = await generateAuditChatbot({
+      businessName,
+      websiteUrl,
+      chatbotDetection,
+      reviewsData,
+      googleRating,
+      totalReviews,
+      questionsAnalysis,
+      domainComplexity,
+      faqDetection,
+      contactFormDetection,
+      pagespeedData,
     })
     res.json(result)
   } catch (e) {
