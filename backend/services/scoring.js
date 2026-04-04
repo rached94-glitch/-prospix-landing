@@ -139,19 +139,56 @@ function chatbotOpportunityScore(placeData, pagespeedData, pappersData, reviewsD
   // Enriched signals — populated by buildLead() before calling calculateScore
   const sig = reviewsData?.chatbotSignals
   if (sig) {
-    if (sig.hasRecurringQuestions)            score += 20
-    if ((sig.unansweredCount ?? 0) >= 3)      score += 15
-    if (sig.isMultilingual)                   score += 10
-    if (sig.hasOverwhelmKeywords)             score += 20
-    if ((sig.questionCount ?? 0) >= 3)        score += 15  // reviews with questions
-    if ((sig.questionRatio ?? 0) >= 20)       score += 10  // high question ratio
-    if (sig.hasFAQ)                           score -= 20  // already has FAQ → less need
-    if (sig.hasContactForm)                   score -= 10  // already has contact channel
-    if (sig.domainComplexity === 'complex')   score += 15
-    else if (sig.domainComplexity === 'medium') score += 5
+    if (sig.hasRecurringQuestions)                  score += 20
+    if ((sig.unansweredCount ?? 0) >= 3)            score += 15
+    if (sig.isMultilingual)                         score += 10
+    if (sig.hasOverwhelmKeywords)                   score += 20
+    if ((sig.questionCount ?? 0) >= 3)              score += 15  // reviews with questions
+    if ((sig.questionRatio ?? 0) >= 20)             score += 10  // high question ratio
+    if (sig.hasFAQ)                                 score -= 20  // already has FAQ → less need
+    if (sig.hasContactForm)                         score -= 10  // already has contact channel
+    if (sig.domainComplexity === 'complex')         score += 15
+    else if (sig.domainComplexity === 'medium')     score += 5
+    if (sig.phoneCallMentions?.hasDifficulty)       score += 15  // hard to reach by phone
+    if (sig.offHoursActivity?.hasOffHoursNeed)      score += 10  // off-hours demand
+    if (sig.languageDetection?.isMultilingual)      score += 5   // multilingual audience
   }
 
   return Math.max(10, Math.min(100, score))
+}
+
+// ── Type de chatbot recommandé ────────────────────────────────────────────────
+function getRecommendedRAGType(domainComplexity, hasBooking, hasFAQ, questionTopics, totalReviews) {
+  if (hasBooking) return { type: 'booking_assistant', label: 'Assistant réservation et questions fréquentes', color: '#a78bfa' }
+  if (domainComplexity === 'complex') return { type: 'rag_advanced', label: 'Assistant IA complet avec base de connaissances', color: '#22c55e' }
+  if (domainComplexity === 'medium') return { type: 'rag_medium', label: 'Assistant conversationnel personnalisé', color: '#f59e0b' }
+  if (hasFAQ && (totalReviews ?? 0) > 50) return { type: 'faq_dynamic', label: 'Assistant FAQ automatique enrichi', color: '#EDFA36' }
+  return { type: 'faq_simple', label: 'Assistant FAQ automatique', color: '#64748b' }
+}
+
+// ── Conversations mensuelles estimées ─────────────────────────────────────────
+function estimateMonthlyConversations(totalReviews, questionsCount, hasContactForm) {
+  // ~5% des visiteurs mensuels (estimés à 10× les avis) posent une question
+  const base = Math.round((totalReviews ?? 0) * 10 * 0.05)
+  let estimate = base
+  if ((questionsCount ?? 0) > 5)  estimate += 20
+  if (hasContactForm)              estimate += 15
+  return Math.max(10, estimate)
+}
+
+// ── Stack technologique recommandée ──────────────────────────────────────────
+function getRecommendedStack(cms, domainComplexity, isMultilingual) {
+  const cmsName = (cms ?? '').toLowerCase()
+  if (domainComplexity === 'complex') {
+    return isMultilingual
+      ? 'Solution chat autonome + serveur IA dédié (multi-langue)'
+      : 'Widget JS standalone + backend cloud IA'
+  }
+  if (cmsName === 'wordpress') return 'Widget chat WordPress + IA conversationnelle'
+  if (cmsName === 'wix' || cmsName === 'shopify') return 'Chat intégré boutique en ligne + backend IA'
+  if (domainComplexity === 'medium') return 'Widget chat intégré au site + scénarios automatisés'
+  if (isMultilingual)                return 'Widget chat multilingue + réponses automatisées'
+  return 'Widget chat intégré au site + scénarios automatisés'
 }
 
 // ── Opportunité SEO → score /100 ─────────────────────────────────────────────
@@ -246,4 +283,4 @@ function calculateScore(placeData, socialPresence, reviewAnalysis, weights = DEF
   }
 }
 
-module.exports = { calculateScore, DEFAULT_WEIGHTS, getDomainComplexity }
+module.exports = { calculateScore, DEFAULT_WEIGHTS, getDomainComplexity, getRecommendedRAGType, estimateMonthlyConversations, getRecommendedStack }

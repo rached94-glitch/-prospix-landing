@@ -261,8 +261,8 @@ async function getSiteSignals(websiteUrl, category) {
     }
   }
 
-  const { siteSignals } = await detectCMSAndSiteSignals(websiteUrl)
-  return { ...siteSignals, ...base, isBookingUrl: false }
+  const { cms, siteSignals } = await detectCMSAndSiteSignals(websiteUrl)
+  return { ...siteSignals, ...base, isBookingUrl: false, cms }
 }
 
 // ── Indexed pages count via Custom Search API + scraping fallback ─────────────

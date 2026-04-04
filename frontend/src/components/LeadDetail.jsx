@@ -1230,17 +1230,24 @@ Bien cordialement,
         const questionTopics = qaData?.questionTopics ?? {}
 
         // ── Phase 2 — disponible uniquement après "Analyser le site" (audit) ────
-        // hasFAQ et hasForm viennent EXCLUSIVEMENT de siteSignals (GET /audit)
+        // hasFAQ, hasForm et cms viennent EXCLUSIVEMENT de siteSignals (GET /audit)
         // Pour ne pas afficher de données avant que l'utilisateur ait lancé l'analyse
         const hasFAQ  = auditDone ? (siteSignals.hasFAQ          ?? null) : null
         const hasForm = auditDone ? (siteSignals.hasContactForm   ?? null) : null
         const bookingPlatform = siteSignals?.bookingPlatform ?? null
         const sensitive       = siteSignals?.sensitiveData   ?? null
+        const cmsData = auditDone ? (siteSignals.cms ?? null) : null
+        const cmsName = cmsData?.cms && cmsData.cms !== 'inconnu' ? cmsData.cms : null
 
         // Topics pour "Thèmes récurrents" — données disponibles dès le unlock
         // mais affichées uniquement après l'audit (cohérence UX phase 2)
         const topTopicEntries = Object.entries(questionTopics).sort((a, b) => b[1] - a[1]).slice(0, 3)
         const topTopicsLabel  = topTopicEntries.length > 0 ? topTopicEntries.map(([t]) => t).join(', ') : null
+
+        // ── Nouveaux signaux (phase 1 — refreshed par /reviews) ─────────────
+        const phoneData    = reviewsData?.phoneCallAnalysis ?? lead.phoneCallAnalysis ?? null
+        const offHoursData = reviewsData?.offHoursAnalysis  ?? lead.offHoursAnalysis  ?? null
+        const langData     = reviewsData?.languageDetection  ?? lead.languageDetection ?? null
 
         const kpis = [
           // Phase 1 — post-unlock
@@ -1248,7 +1255,14 @@ Bien cordialement,
           { label: 'CHATBOT EXISTANT',    type: 'chatbot_detect',    detected: chatDetected, tool: chatTool },
           { label: 'QUESTIONS DANS AVIS', type: 'question_count',    count: questionCount, ratio: questionRatio, topics: questionTopics },
           { label: 'COMPLEXITÉ DOMAINE',  type: 'domain_complexity', complexity: domainComplexity },
-          // Phase 2 — post-audit (null → "—" jusqu'au clic "Analyser le site")
+          { label: 'APPELS TÉLÉPHONE',    type: 'phone_mentions',    mentions: phoneData?.totalMentions ?? null, difficulty: phoneData?.difficultyCount ?? 0, hasDifficulty: phoneData?.hasDifficulty ?? null },
+          { label: 'HORS HORAIRES',       type: 'off_hours',         hasNeed: offHoursData?.hasOffHoursNeed ?? null, count: offHoursData?.count ?? null, ratio: offHoursData?.ratio ?? 0 },
+          { label: 'LANGUES DÉTECTÉES',   type: 'languages',         isMultilingual: langData?.isMultilingual ?? null, languages: langData?.languages ?? ['fr'], foreignRatio: langData?.foreignRatio ?? 0 },
+          { label: 'TYPE DE CHATBOT',     type: 'rag_type',          ragType: lead.recommendedRAGType ?? null },
+          { label: 'CONV./MOIS EST.',     type: 'monthly_conv',      count: lead.estimatedConversations ?? null },
+          { label: 'STACK RECOMMANDÉ',    type: 'stack_rec',         stack: lead.recommendedStack ?? null },
+          // Phase 2 — post-audit (null/auditDone=false → "—" jusqu'au clic "Analyser le site")
+          { label: 'CMS DÉTECTÉ',         type: 'cms_detect',        cms: cmsName, noSite: !lead.website, auditDone },
           { label: 'FAQ DÉTECTÉE',       type: 'faq_detect',  detected: hasFAQ },
           { label: 'FORMULAIRE CONTACT', type: 'form_detect', detected: hasForm },
           { label: 'THÈMES RÉCURRENTS',  type: 'topic_list',
@@ -2487,6 +2501,21 @@ Bien cordialement,
                         </div>
                       )
                     }
+                    if (kpi.type === 'cms_detect') {
+                      const CMS_LABELS = { wordpress: 'WordPress', wix: 'Wix', shopify: 'Shopify', squarespace: 'Squarespace', webflow: 'Webflow', jimdo: 'Jimdo' }
+                      const noSite = kpi.noSite
+                      const notYet = !kpi.auditDone && !noSite
+                      const color  = noSite ? 'rgba(255,255,255,0.38)' : !kpi.auditDone ? '#475569' : kpi.cms ? '#10bb54' : '#f97316'
+                      const label  = noSite ? 'Pas de site' : notYet ? '—' : kpi.cms ? (CMS_LABELS[kpi.cms] ?? kpi.cms.charAt(0).toUpperCase() + kpi.cms.slice(1)) : 'Non identifié'
+                      const note   = noSite ? null : notYet ? null : kpi.cms ? 'Intégration facilitée' : 'Analyse manuelle requise'
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>{label}</div>
+                          {note && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>{note}</div>}
+                        </div>
+                      )
+                    }
                     if (kpi.type === 'faq_detect') {
                       // Non = green (opportunité — pas de FAQ existante), Oui = orange (déjà géré)
                       const noData = kpi.detected === null || kpi.detected === undefined
@@ -2541,6 +2570,83 @@ Bien cordialement,
                           {!noData && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>
                             {kpi.detected ? 'Canal existant — chatbot en complément' : 'Aucun formulaire — besoin non couvert'}
                           </div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'phone_mentions') {
+                      const noData = kpi.mentions === null
+                      const color  = noData ? '#475569' : kpi.hasDifficulty ? '#ef4444' : kpi.mentions > 0 ? '#f59e0b' : '#475569'
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>
+                            {noData ? '—' : kpi.mentions > 0 ? `${kpi.mentions} mention${kpi.mentions > 1 ? 's' : ''}` : 'Aucune'}
+                          </div>
+                          {!noData && kpi.hasDifficulty && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>Difficulté à joindre — chatbot prioritaire</div>}
+                          {!noData && !kpi.hasDifficulty && kpi.mentions > 0 && <div style={{ fontSize: 8.5, color, marginTop: 4 }}>Mentions neutres</div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'off_hours') {
+                      const noData = kpi.hasNeed === null
+                      const color  = noData ? '#475569' : kpi.hasNeed ? '#a78bfa' : '#475569'
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>
+                            {noData ? '—' : kpi.hasNeed ? `${kpi.count} avis (${kpi.ratio}%)` : 'Aucune'}
+                          </div>
+                          {!noData && kpi.hasNeed && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>Demande hors horaires — disponibilité 24/7</div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'languages') {
+                      const noData = kpi.isMultilingual === null
+                      const color  = noData ? '#475569' : kpi.isMultilingual ? '#22c55e' : '#64748b'
+                      const langList = (kpi.languages || ['fr']).filter(l => l !== 'fr').join(', ').toUpperCase()
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>
+                            {noData ? '—' : kpi.isMultilingual ? `FR + ${langList}` : 'FR uniquement'}
+                          </div>
+                          {!noData && kpi.isMultilingual && <div style={{ fontSize: 8.5, color, marginTop: 4, lineHeight: 1.35 }}>{kpi.foreignRatio}% d'avis étrangers — chatbot multi-langue</div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'rag_type') {
+                      const noData = !kpi.ragType
+                      const color  = noData ? '#475569' : (kpi.ragType?.color ?? '#64748b')
+                      return (
+                        <div key={i} style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color, lineHeight: 1.2 }}>
+                            {noData ? '—' : kpi.ragType.label}
+                          </div>
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'monthly_conv') {
+                      const noData = kpi.count === null
+                      const color  = noData ? '#475569' : kpi.count >= 100 ? '#22c55e' : kpi.count >= 30 ? '#f59e0b' : '#64748b'
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1.1 }}>
+                            {noData ? '—' : `~${kpi.count}`}
+                          </div>
+                          {!noData && <div style={{ fontSize: 8.5, color: '#64748b', marginTop: 4 }}>Estimation basée sur le volume d'avis</div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'stack_rec') {
+                      const noData = !kpi.stack
+                      return (
+                        <div key={i} style={{ gridColumn: '1 / -1', background: 'rgba(29,110,85,0.06)', border: '1px solid rgba(29,110,85,0.2)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#1d6e55', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#4ade80', lineHeight: 1.2 }}>
+                            {noData ? '—' : kpi.stack}
+                          </div>
                         </div>
                       )
                     }

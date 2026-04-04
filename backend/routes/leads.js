@@ -7,8 +7,8 @@ const { createCache } = require('../cache/searchCache');
 const { validateSearchParams, validatePlaceId } = require('../utils/validateInputs');
 const { analyzePhotoQuality } = require('../services/photoQualityService');
 const { enrichSocial }   = require('../services/socialEnrichment');
-const { calculateScore, getDomainComplexity } = require('../services/scoring');
-const { analyzeReviews, countQuestionsInReviews } = require('../services/reviewAnalysis');
+const { calculateScore, getDomainComplexity, getRecommendedRAGType, estimateMonthlyConversations, getRecommendedStack } = require('../services/scoring');
+const { analyzeReviews, countQuestionsInReviews, countPhoneCallMentions, detectOffHoursActivity, detectLanguages } = require('../services/reviewAnalysis');
 const { getAllReviews }      = require('../services/apifyReviews');
 const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot } = require('../services/aiReviewAnalysis');
 const { findDecisionMaker } = require('../services/linkedinScraper');
@@ -47,19 +47,45 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 function buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersData, weights, profileId }) {
   const openNow        = place.opening_hours?.open_now ?? null;
   const placeData      = { ...place, openNow, keyword: keywords?.[0], domain };
-  const reviewAnalysis = analyzeReviews(place.reviews || []);
+  const reviews        = place.reviews || []
+  const reviewAnalysis = analyzeReviews(reviews)
+
+  // Chatbot enrichment signals — computed from native reviews (5 max in phase 1)
+  const phoneCallAnalysis  = countPhoneCallMentions(reviews)
+  const offHoursAnalysis   = detectOffHoursActivity(reviews)
+  const languageDetection  = detectLanguages(reviews)
+  const domainComplexityVal = getDomainComplexity(placeData)
+  const hasFAQPhase1       = socialPresence.faqDetection?.hasFAQ ?? false
+  const hasFormPhase1      = socialPresence.contactFormDetection?.hasContactForm ?? false
+  const hasBooking         = !!(socialPresence.bookingPlatform)
 
   // Augment chatbotSignals for scoring (merged from review + social detection)
   reviewAnalysis.chatbotSignals = {
     ...(reviewAnalysis.chatbotSignals || {}),
-    questionCount:    reviewAnalysis.questionAnalysis?.totalQuestions ?? 0,
-    questionRatio:    reviewAnalysis.questionAnalysis?.questionRatio  ?? 0,
-    hasFAQ:           socialPresence.faqDetection?.hasFAQ             ?? false,
-    hasContactForm:   socialPresence.contactFormDetection?.hasContactForm ?? false,
-    domainComplexity: getDomainComplexity(placeData),
+    questionCount:     reviewAnalysis.questionAnalysis?.totalQuestions ?? 0,
+    questionRatio:     reviewAnalysis.questionAnalysis?.questionRatio  ?? 0,
+    hasFAQ:            hasFAQPhase1,
+    hasContactForm:    hasFormPhase1,
+    domainComplexity:  domainComplexityVal,
+    phoneCallMentions: phoneCallAnalysis,
+    offHoursActivity:  offHoursAnalysis,
+    languageDetection: languageDetection,
+    isMultilingual:    languageDetection.isMultilingual,
   }
 
-  const domainComplexity = reviewAnalysis.chatbotSignals.domainComplexity
+  const domainComplexity = domainComplexityVal
+
+  const recommendedRAGType = getRecommendedRAGType(
+    domainComplexity, hasBooking, hasFAQPhase1,
+    reviewAnalysis.questionAnalysis?.questionTopics ?? {},
+    place.user_ratings_total ?? 0
+  )
+  const estimatedConversations = estimateMonthlyConversations(
+    place.user_ratings_total ?? 0,
+    reviewAnalysis.questionAnalysis?.totalQuestions ?? 0,
+    hasFormPhase1
+  )
+  const recommendedStack = getRecommendedStack(null, domainComplexity, languageDetection.isMultilingual)
 
   // Google audit — derived from Places Details, no extra API call
   const googleAudit = {
@@ -111,6 +137,12 @@ function buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersD
     domainComplexity,
     faqDetection:        socialPresence.faqDetection         ?? null,
     contactFormDetection: socialPresence.contactFormDetection ?? null,
+    phoneCallAnalysis,
+    offHoursAnalysis,
+    languageDetection,
+    recommendedRAGType,
+    estimatedConversations,
+    recommendedStack,
   };
 }
 
@@ -267,10 +299,13 @@ router.post('/reviews/:placeId', async (req, res, next) => {
   try {
     const { placeId } = req.params
     if (!validatePlaceId(placeId)) throw new AppError('placeId invalide', 400)
-    const reviews          = await getAllReviews(placeId)
-    const unanswered       = reviews.filter(r => !r.ownerReply).length
-    const questionAnalysis = countQuestionsInReviews(reviews)
-    res.json({ reviews, total: reviews.length, unanswered, questionAnalysis })
+    const reviews           = await getAllReviews(placeId)
+    const unanswered        = reviews.filter(r => !r.ownerReply).length
+    const questionAnalysis  = countQuestionsInReviews(reviews)
+    const phoneCallAnalysis = countPhoneCallMentions(reviews)
+    const offHoursAnalysis  = detectOffHoursActivity(reviews)
+    const languageDetection = detectLanguages(reviews)
+    res.json({ reviews, total: reviews.length, unanswered, questionAnalysis, phoneCallAnalysis, offHoursAnalysis, languageDetection })
   } catch (e) {
     next(e)
   }

@@ -148,4 +148,66 @@ function analyzeReviews(reviews) {
   return result
 }
 
-module.exports = { analyzeReviews, countQuestionsInReviews }
+// ── Mentions appels téléphoniques ────────────────────────────────────────────
+const PHONE_KEYWORDS   = ['appel', 'téléphone', 'appeler', 'appelé', 'joindre', 'rappel', 'rappeler', 'call', 'phone', 'décroché']
+const PHONE_DIFFICULTY = ['injoignable', 'impossible à joindre', 'pas de réponse', 'jamais décroché', 'ne répond pas', 'pas rappelé', 'unreachable', 'no answer', 'no response']
+
+function countPhoneCallMentions(reviews) {
+  if (!reviews || reviews.length === 0) return { totalMentions: 0, difficultyCount: 0, hasDifficulty: false }
+  let totalMentions = 0
+  let difficultyCount = 0
+  reviews.forEach(review => {
+    const text = (review.text || '').toLowerCase()
+    if (!PHONE_KEYWORDS.some(kw => text.includes(kw))) return
+    totalMentions++
+    if (PHONE_DIFFICULTY.some(kw => text.includes(kw))) difficultyCount++
+  })
+  return { totalMentions, difficultyCount, hasDifficulty: difficultyCount > 0 }
+}
+
+// ── Activité hors horaires ────────────────────────────────────────────────────
+const OFF_HOURS_KEYWORDS = ['soir', 'nuit', 'week-end', 'weekend', 'dimanche', 'samedi', 'fermé', 'après fermeture', 'after hours', 'hors horaires', 'pas disponible']
+
+function detectOffHoursActivity(reviews) {
+  if (!reviews || reviews.length === 0) return { hasOffHoursNeed: false, count: 0, ratio: 0 }
+  let count = 0
+  reviews.forEach(review => {
+    const text = (review.text || '').toLowerCase()
+    if (OFF_HOURS_KEYWORDS.some(kw => text.includes(kw))) count++
+  })
+  const ratio = Math.round((count / reviews.length) * 100)
+  return { hasOffHoursNeed: count > 0, count, ratio }
+}
+
+// ── Détection de langues ──────────────────────────────────────────────────────
+const LANG_SIGNATURES = {
+  en: [' the ', ' and ', ' was ', ' very ', 'great', ' this ', 'really', 'amazing', 'staff'],
+  es: [' muy ', 'bueno', 'excelente', 'gracias', 'servicio', ' todo '],
+  de: [' sehr ', ' gut ', ' nicht ', ' und ', ' das ', ' ich '],
+  it: [' molto ', ' bene', 'ottimo', 'servizio', 'grazie'],
+  pt: [' muito ', 'ótimo', 'serviço', 'obrigado', 'recomendo'],
+  nl: [' heel ', ' goed ', ' een ', ' van ', ' het '],
+}
+
+function detectLanguages(reviews) {
+  if (!reviews || reviews.length === 0) return { isMultilingual: false, languages: ['fr'], foreignRatio: 0 }
+  const detected = new Set(['fr'])
+  let foreignCount = 0
+  reviews.forEach(review => {
+    const text = ' ' + (review.text || '').toLowerCase() + ' '
+    if (!text.trim()) return
+    let isForeign = false
+    for (const [lang, sigs] of Object.entries(LANG_SIGNATURES)) {
+      if (sigs.some(s => text.includes(s))) {
+        detected.add(lang)
+        if (lang !== 'fr') isForeign = true
+      }
+    }
+    if (isForeign) foreignCount++
+  })
+  const languages = [...detected]
+  const foreignRatio = Math.round((foreignCount / reviews.length) * 100)
+  return { isMultilingual: languages.length > 1, languages, foreignRatio }
+}
+
+module.exports = { analyzeReviews, countQuestionsInReviews, countPhoneCallMentions, detectOffHoursActivity, detectLanguages }
