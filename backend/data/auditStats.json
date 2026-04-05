@@ -6,7 +6,16 @@
     "webfx_2026": "Google Business Profile Benchmarks 2026, WebFX",
     "sqmagazine_2025": "Google My Business Statistics 2025, SQ Magazine",
     "google_deloitte_2020": "Milliseconds Make Millions, Google/Deloitte 2020",
-    "google_thinkwithgoogle": "Think with Google — Local Search Behavior"
+    "google_thinkwithgoogle": "Think with Google — Local Search Behavior",
+    "litmus_2025": "State of Email Marketing 2025, Litmus",
+    "emarsys_2025": "Customer Loyalty Index 2025, Emarsys",
+    "omnisend_2025": "Email Marketing Statistics 2025-2026, Omnisend",
+    "getresponse_2025": "Email Marketing Benchmarks 2025, GetResponse",
+    "adobe_2025": "Email Marketing Report, Adobe for Business 2025",
+    "hubspot_2025": "State of Marketing 2025, HubSpot",
+    "bain_company": "Customer Loyalty in E-Commerce, Bain & Company",
+    "antavo_2025": "Global Customer Loyalty Report 2025, Antavo",
+    "bond_loyalty": "Loyalty Report, Bond Brand Loyalty"
   },
   "photos": {
     "direction_boost": {
@@ -185,6 +194,86 @@
       "context": ["chatbot", "seo", "google-ads", "community-manager", "web-dev"],
       "forbidden_context": [],
       "note": "Justifie la disponibilité 24/7 d'un assistant conversationnel pour capter ces prospects"
+    }
+  },
+  "email_marketing": {
+    "roi": {
+      "stat": "L'email marketing génère en moyenne 36€ de retour pour chaque euro investi, soit un ROI de 3600% (Litmus 2025)",
+      "context": ["email-marketing"],
+      "forbidden_context": ["chatbot", "designer", "web-dev"],
+      "note": "Source vérifiée : Litmus, confirmée par Shopify, DemandSage, Omnisend, MailerLite"
+    },
+    "sme_adoption": {
+      "stat": "81% des PME utilisent l'email comme canal principal d'acquisition client, et 80% pour la fidélisation (Emarsys 2025)",
+      "context": ["email-marketing"],
+      "forbidden_context": ["chatbot", "designer", "web-dev"],
+      "note": "Source vérifiée : Emarsys, reprise par LoyaltyLion et Oberlo"
+    },
+    "automated_revenue": {
+      "stat": "Les emails automatisés représentent seulement 2% des envois mais génèrent 30% du chiffre d'affaires email, soit 16x plus de revenus par envoi (Omnisend 2025)",
+      "context": ["email-marketing"],
+      "forbidden_context": ["chatbot", "designer", "web-dev"],
+      "note": "Source vérifiée : Omnisend Email Marketing Statistics 2026"
+    },
+    "welcome_open_rate": {
+      "stat": "Les emails de bienvenue atteignent un taux d'ouverture moyen de 60 à 83%, contre 30% pour les campagnes classiques (GetResponse / Omnisend 2025)",
+      "context": ["email-marketing"],
+      "forbidden_context": ["chatbot", "designer", "web-dev"],
+      "note": "Source vérifiée : GetResponse (83.6%), Omnisend (38% automated vs 30.7% campaigns)"
+    },
+    "personalized_subject": {
+      "stat": "Les emails avec un objet personnalisé ont un taux d'ouverture 50% plus élevé (Adobe for Business 2025)",
+      "context": ["email-marketing"],
+      "forbidden_context": ["chatbot", "designer", "web-dev"],
+      "note": "Source vérifiée : Adobe, reprise par Oberlo et DemandSage"
+    },
+    "purchase_influence": {
+      "stat": "59% des consommateurs déclarent que les emails marketing influencent leurs décisions d'achat (HubSpot 2025)",
+      "context": ["email-marketing"],
+      "forbidden_context": ["chatbot", "designer", "web-dev"],
+      "note": "Source vérifiée : HubSpot, confirmée par Oberlo et Shopify"
+    }
+  },
+  "retention": {
+    "retention_profit_boost": {
+      "stat": "Une augmentation de 5% du taux de rétention client peut augmenter les profits de 25 à 95% (Bain & Company)",
+      "context": ["email-marketing", "community-manager", "chatbot"],
+      "forbidden_context": ["designer", "web-dev", "copywriter"],
+      "note": "Source vérifiée : Bain & Company, citée par des dizaines de sources"
+    },
+    "loyal_spend": {
+      "stat": "Les clients fidèles dépensent en moyenne 67% de plus que les nouveaux clients (Bain & Company)",
+      "context": ["email-marketing", "community-manager", "chatbot"],
+      "forbidden_context": ["designer", "web-dev", "copywriter"],
+      "note": "Source vérifiée : Bain & Company, confirmée par IndustrySelect"
+    },
+    "acquisition_cost": {
+      "stat": "Acquérir un nouveau client coûte 5 à 7 fois plus cher que fidéliser un client existant (Bain & Company / Forrester)",
+      "context": ["email-marketing", "community-manager", "chatbot", "google-ads"],
+      "forbidden_context": ["designer"],
+      "note": "Source vérifiée : multiple sources concordantes. Utile pour Google Ads car justifie de travailler la rétention avant d'investir en acquisition pub."
+    }
+  },
+  "segmentation": {
+    "segmented_revenue": {
+      "stat": "Les campagnes email segmentées génèrent 57% plus de revenus que les campagnes non segmentées (SQ Magazine 2025, Content Marketing Statistics)",
+      "context": ["email-marketing", "community-manager"],
+      "forbidden_context": ["chatbot", "designer", "web-dev"],
+      "note": "Source vérifiée : SQ Magazine Content Marketing Statistics 2025"
+    }
+  },
+  "loyalty": {
+    "loyalty_preference": {
+      "stat": "75% des consommateurs préfèrent les entreprises qui proposent des récompenses ou un programme de fidélité (Bond Loyalty Report)",
+      "context": ["email-marketing", "community-manager"],
+      "forbidden_context": ["chatbot", "designer", "web-dev"],
+      "note": "Source vérifiée : Bond Brand Loyalty Report, reprise par ThinkImpact"
+    },
+    "loyalty_spend": {
+      "stat": "Les membres de programmes de fidélité dépensent 2 à 3 fois plus que les non-membres selon 60% des entreprises (Antavo Global Customer Loyalty Report 2025)",
+      "context": ["email-marketing", "community-manager"],
+      "forbidden_context": ["chatbot", "designer", "web-dev"],
+      "note": "Source vérifiée : Antavo, confirmée par Keywords Everywhere"
     }
   },
   "posts": {
