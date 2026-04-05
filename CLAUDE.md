@@ -141,7 +141,7 @@ backend/
   routes/visualAnalysis.js     POST /api/leads/visual-analysis
   services/googlePlaces.js     Nearby Search, Place Details basic+full, cleanWebsiteUrl, scrapeDescription
   services/scoring.js          calculateScore() — 4 critères, 12 profils, bonus
-  services/aiReviewAnalysis.js analyzeWithAI(), generateEmail*(), generateAuditSEO()
+  services/aiReviewAnalysis.js analyzeWithAI(), generateEmail*(), generateAudit*() — 7 audits IA structurés
   services/socialEnrichment.js Détection LinkedIn/FB/IG/TikTok/chatbot depuis HTML
   services/pappersService.js   Données financières Pappers.fr (7 stratégies en cascade)
   services/pagespeedService.js PageSpeed + CrUX + Custom Search + NAP
@@ -162,7 +162,7 @@ frontend/src/
   components/LeadsList.jsx     Liste triable + LeadCard
   utils/sounds.js              Web Audio API — playClick / playSuccess / playError
   utils/exportPDF.js           jsPDF + html2canvas — 3 pages A4
-  utils/exportAuditPDF.js      PDF rapport SEO dédié
+  utils/exportAuditPDF.js      8 fonctions PDF audit (SEO, Chatbot, Photo, Social, Designer, WebDev, Email, Ads)
   vite.config.js               Proxy /api → localhost:3001 (proxyTimeout:0 — intentionnel SSE)
 ```
 
@@ -204,6 +204,43 @@ frontend/src/
 
 ---
 
+## SYSTÈME D'AUDIT IA — generateAudit*()
+
+7 fonctions dans `aiReviewAnalysis.js`, toutes avec le même schéma de sortie :
+
+```js
+{
+  accroche, score, niveau, forces[], faiblesses[], opportunites[], recommandations[],
+  comparaison_concurrents: { position, avantages[], retards[] },  // nouveau
+  timeline: { semaine_1, semaine_2_3, mois_2_3 },                 // nouveau
+  titre_audit: "Audit Chatbot & IA Conversationnelle"              // nouveau
+}
+```
+
+`enrichAuditResult(parsed)` — helper qui normalise ces 3 nouveaux champs (fallback null/défaut).
+
+`AUDIT_RULES_BLOCK` — bloc de règles injecté dans tous les prompts generateAudit*.
+`EMAIL_STATS_NOTE` — bloc de statistiques injecté dans tous les prompts generateEmail*.
+
+### Dépendance pagespeedData — forme duale (IMPORTANT)
+
+`getSiteSignals()` (profil chatbot) retourne un objet **flat** :
+```js
+{ chatbotDetected, chatbotTool, bookingPlatform, hasFAQ, hasContactForm, ... }
+```
+
+`getPageSpeed()` (profil SEO/autres) retourne avec **siteSignals imbriqué** :
+```js
+{ performance, seo, ..., siteSignals: { chatbotDetected, bookingPlatform, ... } }
+```
+
+→ Toujours gérer les deux formes quand on lit des champs siteSignals :
+```js
+const bp = pagespeedData?.bookingPlatform ?? pagespeedData?.siteSignals?.bookingPlatform ?? null
+```
+
+---
+
 ## PROBLÈMES CONNUS — ne pas corriger sans demande
 
 1. `server.js:13` CORS hardcodé `localhost` → bloque tout déploiement
@@ -213,9 +250,9 @@ frontend/src/
 5. `SearchPanel.jsx` (962 lignes) inutilisé dans `App.jsx` → à supprimer ou brancher
 
 ## Dernières modifications
-- `2026-04-05 18:27:21` — modifié `backend/services/aiReviewAnalysis.js`
-- `2026-04-05 18:26:35` — modifié `frontend/src/utils/exportAuditPDF.js`
-- `2026-04-05 18:26:28` — modifié `frontend/src/utils/exportAuditPDF.js`
-- `2026-04-05 18:26:23` — modifié `backend/services/aiReviewAnalysis.js`
-- `2026-04-05 17:53:20` — modifié `frontend/src/utils/exportAuditPDF.js`
+- `2026-04-05 20:05:24` — modifié `backend/services/scoring.js`
+- `2026-04-05 20:05:19` — modifié `backend/services/scoring.js`
+- `2026-04-05 20:03:13` — créé/réécrit `backend/.env.example`
+- `2026-04-05 20:03:02` — modifié `backend/server.js`
+- `2026-04-05 19:51:51` — modifié `backend/data/auditStats.json`
 
