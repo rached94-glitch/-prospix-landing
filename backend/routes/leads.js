@@ -7,16 +7,17 @@ const { createCache } = require('../cache/searchCache');
 const { validateSearchParams, validatePlaceId } = require('../utils/validateInputs');
 const { analyzePhotoQuality } = require('../services/photoQualityService');
 const { enrichSocial }   = require('../services/socialEnrichment');
-const { calculateScore, getDomainComplexity, getRecommendedRAGType, estimateMonthlyConversations, getRecommendedStack } = require('../services/scoring');
-const { analyzeReviews, countQuestionsInReviews, countPhoneCallMentions, detectOffHoursActivity, detectLanguages } = require('../services/reviewAnalysis');
+const { calculateScore, getDomainComplexity, getRecommendedRAGType, estimateMonthlyConversations, getRecommendedStack, getEmailMarketingRecommendation, getGoogleAdsConcurrence, googleAdsReadiness, getGoogleAdsRecommendation } = require('../services/scoring');
+const { analyzeReviews, countQuestionsInReviews, countPhoneCallMentions, detectOffHoursActivity, detectLanguages, detectLoyaltyMentions, detectEmailThemes } = require('../services/reviewAnalysis');
 const { getAllReviews }      = require('../services/apifyReviews');
-const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateEmailSocialMedia, generateEmailDesigner, generateEmailWebDev, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot, generateAuditSocialMedia, generateAuditDesigner, generateAuditWebDev } = require('../services/aiReviewAnalysis');
+const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateEmailSocialMedia, generateEmailDesigner, generateEmailWebDev, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot, generateAuditSocialMedia, generateAuditDesigner, generateAuditWebDev, generateAuditEmailMarketing, generateEmailEmailMarketing, generateAuditGoogleAds, generateEmailGoogleAds } = require('../services/aiReviewAnalysis');
 const { findDecisionMaker } = require('../services/linkedinScraper');
 const { searchPappers }     = require('../services/pappersService');
 const { getPageSpeed, checkNAP, getSiteSignals } = require('../services/pagespeedService');
 const { getFacebookActivity, getInstagramActivity, getInstagramPosts } = require('../services/socialMediaService')
 const { analyzeNetworkPhotos } = require('../services/visualSocialService');
 const benchmarkService = require('../services/benchmarkService');
+const { LEAD_COSTS, DEFAULT_MAX_LEADS } = require('../config/plans');
 
 const SOCIAL_SOURCES = ['linkedin', 'facebook', 'instagram', 'tiktok'];
 
@@ -49,6 +50,8 @@ function buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersD
   const placeData      = { ...place, openNow, keyword: keywords?.[0], domain };
   const reviews        = place.reviews || []
   const reviewAnalysis = analyzeReviews(reviews)
+  const loyaltyAnalysis = detectLoyaltyMentions(reviews)
+  const emailThemes     = detectEmailThemes(reviews)
 
   // Chatbot enrichment signals — computed from native reviews (5 max in phase 1)
   const phoneCallAnalysis  = countPhoneCallMentions(reviews)
@@ -117,11 +120,13 @@ function buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersD
       reviews:      place.reviews || [],
     },
     social: {
-      linkedin:       socialPresence.linkedin,
-      facebook:       socialPresence.facebook,
-      instagram:      socialPresence.instagram,
-      tiktok:         socialPresence.tiktok,
-      googleBusiness: `https://maps.google.com/?cid=${place.place_id}`,
+      linkedin:             socialPresence.linkedin,
+      facebook:             socialPresence.facebook,
+      instagram:            socialPresence.instagram,
+      tiktok:               socialPresence.tiktok,
+      googleBusiness:       `https://maps.google.com/?cid=${place.place_id}`,
+      newsletterDetection:  socialPresence.newsletterDetection  ?? null,
+      contactFormDetection: socialPresence.contactFormDetection ?? null,
     },
     googleAudit,
     chatbotDetection: socialPresence.chatbotDetection ?? null,
@@ -143,6 +148,8 @@ function buildLead(place, { lat, lng, domain, keywords, socialPresence, pappersD
     recommendedRAGType,
     estimatedConversations,
     recommendedStack,
+    loyaltyAnalysis,
+    emailThemes,
   };
 }
 
@@ -214,20 +221,26 @@ router.post('/search/stream', async (req, res) => {
   }
 
   try {
-    const { city, lat, lng, radius, domain, keywords = [], sources = [], weights = null, profileId = null } = req.body;
+    const { city, lat, lng, radius, domain, keywords = [], sources = [], weights = null, profileId = null, maxLeads: rawMaxLeads } = req.body;
     logger.info('Stream', `Params — city:${city} lat:${lat} lng:${lng} radius:${radius} domain:${domain}`)
 
-    const { valid, errors } = validateSearchParams({ lat, lng, radius, keywords, domain, profileId })
+    const maxLeads = [30, 60, 120].includes(Number(rawMaxLeads)) ? Number(rawMaxLeads) : DEFAULT_MAX_LEADS
+
+    const { valid, errors } = validateSearchParams({ lat, lng, radius, keywords, domain, profileId, maxLeads })
     if (!valid) {
       send({ type: 'error', message: errors.join(', ') })
       return res.end()
     }
 
+    // TODO: Supabase — vérifier que l'utilisateur a assez de crédits avant de lancer
+    logger.info('Stream', `Recherche limitée à ${maxLeads} leads (coût : ${LEAD_COSTS[maxLeads] ?? 2} crédits)`)
+
     logger.info('Stream', 'Lancement searchPlaces…')
-    const { places, fromCache } = await searchPlaces({
+    let { places, fromCache } = await searchPlaces({
       lat, lng, radius, keywords, domain,
       onProgress: send,
     });
+    places = places.slice(0, maxLeads)
     logger.info('Stream', `searchPlaces terminé — ${places.length} lieux (fromCache:${fromCache})`)
 
     logger.info('Stream', 'Lancement processPlaces…')
@@ -305,7 +318,9 @@ router.post('/reviews/:placeId', async (req, res, next) => {
     const phoneCallAnalysis = countPhoneCallMentions(reviews)
     const offHoursAnalysis  = detectOffHoursActivity(reviews)
     const languageDetection = detectLanguages(reviews)
-    res.json({ reviews, total: reviews.length, unanswered, questionAnalysis, phoneCallAnalysis, offHoursAnalysis, languageDetection })
+    const loyaltyAnalysis   = detectLoyaltyMentions(reviews)
+    const emailThemes       = detectEmailThemes(reviews)
+    res.json({ reviews, total: reviews.length, unanswered, questionAnalysis, phoneCallAnalysis, offHoursAnalysis, languageDetection, loyaltyAnalysis, emailThemes })
   } catch (e) {
     next(e)
   }
@@ -594,6 +609,52 @@ Retourne UNIQUEMENT un JSON valide (pas de texte avant ou après) :
       return res.json(emailResult)
     }
 
+    // ── Email spécialisé EMAIL-MARKETING → fonction dédiée ───────────────────────
+    if (profileId === 'email-marketing') {
+      console.log(`[generate-email] Délégation EMAIL-MARKETING → generateEmailEmailMarketing`)
+      const leadCity3    = leadData?.address?.split(',').pop()?.trim() || req.body.city || ''
+      const socialData   = req.body.socialPresence ?? leadData.social ?? null
+      const emailResult  = await generateEmailEmailMarketing({
+        leadData:       { name: businessName, city: leadCity3, category: req.body.category ?? null, rating: leadData.rating ?? avgRating, reviewCount: leadData.reviewCount ?? totalReviews, website: leadData.website ?? null },
+        reviewsData:    { unanswered, avgRating, topQuotes: reviewsData?.topQuotes ?? [] },
+        hasNewsletter:  socialData?.newsletterDetection?.hasNewsletter ?? false,
+        hasContactForm: socialData?.contactFormDetection?.hasContactForm ?? false,
+        socialPresence: socialData,
+        ownerReplyRatio: leadData.ownerReplyRatio ?? null,
+      })
+      return res.json(emailResult)
+    }
+
+    // ── Email spécialisé PUB-GOOGLE → fonction dédiée ───────────────────────────
+    if (profileId === 'pub-google') {
+      console.log(`[generate-email] Délégation PUB-GOOGLE → generateEmailGoogleAds`)
+      const leadCity4 = leadData?.address?.split(',').pop()?.trim() || req.body.city || ''
+      const psData4   = req.body.pagespeedData ?? null
+      const negRatio4 = leadData?.reviewAnalysis?.negativeScore != null
+        ? leadData.reviewAnalysis.negativeScore / 100
+        : (req.body.reviewsData?.negative?.count ?? 0) / Math.max(totalReviews, 1)
+      const domain4   = req.body.domain ?? req.body.leadData?.domain ?? null
+      const readiness = googleAdsReadiness(
+        leadData?.rating ?? avgRating,
+        leadData?.reviewCount ?? totalReviews,
+        leadData?.website ?? null,
+        psData4,
+        leadData?.googleAudit?.photoCount ?? req.body.photoCount ?? 0,
+        leadData?.googleAudit?.hasDescription ?? false,
+        leadData?.googleAudit?.hasHours ?? false,
+        negRatio4,
+      )
+      const concurrence = getGoogleAdsConcurrence(domain4)
+      const emailResult = await generateEmailGoogleAds({
+        leadData:     { name: businessName, city: leadCity4, category: req.body.category ?? null, rating: leadData?.rating ?? avgRating, reviewCount: leadData?.reviewCount ?? totalReviews, website: leadData?.website ?? null },
+        pagespeedData: psData4,
+        reviewsData:   { unanswered, avgRating, reviews: reviewsData?.reviews ?? [] },
+        googleAdsReadiness: readiness,
+        concurrence,
+      })
+      return res.json(emailResult)
+    }
+
     const MODEL = 'claude-sonnet-4-6'
     console.log(`[generate-email] → appel Anthropic (model: ${MODEL}, prompt: ${prompt.length} chars)`)
 
@@ -646,16 +707,19 @@ router.get('/audit', async (req, res, next) => {
     const { website, facebook, instagram, placeId, profileId, category, city, businessName, address, phone } = req.query
     console.log('[PageSpeed] website reçu (query):', website ?? 'undefined')
 
-    if (!website || website.trim() === '') {
+    const SOCIAL_PROFILES   = ['photographe', 'social-media']
+    const SEO_PROFILES      = ['seo', 'consultant-seo']
+    const hasSocialUrls     = !!(facebook || instagram)
+
+    // Retour anticipé uniquement si pas de site ET pas de réseaux utilisables
+    // Pour social-media/photographe : on continue si facebook/instagram sont présents
+    if ((!website || website.trim() === '') && !(SOCIAL_PROFILES.includes(profileId) && hasSocialUrls)) {
       return res.json({
         pagespeed: null,
         localRank: null,
         message: 'Pas de site web détecté pour ce lead',
       })
     }
-
-    const SOCIAL_PROFILES   = ['photographe', 'social-media']
-    const SEO_PROFILES      = ['seo', 'consultant-seo']
     const CHATBOT_PROFILES  = ['chatbot', 'dev-chatbot']
     const WEBSITE_BLACKLIST = [
       'facebook.com', 'fb.com',
@@ -673,7 +737,7 @@ router.get('/audit', async (req, res, next) => {
     const websiteForAudit = isBlacklisted(website) ? null : (website || null)
     if (isBlacklisted(website)) console.log(`[Audit] website blacklisté, PageSpeed ignoré: ${website}`)
 
-    const needsSocial   = SOCIAL_PROFILES.includes(profileId)
+    const needsSocial   = SOCIAL_PROFILES.includes(profileId) || profileId === 'email-marketing'
     const needsRank     = SEO_PROFILES.includes(profileId) && placeId && category && city
     const needsNAP      = SEO_PROFILES.includes(profileId) && businessName && city
     const isChatbot     = CHATBOT_PROFILES.includes(profileId)
@@ -909,7 +973,7 @@ router.post('/audit-chatbot/:placeId', async (req, res, next) => {
   }
 })
 
-// ─── POST /audit-social/:placeId — Audit Social Media IA ─────────────────────
+// ─── POST /audit-social/:placeId — Audit Community Manager IA ────────────────
 router.post('/audit-social/:placeId', async (req, res, next) => {
   try {
     if (!process.env.ANTHROPIC_API_KEY) throw new AppError('ANTHROPIC_API_KEY manquante', 503)
@@ -925,9 +989,11 @@ router.post('/audit-social/:placeId', async (req, res, next) => {
       googleRating        = null,
       totalReviews        = 0,
       domain              = null,
+      city                = null,
+      instagramDeep       = null,
     } = req.body
-    console.log(`[audit-social] placeId:${placeId} | business:"${businessName}" | present:${Object.keys(socialPresence ?? {}).filter(k => (socialPresence ?? {})[k]).join(',')}`)
-    const result = await generateAuditSocialMedia({ businessName, websiteUrl, socialPresence, socialMediaActivity, photoCount, reviewsData, googleRating, totalReviews, domain })
+    console.log(`[audit-social] placeId:${placeId} | business:"${businessName}" | present:${Object.keys(socialPresence ?? {}).filter(k => (socialPresence ?? {})[k]).join(',')} | city:${city ?? '—'}`)
+    const result = await generateAuditSocialMedia({ businessName, websiteUrl, socialPresence, socialMediaActivity, photoCount, reviewsData, googleRating, totalReviews, domain, city, instagramDeep })
     res.json(result)
   } catch (e) {
     next(e)
@@ -982,6 +1048,80 @@ router.post('/audit-webdev/:placeId', async (req, res, next) => {
     } = req.body
     console.log(`[audit-webdev] placeId:${placeId} | business:"${businessName}" | site:${websiteUrl ?? 'absent'}`)
     const result = await generateAuditWebDev({ businessName, websiteUrl, pagespeedData, cms, hasHttps, hasSitemap, hasRobots, domainAge, indexedPages, socialPresence, googleRating, totalReviews, domain })
+    res.json(result)
+  } catch (e) {
+    next(e)
+  }
+})
+
+// ─── POST /audit-email/:placeId — Audit Email Marketing IA ───────────────────
+router.post('/audit-email/:placeId', async (req, res, next) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) throw new AppError('ANTHROPIC_API_KEY manquante', 503)
+    const { placeId } = req.params
+    if (!validatePlaceId(placeId)) throw new AppError('placeId invalide', 400)
+    const {
+      businessName         = '',
+      websiteUrl           = null,
+      totalReviews         = 0,
+      googleRating         = null,
+      ownerReplyRatio      = null,
+      hasNewsletter        = null,
+      hasContactForm       = null,
+      socialPresence       = null,
+      domain               = null,
+      pagespeedData        = null,
+      // Enriched signals
+      loyaltyMentions      = 0,
+      loyaltyTopics        = [],
+      unansweredCount      = null,
+      totalReviewsFull     = null,
+      ownerReplyRatioFull  = null,
+      visitFrequency       = null,
+      businessStability    = null,
+      canInvest            = false,
+      aiReport             = null,
+      facebookActivity     = null,
+      instagramActivity    = null,
+    } = req.body
+    console.log(`[audit-email] placeId:${placeId} | business:"${businessName}" | newsletter:${hasNewsletter} | reviews:${totalReviews} | fullReviews:${totalReviewsFull ?? '—'} | loyalty:${loyaltyMentions} | stability:${businessStability ?? '—'} | aiReport:${aiReport ? 'oui' : 'non'}`)
+    const result = await generateAuditEmailMarketing({
+      businessName, websiteUrl, totalReviews, googleRating,
+      ownerReplyRatio, hasNewsletter, hasContactForm,
+      socialPresence, domain, pagespeedData,
+      loyaltyMentions, loyaltyTopics,
+      unansweredCount, totalReviewsFull, ownerReplyRatioFull,
+      visitFrequency, businessStability, canInvest,
+      aiReport, facebookActivity, instagramActivity,
+    })
+    res.json(result)
+  } catch (e) {
+    next(e)
+  }
+})
+
+// ─── POST /audit-ads/:placeId — Audit Google Ads IA ────────────────────────────
+router.post('/audit-ads/:placeId', async (req, res, next) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) throw new AppError('ANTHROPIC_API_KEY manquante', 503)
+    const { placeId } = req.params
+    if (!validatePlaceId(placeId)) throw new AppError('placeId invalide', 400)
+    const {
+      businessName  = '',
+      websiteUrl    = null,
+      googleRating  = null,
+      totalReviews  = 0,
+      pagespeedData = null,
+      photoCount    = 0,
+      hasDescription = false,
+      hasHours      = false,
+      socialPresence = null,
+      domain        = null,
+      reviewsData   = null,
+      city          = null,
+    } = req.body
+    console.log(`[audit-ads] placeId:${placeId} | business:"${businessName}" | site:${websiteUrl ?? 'absent'} | rating:${googleRating ?? '—'} | perf:${pagespeedData?.performance ?? '—'}`)
+    const result = await generateAuditGoogleAds({ businessName, websiteUrl, googleRating, totalReviews, pagespeedData, photoCount, hasDescription, hasHours, socialPresence, domain, reviewsData, city })
     res.json(result)
   } catch (e) {
     next(e)

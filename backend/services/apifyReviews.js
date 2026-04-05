@@ -10,7 +10,7 @@ async function getAllReviews(placeId) {
     const fullId = placeId.startsWith('ChIJ') ? placeId : `ChIJ${placeId}`
     const run = await client.actor('compass/google-maps-reviews-scraper').call({
       placeIds: [fullId],
-      maxReviews: 100,
+      maxReviews: 300,
       reviewsSort: 'newest',
       language: 'fr',
     })

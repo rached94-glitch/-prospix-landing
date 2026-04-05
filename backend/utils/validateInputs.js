@@ -17,7 +17,9 @@
  * @param {*}      params.profileId - String max 50 chars
  * @returns {{ valid: boolean, errors: string[] }}
  */
-function validateSearchParams({ lat, lng, radius, keywords, domain, profileId }) {
+const ALLOWED_MAX_LEADS = [30, 60, 120]
+
+function validateSearchParams({ lat, lng, radius, keywords, domain, profileId, maxLeads }) {
   const errors = []
 
   // ── lat ───────────────────────────────────────────────────────────────────────
@@ -78,6 +80,14 @@ function validateSearchParams({ lat, lng, radius, keywords, domain, profileId })
       errors.push('profileId doit être une chaîne de caractères')
     } else if (profileId.length > 50) {
       errors.push('profileId dépasse 50 caractères')
+    }
+  }
+
+  // ── maxLeads ──────────────────────────────────────────────────────────────────
+  if (maxLeads !== undefined && maxLeads !== null && maxLeads !== '') {
+    const n = Number(maxLeads)
+    if (isNaN(n) || !ALLOWED_MAX_LEADS.includes(n)) {
+      errors.push(`maxLeads doit être l'une des valeurs : ${ALLOWED_MAX_LEADS.join(', ')}`)
     }
   }
 

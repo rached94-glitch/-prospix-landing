@@ -3,7 +3,7 @@ import { playClick, playSuccess, playError } from '../utils/sounds'
 import ReactMarkdown from 'react-markdown'
 import { ScoreBadge } from './LeadCard'
 import { exportLeadPDF } from '../utils/exportPDF'
-import { exportAuditPDF, exportAuditPhotographePDF, exportAuditChatbotPDF, exportAuditSocialMediaPDF, exportAuditDesignerPDF, exportAuditWebDevPDF } from '../utils/exportAuditPDF'
+import { exportAuditPDF, exportAuditPhotographePDF, exportAuditChatbotPDF, exportAuditSocialMediaPDF, exportAuditDesignerPDF, exportAuditWebDevPDF, exportAuditEmailMarketingPDF, exportAuditGoogleAdsPDF } from '../utils/exportAuditPDF'
 import { FaFacebookF, FaLinkedinIn, FaYoutube, FaTiktok, FaInstagram } from 'react-icons/fa'
 
 const SOCIAL_CONFIG = [
@@ -249,6 +249,15 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
     setWebDevAuditState('idle')
     setWebDevAuditPdfLoading(false)
     setWebDevAuditPdfError(null)
+    // Reset email audit on lead change
+    setEmailAudit(null)
+    setEmailAuditState('idle')
+    setEmailAuditError(null)
+    // Reset Google Ads audit on lead change
+    setGoogleAdsAudit(null)
+    setGoogleAdsAuditState('idle')
+    setGoogleAdsAuditPdfLoading(false)
+    setGoogleAdsAuditPdfError(null)
     // Reset SEMrush on lead change
     setSemrushData(null); setSemrushLoading(false); setSemrushError(null)
   }, [lead?.id, lead?._id])
@@ -322,6 +331,29 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
       setAuditData(d)
       setAuditState('done')
 
+      // ── social-media : deep Instagram en arrière-plan (engagement, hashtags) ──
+      if (activeProfile?.id === 'social-media' && lead.social?.instagram) {
+        console.log('[SocialMedia] Démarrage deep Instagram —', lead.social.instagram)
+        fetch(`${API}/api/leads/instagram-deep`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ instagramUrl: lead.social.instagram }),
+        })
+          .then(r => r.json().then(body => ({ ok: r.ok, body })))
+          .then(({ ok, body }) => {
+            if (!ok) throw new Error(body.error || 'Erreur serveur')
+            if (body.error) {
+              console.warn('[SocialMedia] Deep IG — compte privé ou absent:', body.error)
+              return
+            }
+            console.log('[SocialMedia] Deep IG résultat —', JSON.stringify(body))
+            setAuditData(prev => prev ? { ...prev, instagramDeep: body } : { instagramDeep: body })
+          })
+          .catch(e => {
+            console.warn('[SocialMedia] Deep IG erreur (ignorée) —', e.message)
+          })
+      }
+
       // ── dev-web : analyse visuelle en arrière-plan après PageSpeed ──────────
       if (activeProfile?.id === 'dev-web' && lead.website) {
         console.log('[VisualAnalysis dev-web] Démarrage —', lead.website)
@@ -380,6 +412,7 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
 
   const handleSemrush = async () => {
     if (semrushLoading || !lead.website) return
+    // TODO: Supabase — déduire 1 crédit avant l'appel
     setSemrushLoading(true); setSemrushError(null); setSemrushData(null)
     try {
       const domain = lead.website.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]
@@ -497,6 +530,7 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
 
   const handleFindDecisionMaker = async () => {
     if (dmState === 'loading') return
+    // TODO: Supabase — déduire 1 crédit avant l'appel
     setDmState('loading')
     try {
       const city = (lead.address || '').split(',').pop()?.trim() || ''
@@ -521,6 +555,7 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
 
   const handleLoadReviews = async () => {
     if (reviewsState === 'loading') return
+    // TODO: Supabase — déduire 2 crédits avant l'appel (300 avis + analyse IA)
     setReviewsState('loading')
     setReviewsData(null)
     try {
@@ -594,6 +629,7 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
 
   const handleGenerateAIEmail = async () => {
     if (aiEmailState === 'loading' || !aiReport) return
+    // TODO: Supabase — déduire 1 crédit avant l'appel
     setAiEmailState('loading')
     try {
       const res  = await fetch(`${API}/api/leads/generate-email`, {
@@ -997,6 +1033,17 @@ Bien cordialement,
   const [webDevAuditPdfLoading, setWebDevAuditPdfLoading] = useState(false)
   const [webDevAuditPdfError,   setWebDevAuditPdfError]   = useState(null)
 
+  // Audit email marketing — on-demand
+  const [emailAudit,      setEmailAudit]      = useState(null)
+  const [emailAuditState, setEmailAuditState] = useState('idle') // idle | loading | done | error
+  const [emailAuditError,      setEmailAuditError]      = useState(null)
+  const [emailAuditPdfLoading, setEmailAuditPdfLoading] = useState(false)
+  const [emailAuditPdfError,   setEmailAuditPdfError]   = useState(null)
+  const [googleAdsAudit,          setGoogleAdsAudit]          = useState(null)
+  const [googleAdsAuditState,     setGoogleAdsAuditState]     = useState('idle') // idle | loading | done | error
+  const [googleAdsAuditPdfLoading, setGoogleAdsAuditPdfLoading] = useState(false)
+  const [googleAdsAuditPdfError,   setGoogleAdsAuditPdfError]   = useState(null)
+
   const handleExportPDF = async () => {
     setPdfLoading(true)
     try {
@@ -1009,6 +1056,7 @@ Bien cordialement,
   }
 
   const handleExportAuditPDF = async () => {
+    // TODO: Supabase — déduire 2 crédits avant l'appel
     setAuditPdfLoading(true)
     setAuditPdfError(null)
     setProspectAuditState('loading')
@@ -1061,6 +1109,7 @@ Bien cordialement,
   }
 
   const handleExportPhotoAuditPDF = async () => {
+    // TODO: Supabase — déduire 2 crédits avant l'appel
     setPhotoAuditPdfLoading(true)
     setPhotoAuditPdfError(null)
     setPhotoAuditState('loading')
@@ -1103,6 +1152,7 @@ Bien cordialement,
   }
 
   const handleExportChatbotAuditPDF = async () => {
+    // TODO: Supabase — déduire 2 crédits avant l'appel
     setChatbotAuditPdfLoading(true)
     setChatbotAuditPdfError(null)
     setChatbotAuditState('loading')
@@ -1147,6 +1197,7 @@ Bien cordialement,
   }
 
   const handleExportSocialAuditPDF = async () => {
+    // TODO: Supabase — déduire 2 crédits avant l'appel
     setSocialAuditPdfLoading(true)
     setSocialAuditPdfError(null)
     setSocialAuditState('loading')
@@ -1164,18 +1215,21 @@ Bien cordialement,
             instagramActivity: auditData?.instagramActivity ?? null,
             facebookActivity:  auditData?.facebookActivity  ?? null,
           },
-          photoCount:   lead.googleAudit?.photoCount ?? 0,
-          reviewsData:  reviewsData                  ?? null,
-          googleRating: lead.google?.rating          ?? null,
-          totalReviews: lead.google?.totalReviews    ?? 0,
-          domain:       lead.domain || lead.keyword  || null,
+          photoCount:    lead.googleAudit?.photoCount ?? 0,
+          reviewsData:   reviewsData                  ?? null,
+          googleRating:  lead.google?.rating          ?? null,
+          totalReviews:  lead.google?.totalReviews    ?? 0,
+          domain:        lead.domain || lead.keyword  || null,
+          city:          (lead.address ?? '').split(',').pop()?.trim() || null,
+          instagramDeep: auditData?.instagramDeep    ?? null,
         }),
       })
       if (!r.ok) throw new Error(`HTTP ${r.status}`)
       const result = await r.json()
       setSocialAudit(result)
       setSocialAuditState('done')
-      await exportAuditSocialMediaPDF({ lead, activeProfile, socialAudit: result, auditData })
+      const city = (lead.address ?? '').split(',').pop()?.trim() || ''
+      await exportAuditSocialMediaPDF({ lead, activeProfile, socialAudit: result, auditData, city })
     } catch (err) {
       console.error('[SocialAuditPDF]', err)
       setSocialAuditState('error')
@@ -1187,6 +1241,7 @@ Bien cordialement,
 
   const handleExportDesignerAuditPDF = async () => {
     if (designerAuditState === 'loading') return
+    // TODO: Supabase — déduire 2 crédits avant l'appel
     setDesignerAuditPdfLoading(true)
     setDesignerAuditPdfError(null)
     setDesignerAuditState('loading')
@@ -1225,6 +1280,7 @@ Bien cordialement,
 
   const handleExportWebDevAuditPDF = async () => {
     if (webDevAuditState === 'loading') return
+    // TODO: Supabase — déduire 2 crédits avant l'appel
     setWebDevAuditPdfLoading(true)
     setWebDevAuditPdfError(null)
     setWebDevAuditState('loading')
@@ -1261,6 +1317,148 @@ Bien cordialement,
       setWebDevAuditPdfError(err.message ?? 'Erreur inconnue')
     } finally {
       setWebDevAuditPdfLoading(false)
+    }
+  }
+
+  const handleAuditEmail = async () => {
+    if (emailAuditState === 'loading') return
+    // TODO: Supabase — déduire 2 crédits avant l'appel
+    setEmailAuditPdfLoading(true)
+    setEmailAuditPdfError(null)
+    setEmailAuditState('loading')
+    try {
+      const placeId = lead.id || lead._id
+      if (!placeId) throw new Error('placeId manquant')
+      const social       = lead.social ?? null
+      const pappersData  = lead.pappers ?? null
+
+      // ── Signaux enrichis calculés au moment du clic ─────────────���─────────
+      // Loyalty — enrichi si 100 avis chargés, sinon données lead initiales
+      const loyaltyAnalysis  = reviewsData?.loyaltyAnalysis ?? lead.loyaltyAnalysis ?? null
+      const loyaltyMentions  = loyaltyAnalysis?.loyaltyMentions ?? 0
+      const loyaltyTopics    = loyaltyAnalysis?.loyaltyTopics   ?? []
+
+      // Avis sans réponse — données complètes si reviewsData dispo
+      const totalReviewsFull    = reviewsData?.total      ?? null
+      const unansweredCount     = reviewsData?.unanswered ?? null
+      const ownerReplyRatioFull = (totalReviewsFull != null && totalReviewsFull > 0 && unansweredCount != null)
+        ? (totalReviewsFull - unansweredCount) / totalReviewsFull
+        : null
+
+      // Fréquence de visite (même logique que le render)
+      const catRaw = [(lead.keyword || lead.domain || ''), ...(lead.types || [])].join(' ')
+        .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      const _FREQ_HIGH = ['restaurant', 'cafe', 'boulangerie', 'bakery', 'pharmacie', 'supermarche', 'epicerie', 'tabac', 'pressing', 'gym', 'sport', 'fitness', 'brasserie', 'pizz', 'burger', 'traiteur', 'bistrot']
+      const _FREQ_LOW  = ['avocat', 'notaire', 'comptable', 'assurance', 'immo', 'architecte', 'dentiste', 'orthodontiste', 'psy', 'psychiatre', 'psychologue']
+      const visitFrequency = _FREQ_HIGH.some(k => catRaw.includes(k)) ? 'Haute'
+                           : _FREQ_LOW.some(k  => catRaw.includes(k)) ? 'Faible'
+                           : 'Modérée'
+
+      // Stabilité business (même logique que le render)
+      let stabScore = !!(lead.googleAudit?.hasHours) ? 2 : 0
+      if (pappersData) {
+        const ca  = pappersData.chiffreAffaires ?? null
+        const dc  = pappersData.dateCreation    ?? null
+        const eff = pappersData.effectifs       ?? null
+        if (dc) { const y = (Date.now() - new Date(dc).getTime()) / (365.25 * 24 * 3600 * 1000); stabScore += y >= 5 ? 3 : y >= 2 ? 2 : y >= 1 ? 1 : 0 }
+        if (ca !== null) stabScore += ca >= 200000 ? 3 : ca >= 50000 ? 2 : 1
+        if (eff !== null && eff >= 1) stabScore += 1
+      }
+      const businessStability = stabScore >= 6 ? 'haute' : stabScore >= 3 ? 'moyenne' : 'faible'
+      const canInvest         = stabScore >= 5 && (pappersData?.chiffreAffaires ?? 0) >= 50000
+
+      // Rapport IA — résumé des 600 premiers chars si disponible
+      const _aiReportStr    = typeof aiReport === 'string' ? aiReport : (aiReport?.report ?? '')
+      const aiReportSummary = _aiReportStr ? _aiReportStr.slice(0, 600) : null
+
+      // Activité réseaux sociaux
+      const facebookActivity  = auditData?.facebookActivity  ?? null
+      const instagramActivity = auditData?.instagramActivity ?? null
+
+      const r = await fetch(`/api/leads/audit-email/${placeId}`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          businessName:        lead.name,
+          websiteUrl:          lead.website ?? null,
+          totalReviews:        lead.google?.totalReviews ?? lead.totalReviews ?? 0,
+          googleRating:        lead.google?.rating ?? lead.rating ?? null,
+          ownerReplyRatio:     lead.ownerReplyRatio ?? null,
+          hasNewsletter:       social?.newsletterDetection?.hasNewsletter ?? auditData?.pagespeed?.siteSignals?.hasNewsletter ?? null,
+          hasContactForm:      auditData?.pagespeed?.siteSignals?.hasContactForm ?? social?.contactFormDetection?.hasContactForm ?? null,
+          socialPresence:      social,
+          domain:              lead.domain ?? lead.keyword ?? null,
+          pagespeedData:       auditData?.pagespeed ?? null,
+          // Enriched signals
+          loyaltyMentions,
+          loyaltyTopics,
+          unansweredCount,
+          totalReviewsFull,
+          ownerReplyRatioFull: ownerReplyRatioFull ?? lead.ownerReplyRatio ?? null,
+          visitFrequency,
+          businessStability,
+          canInvest,
+          aiReport:            aiReportSummary,
+          facebookActivity,
+          instagramActivity,
+        }),
+      })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const result = await r.json()
+      setEmailAudit(result)
+      setEmailAuditState('done')
+      await exportAuditEmailMarketingPDF({
+        lead, activeProfile, emailAudit: result, auditData, reviewsData,
+        visitFrequency, businessStability, canInvest,
+        loyaltyTopics, aiReportSummary,
+      })
+    } catch (err) {
+      console.error('[EmailAuditPDF]', err)
+      setEmailAuditState('error')
+      setEmailAuditPdfError(err.message ?? 'Erreur inconnue')
+    } finally {
+      setEmailAuditPdfLoading(false)
+    }
+  }
+
+  const handleExportGoogleAdsAuditPDF = async () => {
+    if (googleAdsAuditState === 'loading') return
+    // TODO: Supabase — déduire 2 crédits avant l'appel
+    setGoogleAdsAuditPdfLoading(true)
+    setGoogleAdsAuditPdfError(null)
+    setGoogleAdsAuditState('loading')
+    try {
+      const placeId = lead.id || lead._id
+      if (!placeId) throw new Error('placeId manquant')
+      const r = await fetch(`/api/leads/audit-ads/${placeId}`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          businessName:   lead.name ?? '',
+          websiteUrl:     lead.website ?? null,
+          googleRating:   lead.google?.rating ?? lead.rating ?? null,
+          totalReviews:   lead.google?.totalReviews ?? lead.totalReviews ?? 0,
+          pagespeedData:  auditData?.pagespeed ?? null,
+          photoCount:     lead.googleAudit?.photoCount ?? 0,
+          hasDescription: lead.googleAudit?.hasDescription ?? false,
+          hasHours:       lead.googleAudit?.hasHours ?? false,
+          socialPresence: lead.social ?? null,
+          domain:         lead.domain ?? lead.keyword ?? null,
+          reviewsData:    lead.reviewAnalysis ?? null,
+          city:           (lead.address ?? '').split(',').pop()?.trim() || '',
+        }),
+      })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const result = await r.json()
+      setGoogleAdsAudit(result)
+      setGoogleAdsAuditState('done')
+      await exportAuditGoogleAdsPDF({ lead, activeProfile, googleAdsAudit: result, auditData })
+    } catch (err) {
+      console.error('[GoogleAdsAuditPDF]', err)
+      setGoogleAdsAuditState('error')
+      setGoogleAdsAuditPdfError(err.message ?? 'Erreur inconnue')
+    } finally {
+      setGoogleAdsAuditPdfLoading(false)
     }
   }
 
@@ -1628,12 +1826,22 @@ Bien cordialement,
         // ── Données activité (phase 2 — après clic "Analyser les réseaux") ───────
         const igActivity  = auditData?.instagramActivity ?? null
         const fbActivity  = auditData?.facebookActivity  ?? null
-        const auditDoneSM = !!(igActivity || fbActivity)
+        // auditDoneSM = vrai dès que l'audit a été lancé (auditState === 'done')
+        // même si Apify n'a pas pu scraper (compte privé, etc.)
+        const auditDoneSM = auditState === 'done'
 
         const igFollowers  = igActivity?.followers  ?? null
         const igDaysAgo    = igActivity?.daysAgo    ?? null
         const fbFollowers  = fbActivity?.followers  ?? null
         const fbDaysAgo    = fbActivity?.daysAgo    ?? null
+
+        // ── Engagement Instagram (deep — 12 posts, chargé en arrière-plan) ──────
+        const igDeep        = auditData?.instagramDeep  ?? null
+        const igAvgLikes    = igDeep?.avgLikes          ?? null
+        const igAvgComments = igDeep?.avgComments       ?? null
+        const igPostsMonth  = igDeep?.postsPerMonth     ?? null
+        const igTopHashtags = igDeep?.topHashtags       ?? []
+        const engagementDone = !!(igDeep && !igDeep.error)
 
         // ── Score régularité (inline — scoring.js est CommonJS backend) ──────────
         const NETWORK_COUNT = [hasFacebook, hasInstagram, hasLinkedin, hasTiktok, hasYoutube, hasPinterest].filter(Boolean).length
@@ -1688,6 +1896,10 @@ Bien cordialement,
           { label: 'FOLLOWERS FACEBOOK',  type: 'social_followers', network: 'Facebook',  followers: fbFollowers, daysAgo: fbDaysAgo, auditDone: auditDoneSM },
           { label: 'DERNIER POST IG',     type: 'social_last_post', network: 'Instagram', daysAgo: igDaysAgo, auditDone: auditDoneSM },
           { label: 'DERNIER POST FB',     type: 'social_last_post', network: 'Facebook',  daysAgo: fbDaysAgo, auditDone: auditDoneSM },
+          // Phase 2b — deep Instagram (chargé en arrière-plan, ~12 posts Apify)
+          { label: 'LIKES MOY. IG',       type: 'social_engagement', metric: igAvgLikes,    suffix: '♥', auditDone: engagementDone, goodThreshold: 100, warnThreshold: 20 },
+          { label: 'POSTS / MOIS IG',     type: 'social_engagement', metric: igPostsMonth,  suffix: 'posts', auditDone: engagementDone, goodThreshold: 8, warnThreshold: 3 },
+          ...(igTopHashtags.length > 0 ? [{ label: 'TOP HASHTAGS IG', type: 'social_hashtags', hashtags: igTopHashtags }] : []),
         ]
 
         return {
@@ -1800,34 +2012,235 @@ Bien cordialement,
       }
 
       case 'email-marketing': {
-        const hasForm      = !!(lead.googleAudit?.hasContactForm)
-        const repeatMentions = lead.reviewAnalysis?.loyaltyMentions || 0
+        const social           = lead.social ?? {}
+        // hasForm — auditData (siteSignals) prioritaire, puis social (unlock), puis googleAudit
+        // Retourne null si aucune source ne dispose de données (→ affiche "—" au lieu d'"Absent")
+        const hasFormAudit     = auditData?.pagespeed?.siteSignals?.hasContactForm ?? null
+        const hasFormSocial    = social.contactFormDetection?.hasContactForm ?? null
+        const hasFormGoogleAudit = lead.googleAudit?.hasContactForm ?? null
+        const hasForm          = hasFormAudit ?? hasFormSocial ?? hasFormGoogleAudit  // null si aucune source
+        const hasFormFromAudit = hasFormAudit !== null
+        // hasNewsletter — unlock (enrichSocial) prioritaire, fallback sur siteSignals (après "Analyser les performances")
+        const hasNewsletter    = social.newsletterDetection?.hasNewsletter ?? auditData?.pagespeed?.siteSignals?.hasNewsletter ?? null
+        // Taux réponse & avis sans réponse — enrichis après chargement des 100 avis
+        const ownerRatioBase   = lead.ownerReplyRatio ?? null  // sur 5 avis récents seulement
+        const reviewsFull      = reviewsData !== null
+        const totalFull        = reviewsData?.total      ?? null
+        const unansweredFull   = reviewsData?.unanswered ?? null
+
+        let unansweredVal, unansweredNote, unansweredStatus
+        let replyRatioVal, replyRatioNote, replyRatioStatus, effectiveReplyRatio
+        if (reviewsFull && totalFull != null && unansweredFull != null) {
+          const answeredN     = totalFull - unansweredFull
+          const ratioFull     = totalFull > 0 ? answeredN / totalFull : 0
+          effectiveReplyRatio = ratioFull
+          unansweredVal       = `${unansweredFull}/${totalFull}`
+          unansweredNote      = null  // dataTag vert affiche déjà "données complètes"
+          replyRatioVal       = `${Math.round(ratioFull * 100)}%`
+          replyRatioNote      = null  // dataTag vert affiche déjà "données complètes"
+          unansweredStatus    = ratioFull >= 0.7 ? 'good' : ratioFull >= 0.3 ? 'warn' : 'danger'
+          replyRatioStatus    = unansweredStatus
+        } else {
+          effectiveReplyRatio   = ownerRatioBase
+          const unansweredOf5   = ownerRatioBase != null ? 5 - Math.round(ownerRatioBase * 5) : null
+          unansweredVal         = unansweredOf5 != null ? `${unansweredOf5}/5` : '—'
+          unansweredNote        = unansweredOf5 != null ? '5 avis récents' : null
+          replyRatioVal         = ownerRatioBase != null ? `${Math.round(ownerRatioBase * 100)}%` : '—'
+          replyRatioNote        = ownerRatioBase != null ? '5 avis récents' : null
+          replyRatioStatus      = ownerRatioBase != null ? (ownerRatioBase < 0.3 ? 'danger' : ownerRatioBase < 0.7 ? 'warn' : 'good') : 'neutral'
+          unansweredStatus      = replyRatioStatus
+        }
+        const estimatedClients    = Math.round(totalReviews * 10)
+        const socialNets       = [social.facebook, social.instagram, social.tiktok, social.linkedin, social.youtube, social.pinterest].filter(Boolean)
+        const potentiel        = estimatedClients >= 500 ? { label: 'Fort', s: 'good' } : estimatedClients >= 100 ? { label: 'Moyen', s: 'warn' } : { label: 'Faible', s: 'danger' }
+
+        // Audience sociale — disponible après "Analyser les performances digitales"
+        const fbFollowers  = auditData?.facebookActivity?.followers  ?? null
+        const igFollowers  = auditData?.instagramActivity?.followers ?? null
+        const fmtFollowers = (n) => n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n)
+        const audienceNote = (fbFollowers != null || igFollowers != null) ?
+          [fbFollowers != null ? `FB ${fmtFollowers(fbFollowers)}` : null,
+           igFollowers != null ? `IG ${fmtFollowers(igFollowers)}` : null].filter(Boolean).join(' · ')
+          : null
+
+        // Ancienneté depuis Pappers
+        const dateCreation  = pappersData?.dateCreation ?? null
+        const anciennete    = dateCreation ? (() => { const y = new Date().getFullYear() - new Date(dateCreation).getFullYear(); return y > 0 ? `${y} an${y > 1 ? 's' : ''}` : '< 1 an' })() : '—'
+
+        // Signal 1 — Mentions fidélité dans les avis (enrichi après chargement des 100 avis)
+        const loyalty        = reviewsData?.loyaltyAnalysis ?? lead.loyaltyAnalysis ?? null
+        const loyaltyCount   = loyalty?.loyaltyMentions ?? 0
+        const loyaltyTopics  = loyalty?.loyaltyTopics ?? []
+        const loyaltyStatus  = loyaltyCount === 0 ? 'good' : loyaltyCount > 3 ? 'warn' : 'neutral'
+        const loyaltyLabel   = loyaltyCount === 0 ? 'Aucune' : `${loyaltyCount} mention${loyaltyCount > 1 ? 's' : ''}`
+        const loyaltySubtext = loyaltyTopics.length > 0 ? loyaltyTopics.slice(0, 2).join(', ') : null
+
+        // Signal 2 — Fréquence de visite estimée (inline, 0 appel API)
+        const catRaw = [(lead.keyword || lead.domain || ''), ...(lead.types || [])].join(' ')
+          .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        const FREQ_HIGH = ['restaurant', 'cafe', 'boulangerie', 'bakery', 'pharmacie', 'supermarche', 'epicerie', 'tabac', 'pressing', 'gym', 'sport', 'fitness', 'brasserie', 'pizz', 'burger', 'traiteur', 'bistrot']
+        const FREQ_LOW  = ['avocat', 'notaire', 'comptable', 'assurance', 'immo', 'architecte', 'dentiste', 'orthodontiste', 'psy', 'psychiatre', 'psychologue']
+        const visitFreq = FREQ_HIGH.some(k => catRaw.includes(k)) ? { label: 'Haute', potential: 'Très fort' }
+                        : FREQ_LOW.some(k  => catRaw.includes(k)) ? { label: 'Faible', potential: 'Faible'   }
+                        : { label: 'Modérée', potential: 'Fort' }
+        const visitStatus = visitFreq.potential === 'Très fort' ? 'good' : visitFreq.potential === 'Fort' ? 'good' : 'warn'
+
+        // Thèmes email-marketing — enrichis avec les 100 avis après chargement
+        const emailThemesData = reviewsData?.emailThemes ?? lead.emailThemes ?? null
+        const emailThemes     = emailThemesData?.themes ?? []
+
+        // Signal 3 — Stabilité business
+        const hasHours  = !!(lead.googleAudit?.hasHours)
+        let stabScore   = hasHours ? 2 : 0
+        if (pappersData) {
+          const ca  = pappersData.chiffreAffaires ?? null
+          const dc  = pappersData.dateCreation    ?? null
+          const eff = pappersData.effectifs       ?? null
+          if (dc) { const y = (Date.now() - new Date(dc).getTime()) / (365.25 * 24 * 3600 * 1000); stabScore += y >= 5 ? 3 : y >= 2 ? 2 : y >= 1 ? 1 : 0 }
+          if (ca !== null) stabScore += ca >= 200000 ? 3 : ca >= 50000 ? 2 : 1
+          if (eff !== null && eff >= 1) stabScore += 1
+        }
+        const stability    = stabScore >= 6 ? 'haute' : stabScore >= 3 ? 'moyenne' : 'faible'
+        const canInvest    = stabScore >= 5 && (pappersData?.chiffreAffaires ?? 0) >= 50000
+        const stabLabel    = stability === 'haute' ? 'Solide' : stability === 'moyenne' ? 'Correcte' : 'Incertaine'
+        const stabStatus   = stability === 'haute' ? 'good' : stability === 'moyenne' ? 'warn' : 'danger'
+        const stabSubtext  = canInvest ? 'Budget disponible' : null
+
+        // Diagnostic
+        const hasSite = !!(lead.website && lead.website !== 'null' && lead.website !== 'undefined')
+        let diagnostic, diagnosticColor
+        if (!hasSite) {
+          diagnostic = 'Aucune stratégie email — mise en place complète recommandée'
+          diagnosticColor = '#ef4444'
+        } else if (hasSite && hasNewsletter === false) {
+          diagnostic = 'Capture d\'emails inexistante — opportunité directe'
+          diagnosticColor = '#f59e0b'
+        } else if (hasSite && hasNewsletter === null) {
+          diagnostic = 'Site présent — déverrouillez le lead pour analyser la stratégie email'
+          diagnosticColor = '#64748b'
+        } else if (hasNewsletter && totalReviews < 100) {
+          diagnostic = 'Newsletter existante à optimiser'
+          diagnosticColor = '#f59e0b'
+        } else {
+          diagnostic = 'Stratégie email en place — optimisation avancée possible'
+          diagnosticColor = '#22c55e'
+        }
+
+        // Type campagne recommandé selon secteur
+        const catLow = (lead.keyword || lead.domain || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        let campaignType
+        if (/restaurant|cafe|brasserie|pizz|burger|traiteur|bistro/.test(catLow))     campaignType = 'Campagnes saisonnières + programme fidélité'
+        else if (/boutique|commerce|magasin|retail|mode|vetement|bijou/.test(catLow)) campaignType = 'Emails promotionnels + relance clients inactifs'
+        else if (/avocat|notaire|comptable|conseil|b2b|juridique/.test(catLow))       campaignType = 'Newsletter expertise + nurturing'
+        else if (/beaute|coiffure|esthetique|soin|sante|kine|dentiste/.test(catLow))  campaignType = 'Rappels rendez-vous + offres personnalisées'
+        else                                                                            campaignType = 'Séquences automatiques + fidélisation clients'
+
         return {
           kpis: [
-            kpi('Volume avis',         totalReviews > 0 ? totalReviews : '0',         totalReviews >= 50 ? 'good' : 'warn'),
-            kpi('Clients fidèles',     repeatMentions > 0 ? repeatMentions : 'Peu',   repeatMentions > 3 ? 'good' : 'warn'),
-            kpi('Activité réseaux',    hasFacebook || hasInstagram ? 'Active' : 'Inactive', hasFacebook || hasInstagram ? 'good' : 'danger'),
-            kpi('Formulaire contact',  hasForm ? 'Oui' : 'Absent',                    hasForm ? 'good' : 'danger'),
+            kpi('Volume avis',             totalReviews > 0 ? totalReviews : '0',           totalReviews >= 100 ? 'good' : totalReviews >= 30 ? 'warn' : 'danger'),
+            kpi('Note Google',             rating > 0 ? `${rating}/5 ★` : '—',             rating >= 4 ? 'good' : rating >= 3 ? 'warn' : 'danger'),
+            { ...kpi('Avis sans réponse', unansweredVal, unansweredStatus, unansweredNote), dataTag: reviewsFull ? 'données complètes' : 'estimation' },
+            { ...kpi('Taux réponse',      replyRatioVal, replyRatioStatus, replyRatioNote), dataTag: reviewsFull ? 'données complètes' : 'estimation' },
+            kpi('Site web',                hasSite ? 'Présent' : 'Absent',                  hasSite ? 'good' : 'danger'),
+            kpi('Formulaire email',        hasForm === null ? '—' : hasForm ? 'Détecté' : 'Absent',  hasForm === null ? 'neutral' : hasForm ? 'good' : 'danger', hasFormFromAudit ? 'données audit' : null),
+            kpi('Réseaux sociaux',         socialNets.length > 0 ? `${socialNets.length} réseau${socialNets.length > 1 ? 'x' : ''}` : 'Aucun', socialNets.length >= 2 ? 'good' : socialNets.length === 1 ? 'warn' : 'danger', audienceNote),
+            kpi('Newsletter',              hasNewsletter === null ? '—' : hasNewsletter ? 'Détectée' : 'Absente', hasNewsletter === null ? 'neutral' : hasNewsletter ? 'warn' : 'good'),
+            kpi('Secteur',                 lead.keyword || lead.domain || '—',              'neutral'),
+            kpi('Ancienneté',              anciennete,                                       'neutral'),
+            kpi('Clients estimés',         estimatedClients > 0 ? `~${estimatedClients}` : '—', potentiel.s),
+            kpi('Potentiel fidélisation',  potentiel.label,                                 potentiel.s),
+            { ...kpi('Mentions fidélité',    loyaltyLabel,                                    loyaltyStatus, loyaltySubtext), dataTag: reviewsFull ? 'données complètes' : 'estimation' },
+            kpi('Fréquence visite',        visitFreq.label,                                 visitStatus,   `Potentiel ${visitFreq.potential}`),
+            kpi('Stabilité business',      stabLabel,                                       stabStatus,    stabSubtext),
+            { label: 'THÈMES DES AVIS', type: 'email_themes', themes: emailThemes, reviewsFull },
           ],
           problems: [
-            ...(repeatMentions < 3 ? [prob('Peu de clients récurrents mentionnés — programme fidélité manquant', '#f59e0b')] : []),
-            ...(!hasForm           ? [prob('Pas de capture email détectée — impossible de relancer les clients', '#ef4444')] : []),
+            ...(!hasSite          ? [prob('Aucun site — impossible de capturer des emails', '#ef4444')] : []),
+            ...(hasNewsletter === false && hasSite ? [prob('Aucune newsletter — chaque client acquis est perdu après sa visite', '#ef4444')] : []),
+            ...(hasForm === false          ? [prob('Pas de formulaire email — capture manuelle uniquement', '#f59e0b')] : []),
+            ...(effectiveReplyRatio != null && effectiveReplyRatio < 0.3 ? [prob(`${Math.round((1 - effectiveReplyRatio) * 100)}% d'avis sans réponse — aucun suivi client visible`, '#f59e0b')] : []),
           ],
+          // Sections supplémentaires pour l'affichage dans le panneau
+          _emailExtra: { diagnostic, diagnosticColor, campaignType, hasNewsletter, estimatedClients, potentiel, loyaltyCount, visitFreq, stability, canInvest },
         }
       }
 
       case 'pub-google': {
+        // ── Google Ads Readiness (inline — miroir de scoring.js) ──────────────────
+        const domainRawAds = (lead.domain || lead.keyword || '').toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        const hasDesc     = !!(lead.googleAudit?.hasDescription)
+        const hasHours    = !!(lead.googleAudit?.hasHours)
+        const negRatio    = (lead.reviewAnalysis?.negative ?? 0) / Math.max(1, totalReviews)
+
+        let adsPoints = 0
+        if (hasWebsite)               adsPoints += 20
+        if (perfScore != null && perfScore >= 70) adsPoints += 20
+        else if (perfScore != null && perfScore >= 50) adsPoints += 10
+        if (rating >= 4.0)            adsPoints += 20
+        else if (rating >= 3.5)       adsPoints += 10
+        if (totalReviews >= 50)       adsPoints += 15
+        else if (totalReviews >= 20)  adsPoints += 8
+        if ((lead.googleAudit?.photoCount ?? 0) >= 5) adsPoints += 10
+        if (hasDesc)                  adsPoints += 8
+        if (hasHours)                 adsPoints += 7
+        if (negRatio <= 0.15)         adsPoints += 10
+        else if (negRatio <= 0.30)    adsPoints += 5
+        const adsScore = Math.min(100, adsPoints)
+        const adsLabel = adsScore >= 80 ? 'Idéal' : adsScore >= 60 ? 'Prêt' : adsScore >= 40 ? 'À préparer' : 'Non compatible'
+        const adsStatus = adsScore >= 80 ? 'good' : adsScore >= 60 ? 'good' : adsScore >= 40 ? 'warn' : 'danger'
+
+        // ── Concurrence sectorielle (inline) ─────────────────────────────────────
+        const SECTOR_MAP_ADS = [
+          { pattern: /avocat|notaire|cabinet|juridique|droit/, level: 'Très haute',  cpc: '8–25€',   budget: '1500–5000€/m' },
+          { pattern: /assurance|mutuelle|courtier/,           level: 'Très haute',  cpc: '10–30€',  budget: '2000–8000€/m' },
+          { pattern: /immobilier|agence immobiliere|promoteur/, level: 'Très haute', cpc: '5–20€',   budget: '1500–5000€/m' },
+          { pattern: /plombier|electricien|serrurier|chauffagiste|artisan/, level: 'Haute', cpc: '4–15€', budget: '800–3000€/m' },
+          { pattern: /dentiste|orthodontiste|chirurgien|clinique/, level: 'Haute', cpc: '5–18€',   budget: '1000–4000€/m' },
+          { pattern: /restaurant|pizz|burger|brasserie|traiteur/, level: 'Modérée', cpc: '1–5€',   budget: '400–1500€/m' },
+          { pattern: /coiffure|salon|spa|beaute|barbier/,        level: 'Modérée', cpc: '1–4€',   budget: '300–1200€/m' },
+          { pattern: /garage|auto|mecanique|carrosserie/,        level: 'Haute',   cpc: '3–10€',  budget: '600–2500€/m' },
+          { pattern: /hotel|gite|chambre|hebergement/,           level: 'Haute',   cpc: '3–12€',  budget: '800–3000€/m' },
+          { pattern: /comptable|expert.comptable|comptabilite/,  level: 'Haute',   cpc: '4–12€',  budget: '800–2500€/m' },
+        ]
+        let adsConcurrence = { level: 'Faible', cpc: '0.5–2€', budget: '200–800€/m' }
+        for (const s of SECTOR_MAP_ADS) {
+          if (s.pattern.test(domainRawAds)) { adsConcurrence = { level: s.level, cpc: s.cpc, budget: s.budget }; break }
+        }
+        const concurStatus = adsConcurrence.level === 'Très haute' ? 'danger' : adsConcurrence.level === 'Haute' ? 'warn' : 'good'
+
+        // ── KPIs (12) ─────────────────────────────────────────────────────────────
+        const https = auditData?.pagespeed?.https ?? null
+        const loadTime = auditData?.pagespeed?.loadTime ?? auditData?.pagespeed?.ttfb ?? null
+
         return {
+          adsScore, adsLabel, adsStatus, adsConcurrence, concurStatus,
           kpis: [
-            kpi('Perf. mobile', perfScore != null ? `${perfScore}/100` : '—', perfScore != null ? (perfScore >= 70 ? 'good' : 'danger') : 'neutral'),
-            kpi('Site web',     hasWebsite ? 'Présent' : 'Absent',              hasWebsite ? 'good' : 'danger'),
-            kpi('Note Google',  rating > 0 ? `${rating}/5` : '—',            rating >= 4 ? 'good' : rating >= 3 ? 'warn' : 'danger'),
-            kpi('Volume avis',  totalReviews > 0 ? totalReviews : '0',          totalReviews >= 50 ? 'good' : 'warn'),
+            // Colonne 1 — Site & Perf
+            kpi('Site web',        hasWebsite ? 'Présent' : 'Absent',            hasWebsite ? 'good' : 'danger'),
+            kpi('Perf. mobile',    perfScore != null ? `${perfScore}/100` : '—', perfScore != null ? (perfScore >= 70 ? 'good' : perfScore >= 50 ? 'warn' : 'danger') : 'neutral'),
+            kpi('HTTPS',           https != null ? (https ? 'Actif' : 'Absent') : '—', https ? 'good' : https === false ? 'danger' : 'neutral'),
+            kpi('Temps de charge', loadTime != null ? `${loadTime}s` : '—',      loadTime != null ? (loadTime <= 2 ? 'good' : loadTime <= 4 ? 'warn' : 'danger') : 'neutral'),
+            kpi('Sitemap XML',     auditData?.pagespeed?.sitemap != null ? (auditData.pagespeed.sitemap ? 'Présent' : 'Absent') : '—', auditData?.pagespeed?.sitemap ? 'good' : auditData?.pagespeed?.sitemap === false ? 'warn' : 'neutral'),
+            kpi('Pages indexées',  auditData?.pagespeed?.indexedPages != null ? auditData.pagespeed.indexedPages : '—', auditData?.pagespeed?.indexedPages > 5 ? 'good' : auditData?.pagespeed?.indexedPages > 0 ? 'warn' : 'neutral'),
+            // Colonne 2 — Fiche Google
+            kpi('Note Google',     rating > 0 ? `${rating}/5` : '—',             rating >= 4 ? 'good' : rating >= 3 ? 'warn' : 'danger'),
+            kpi('Volume avis',     totalReviews > 0 ? totalReviews : '0',         totalReviews >= 50 ? 'good' : totalReviews >= 20 ? 'warn' : 'danger'),
+            kpi('Photos fiche',    (lead.googleAudit?.photoCount ?? 0) > 0 ? lead.googleAudit.photoCount : '0', (lead.googleAudit?.photoCount ?? 0) >= 10 ? 'good' : (lead.googleAudit?.photoCount ?? 0) >= 5 ? 'warn' : 'danger'),
+            kpi('Description',     hasDesc ? 'Présente' : 'Absente',             hasDesc ? 'good' : 'warn'),
+            kpi('Horaires',        hasHours ? 'Renseignés' : 'Absents',          hasHours ? 'good' : 'warn'),
+            kpi('Compatibilité',   `${adsLabel} (${adsScore}/100)`,              adsStatus),
           ],
           problems: [
-            ...(perfScore != null && perfScore < 70  ? [prob('Landing page lente — budget pub gaspillé sur des pages qui ne convertissent pas', '#ef4444')] : []),
-            ...(!hasWebsite                          ? [prob('Aucun site pour recevoir les clics publicitaires', '#ef4444')] : []),
-            ...(rating > 0 && rating < 4.0           ? [prob('Note insuffisante — les pubs Google perdent en efficacité sous 4 étoiles', '#f59e0b')] : []),
+            ...(!hasWebsite                                 ? [prob('Aucun site pour recevoir les clics — les pubs ne peuvent pas convertir', '#ef4444')] : []),
+            ...(perfScore != null && perfScore < 50         ? [prob('Landing page très lente (< 50/100) — taux de conversion effondré', '#ef4444')] : []),
+            ...(perfScore != null && perfScore >= 50 && perfScore < 70 ? [prob('Performance mobile insuffisante (50-70) — coût par clic élevé', '#f59e0b')] : []),
+            ...(https === false                             ? [prob('Site sans HTTPS — bloqué par les pubs Google Shopping', '#ef4444')] : []),
+            ...(rating > 0 && rating < 3.5                 ? [prob('Note trop basse — les annonces perdent en crédibilité et en taux de clic', '#ef4444')] : []),
+            ...(rating >= 3.5 && rating < 4.0              ? [prob('Note insuffisante (< 4★) — impact négatif sur le Quality Score', '#f59e0b')] : []),
+            ...(totalReviews < 20                           ? [prob('Moins de 20 avis — crédibilité insuffisante pour convertir via pub', '#f59e0b')] : []),
+            ...((lead.googleAudit?.photoCount ?? 0) < 5    ? [prob('Peu de photos fiche Google — impact sur le CTR des annonces locales', '#f59e0b')] : []),
+            ...(!hasDesc                                    ? [prob('Description fiche Google absente — pénalise le Quality Score local', '#64748b')] : []),
           ],
         }
       }
@@ -2168,7 +2581,7 @@ Bien cordialement,
             {/* Find decision maker */}
             {dmState === 'idle' && (
               <button className="ld-btn" onClick={handleFindDecisionMaker} style={{ width: '100%', height: 34, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 8 }}>
-                Trouver le décideur
+                Trouver le décideur — 1 crédit
               </button>
             )}
             {dmState === 'loading' && (
@@ -2697,6 +3110,14 @@ Bien cordialement,
               )
             })() : (
               <>
+                {/* Bandeau info email-marketing — disparaît après analyse IA */}
+                {activeProfile?.id === 'email-marketing' && aiState !== 'done' && (
+                  <div style={{ marginBottom: 10, padding: '10px 12px', background: 'rgba(237,250,54,0.08)', border: '1px solid rgba(237,250,54,0.2)', borderRadius: 8, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0, marginTop: 1 }}>💡</span>
+                    <span style={{ fontSize: 12, color: '#edfa36', lineHeight: 1.5 }}>Pour des données complètes sur ce lead, lancez l'analyse des avis ci-dessous</span>
+                  </div>
+                )}
+
                 {/* 2×2 KPI grid — autres profils */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
                   {profileData.kpis.map((kpi, i) => {
@@ -2861,6 +3282,32 @@ Bien cordialement,
                           <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
                           <div style={{ fontSize: 15, fontWeight: 700, color, lineHeight: 1.1 }}>{label}</div>
                           {note && <div style={{ fontSize: 8.5, color, marginTop: 4 }}>{note}</div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'social_engagement') {
+                      const noData = !kpi.auditDone
+                      const val    = kpi.metric
+                      const color  = noData ? '#475569' : val === null ? '#475569' : val >= kpi.goodThreshold ? '#22c55e' : val >= kpi.warnThreshold ? '#f59e0b' : '#ef4444'
+                      const label  = noData ? '—' : val === null ? '—' : `${val.toLocaleString('fr-FR')} ${kpi.suffix}`
+                      const loadingBadge = !noData && val === null && auditState === 'done'
+                      return (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color, lineHeight: 1.1 }}>{label}</div>
+                          {loadingBadge && <div style={{ fontSize: 8, color: '#475569', marginTop: 4 }}>Chargement…</div>}
+                        </div>
+                      )
+                    }
+                    if (kpi.type === 'social_hashtags') {
+                      return (
+                        <div key={i} style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 8 }}>{kpi.label}</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                            {kpi.hashtags.map((tag, ti) => (
+                              <span key={ti} style={{ fontSize: 10.5, fontWeight: 600, color: '#e1306c', background: 'rgba(225,48,108,0.1)', border: '1px solid rgba(225,48,108,0.25)', borderRadius: 5, padding: '2px 8px' }}>{tag}</span>
+                            ))}
+                          </div>
                         </div>
                       )
                     }
@@ -3086,6 +3533,33 @@ Bien cordialement,
                         </div>
                       )
                     }
+                    if (kpi.type === 'email_themes') {
+                      const themes = kpi.themes ?? []
+                      return (
+                        <div key={i} style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase' }}>{kpi.label}</div>
+                            <div style={{ fontSize: 8, fontStyle: 'italic', color: kpi.reviewsFull ? '#10bb54' : 'rgba(255,255,255,0.38)' }}>({kpi.reviewsFull ? 'données complètes' : 'estimation'})</div>
+                          </div>
+                          {themes.length > 0
+                            ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                                {themes.map(({ label, count, type }) => {
+                                  const isPositif = type === 'positif'
+                                  const c  = isPositif ? '#10bb54' : '#edfa36'
+                                  const bg = isPositif ? 'rgba(16,187,84,0.08)' : 'rgba(237,250,54,0.08)'
+                                  const bd = isPositif ? 'rgba(16,187,84,0.25)' : 'rgba(237,250,54,0.25)'
+                                  return (
+                                    <span key={label} style={{ fontSize: 10.5, color: c, background: bg, border: `1px solid ${bd}`, borderRadius: 5, padding: '2px 8px' }}>
+                                      {label} <span style={{ opacity: 0.55 }}>×{count}</span>
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            : <div style={{ fontSize: 12, color: '#475569', fontStyle: 'italic' }}>Aucun thème détecté dans les avis</div>
+                          }
+                        </div>
+                      )
+                    }
                     if (kpi.type === 'topic_list') {
                       const hasTopics = (kpi.topics || []).length > 0
                       return (
@@ -3109,6 +3583,7 @@ Bien cordialement,
                         <div style={{ fontSize: 9, color: '#f5f5f0', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>{kpi.label}</div>
                         <div style={{ fontSize: 16, fontWeight: 700, color: STATUS_COLOR[kpi.status] || '#64748b', lineHeight: 1.1 }}>{kpi.value}</div>
                         {kpi.note && <div style={{ fontSize: 8.5, color: '#f59e0b', marginTop: 4, lineHeight: 1.35 }}>{kpi.note}</div>}
+                        {kpi.dataTag && <div style={{ fontSize: 8, marginTop: 3, color: kpi.dataTag === 'données complètes' ? '#10bb54' : 'rgba(255,255,255,0.38)', fontStyle: 'italic', lineHeight: 1.2 }}>({kpi.dataTag})</div>}
                         {kpi.tooltip && (
                           <div style={{ position: 'relative', display: 'inline-block', marginTop: 4 }}>
                             <span onMouseEnter={() => setShowTooltip(true)} onMouseLeave={() => setShowTooltip(false)} style={{ fontSize: 12, color: '#6b7280', cursor: 'default', borderBottom: '1px dotted #6b7280' }}>ⓘ</span>
@@ -3187,7 +3662,7 @@ Bien cordialement,
                       style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: socialAuditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: socialAuditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginBottom: 4 }}
                       onMouseEnter={e => { if (!socialAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
-                      {socialAuditState === 'loading' ? '⏳ Génération de l\'audit…' : socialAuditPdfLoading ? '⏳ Mise en page PDF…' : '📱 Générer l\'audit social media'}
+                      {socialAuditState === 'loading' ? '⏳ Génération de l\'audit…' : socialAuditPdfLoading ? '⏳ Mise en page PDF…' : '📱 Générer l\'audit community manager — 2 crédits'}
                     </button>
                     {socialAuditPdfError && (
                       <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 3, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
@@ -3319,6 +3794,67 @@ Bien cordialement,
                   return null
                 })()}
 
+                {/* ── EMAIL MARKETING — diagnostic + campagne + audit IA ── */}
+                {activeProfile?.id === 'email-marketing' && (() => {
+                  const extra = profileData._emailExtra
+                  if (!extra) return null
+                  return (
+                    <div style={{ marginBottom: 8 }}>
+                      {/* Diagnostic */}
+                      <div style={{ borderLeft: `3px solid ${extra.diagnosticColor}`, borderRadius: '0 8px 8px 0', background: `${extra.diagnosticColor}12`, padding: '8px 12px', marginBottom: 6 }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: extra.diagnosticColor, marginBottom: 4 }}>DIAGNOSTIC EMAIL</div>
+                        <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.45 }}>{extra.diagnostic}</div>
+                      </div>
+                      {/* Type de campagne recommandé */}
+                      <div style={{ background: 'rgba(29,110,85,0.06)', border: '1px solid rgba(29,110,85,0.2)', borderRadius: 8, padding: '8px 12px', marginBottom: 8 }}>
+                        <div style={{ fontSize: 9, color: '#1d6e55', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 4 }}>TYPE DE CAMPAGNE RECOMMANDÉ</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#4ade80', lineHeight: 1.3 }}>{extra.campaignType}</div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Diagnostic pub-google */}
+                {activeProfile?.id === 'pub-google' && (() => {
+                  const adsScore  = profileData.adsScore  ?? 0
+                  const adsLabel  = profileData.adsLabel  ?? '—'
+                  const adsStatus = profileData.adsStatus ?? 'neutral'
+                  const conc      = profileData.adsConcurrence ?? { level: '—', cpc: '—', budget: '—' }
+                  const concStatus = profileData.concurStatus ?? 'neutral'
+                  const scoreColor = adsStatus === 'good' ? '#22c55e' : adsStatus === 'warn' ? '#f59e0b' : '#ef4444'
+                  const concColor  = concStatus === 'good' ? '#22c55e' : concStatus === 'warn' ? '#f59e0b' : '#ef4444'
+                  return (
+                    <div style={{ marginBottom: 8 }}>
+                      {/* Compatibilité Google Ads */}
+                      <div style={{ borderLeft: `3px solid ${scoreColor}`, borderRadius: '0 8px 8px 0', background: `${scoreColor}12`, padding: '8px 12px', marginBottom: 6 }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: scoreColor, marginBottom: 4 }}>COMPATIBILITÉ GOOGLE ADS</div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                          <span style={{ fontSize: 22, fontWeight: 700, color: scoreColor, fontFamily: 'var(--font-display)' }}>{adsScore}/100</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: scoreColor }}>{adsLabel}</span>
+                        </div>
+                      </div>
+                      {/* Concurrence sectorielle */}
+                      <div style={{ background: 'rgba(14,165,233,0.07)', border: '1px solid rgba(14,165,233,0.2)', borderRadius: 8, padding: '8px 12px', marginBottom: 8 }}>
+                        <div style={{ fontSize: 9, color: '#0ea5e9', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>CONCURRENCE SECTORIELLE</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                          <div>
+                            <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 3 }}>NIVEAU</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: concColor }}>{conc.level}</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 3 }}>CPC ESTIMÉ</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: '#f5f5f0', fontFamily: 'var(--font-mono)' }}>{conc.cpc}</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 9, color: '#475569', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 3 }}>BUDGET REC.</div>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>{conc.budget}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
                 {/* Problems list — autres profils */}
                 {profileData.problems.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -3401,7 +3937,7 @@ Bien cordialement,
                 return (
                   <button className="ld-btn" onClick={handleSemrush} style={{ marginTop: 12, width: '100%', height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#64748b', fontSize: 10.5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/></svg>
-                    Récupérer données SEMrush
+                    Récupérer données SEMrush — 1 crédit
                   </button>
                 )
 
@@ -3744,7 +4280,7 @@ Bien cordialement,
                 style={{ width: '100%', height: 40, borderRadius: 10, border: '1px solid rgba(29,110,85,0.25)', background: 'rgba(29,110,85,0.12)', color: reviewsState === 'loading' || aiState === 'loading' ? '#64748b' : '#1d6e55', fontSize: 12, fontWeight: 500, cursor: reviewsState === 'loading' || aiState === 'loading' ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 10 }}>
                 {reviewsState === 'loading' && '⏳ Chargement des avis…'}
                 {aiState === 'loading' && '✨ Analyse IA en cours…'}
-                {reviewsState !== 'loading' && aiState !== 'loading' && (reviewsState === 'done' ? "Analyser avec l'IA" : 'Charger et analyser les avis IA (100 max) — 1 crédit')}
+                {reviewsState !== 'loading' && aiState !== 'loading' && (reviewsState === 'done' ? "Analyser avec l'IA — 1 crédit" : 'Charger et analyser 300 avis — 2 crédits')}
               </button>
             )}
 
@@ -3800,14 +4336,14 @@ Bien cordialement,
           </div>
 
           {/* Perf audit on-demand */}
-          {!['seo', 'consultant-seo', 'dev-web', 'pub-google', 'photographe', 'chatbot', 'dev-chatbot'].includes(activeProfile?.id) && auditState === 'idle' && (lead.website || lead.social?.facebook || lead.social?.instagram) && (
+          {!['seo', 'consultant-seo', 'dev-web', 'pub-google', 'photographe', 'chatbot', 'dev-chatbot', 'email-marketing'].includes(activeProfile?.id) && auditState === 'idle' && (lead.website || lead.social?.facebook || lead.social?.instagram) && (
             <div style={{ marginBottom: 20 }}>
               <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ width: '100%', height: 40, borderRadius: 10, border: '1px solid rgba(29,110,85,0.25)', background: 'rgba(29,110,85,0.12)', color: '#1d6e55', fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 Analyser les performances digitales — 1 crédit
               </button>
             </div>
           )}
-          {!['seo', 'consultant-seo', 'dev-web', 'pub-google', 'photographe'].includes(activeProfile?.id) && auditState === 'loading' && (
+          {!['seo', 'consultant-seo', 'dev-web', 'pub-google', 'photographe', 'email-marketing'].includes(activeProfile?.id) && auditState === 'loading' && (
             <div style={{ marginBottom: 20, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#64748b' }}>Audit en cours…</div>
           )}
 
@@ -3826,7 +4362,7 @@ Bien cordialement,
               const hasStep2 = step2Done !== null
               const emailReady = aiReport && (!hasStep2 || step2Done)
               const emailDisabled = aiEmailState === 'loading' || !emailReady
-              let emailLabel = '✦ Générer email IA'
+              let emailLabel = '✦ Générer email IA — 1 crédit'
               if (aiEmailState === 'loading') emailLabel = '✨ Génération en cours…'
               else if (!aiReport) emailLabel = '✦ Générer l\'email — analysez d\'abord les avis'
               else if (hasStep2 && !step2Done) emailLabel = '✦ Générer l\'email — analysez d\'abord le site'
@@ -3882,8 +4418,8 @@ Bien cordialement,
               {pdfLoading ? '⏳ Génération en cours…' : '↓ Exporter fiche PDF'}
             </button>
 
-            {/* Audit prospect PDF — masqué pour designer et dev-web (ont leurs propres audits) */}
-            {!['designer', 'dev-web'].includes(activeProfile?.id) && (
+            {/* Audit prospect PDF — masqué pour designer, dev-web, email-marketing, pub-google, social-media (ont leurs propres audits) */}
+            {!['designer', 'dev-web', 'email-marketing', 'pub-google', 'social-media'].includes(activeProfile?.id) && (
               <>
                 <button
                   className="ld-btn"
@@ -3892,7 +4428,7 @@ Bien cordialement,
                   style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: auditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: auditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
                   onMouseEnter={e => { if (!auditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
-                  {prospectAuditState === 'loading' ? '⏳ Génération de l\'audit…' : auditPdfLoading ? '⏳ Mise en page PDF…' : '↓ Générer l\'audit prospect'}
+                  {prospectAuditState === 'loading' ? '⏳ Génération de l\'audit…' : auditPdfLoading ? '⏳ Mise en page PDF…' : '↓ Générer l\'audit prospect — 2 crédits'}
                 </button>
                 {auditPdfError && (
                   <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
@@ -3912,7 +4448,7 @@ Bien cordialement,
                   style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: chatbotAuditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: chatbotAuditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
                   onMouseEnter={e => { if (!chatbotAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
-                  {chatbotAuditState === 'loading' ? '⏳ Génération de l\'audit…' : chatbotAuditPdfLoading ? '⏳ Mise en page PDF…' : '🤖 Générer l\'audit chatbot'}
+                  {chatbotAuditState === 'loading' ? '⏳ Génération de l\'audit…' : chatbotAuditPdfLoading ? '⏳ Mise en page PDF…' : '🤖 Générer l\'audit chatbot — 2 crédits'}
                 </button>
                 {chatbotAuditPdfError && (
                   <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
@@ -3932,11 +4468,31 @@ Bien cordialement,
                   style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: photoAuditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: photoAuditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
                   onMouseEnter={e => { if (!photoAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
-                  {photoAuditState === 'loading' ? '⏳ Génération de l\'audit…' : photoAuditPdfLoading ? '⏳ Mise en page PDF…' : '📷 Générer l\'audit photo'}
+                  {photoAuditState === 'loading' ? '⏳ Génération de l\'audit…' : photoAuditPdfLoading ? '⏳ Mise en page PDF…' : '📷 Générer l\'audit photo — 2 crédits'}
                 </button>
                 {photoAuditPdfError && (
                   <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
                     ✗ {photoAuditPdfError}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Audit Community Manager — profil social-media uniquement */}
+            {activeProfile?.id === 'social-media' && (
+              <>
+                <button
+                  className="ld-btn"
+                  onClick={handleExportSocialAuditPDF}
+                  disabled={socialAuditPdfLoading}
+                  style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: socialAuditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: socialAuditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
+                  onMouseEnter={e => { if (!socialAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
+                  {socialAuditState === 'loading' ? '⏳ Génération de l\'audit…' : socialAuditPdfLoading ? '⏳ Mise en page PDF…' : '📱 Générer l\'audit Community Manager — 2 crédits'}
+                </button>
+                {socialAuditPdfError && (
+                  <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
+                    ✗ {socialAuditPdfError}
                   </div>
                 )}
               </>
@@ -3952,7 +4508,7 @@ Bien cordialement,
                   style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: designerAuditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: designerAuditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
                   onMouseEnter={e => { if (!designerAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
-                  {designerAuditState === 'loading' ? '⏳ Génération de l\'audit…' : designerAuditPdfLoading ? '⏳ Mise en page PDF…' : '🎨 Générer l\'audit branding'}
+                  {designerAuditState === 'loading' ? '⏳ Génération de l\'audit…' : designerAuditPdfLoading ? '⏳ Mise en page PDF…' : '🎨 Générer l\'audit branding — 2 crédits'}
                 </button>
                 {designerAuditPdfError && (
                   <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
@@ -3972,7 +4528,7 @@ Bien cordialement,
                   style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: webDevAuditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: webDevAuditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
                   onMouseEnter={e => { if (!webDevAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
-                  {webDevAuditState === 'loading' ? '⏳ Génération de l\'audit…' : webDevAuditPdfLoading ? '⏳ Mise en page PDF…' : '💻 Générer l\'audit technique'}
+                  {webDevAuditState === 'loading' ? '⏳ Génération de l\'audit…' : webDevAuditPdfLoading ? '⏳ Mise en page PDF…' : '💻 Générer l\'audit technique — 2 crédits'}
                 </button>
                 {webDevAuditPdfError && (
                   <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
@@ -3981,6 +4537,57 @@ Bien cordialement,
                 )}
               </>
             )}
+
+            {/* Audit email marketing — profil Email Marketing uniquement */}
+            {activeProfile?.id === 'email-marketing' && (
+              <>
+                <button
+                  onClick={handleAuditEmail}
+                  disabled={emailAuditState === 'loading' || emailAuditPdfLoading}
+                  style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: (emailAuditState === 'loading' || emailAuditPdfLoading) ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: (emailAuditState === 'loading' || emailAuditPdfLoading) ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
+                  onMouseEnter={e => { if (emailAuditState !== 'loading' && !emailAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
+                  {emailAuditState === 'loading' ? '⏳ Analyse en cours…' : emailAuditPdfLoading ? '⏳ Mise en page PDF…' : emailAuditState === 'done' ? '✅ Audit téléchargé' : '📧 Générer l\'audit email marketing — 2 crédits'}
+                </button>
+                {emailAuditPdfError && (
+                  <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>✗ {emailAuditPdfError}</span>
+                    <button onClick={() => { setEmailAuditState('idle'); setEmailAuditPdfError(null) }} style={{ fontSize: 10, color: '#EDFA36', background: 'none', border: '1px solid rgba(29,110,85,0.25)', borderRadius: 5, padding: '2px 8px', cursor: 'pointer', marginLeft: 8 }}>Réessayer</button>
+                  </div>
+                )}
+                {emailAuditState === 'done' && (
+                  <button onClick={() => { setEmailAuditState('idle'); setEmailAudit(null) }} style={{ width: '100%', marginTop: 4, fontSize: 10, color: '#64748b', background: 'none', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, padding: '4px 0', cursor: 'pointer' }}>
+                    ↺ Regénérer l'audit
+                  </button>
+                )}
+              </>
+            )}
+
+            {/* Audit Google Ads — profil Pub Google uniquement */}
+            {activeProfile?.id === 'pub-google' && (
+              <>
+                <button
+                  onClick={handleExportGoogleAdsAuditPDF}
+                  disabled={googleAdsAuditState === 'loading' || googleAdsAuditPdfLoading}
+                  style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(14,165,233,0.3)', background: 'rgba(14,165,233,0.12)', color: (googleAdsAuditState === 'loading' || googleAdsAuditPdfLoading) ? '#475569' : '#38bdf8', fontSize: 12, fontWeight: 600, cursor: (googleAdsAuditState === 'loading' || googleAdsAuditPdfLoading) ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
+                  onMouseEnter={e => { if (googleAdsAuditState !== 'loading' && !googleAdsAuditPdfLoading) { e.currentTarget.style.background = 'rgba(14,165,233,0.2)'; e.currentTarget.style.borderColor = 'rgba(14,165,233,0.5)' } }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(14,165,233,0.12)'; e.currentTarget.style.borderColor = 'rgba(14,165,233,0.3)' }}>
+                  {googleAdsAuditState === 'loading' ? '⏳ Analyse en cours…' : googleAdsAuditPdfLoading ? '⏳ Mise en page PDF…' : googleAdsAuditState === 'done' ? '✅ Audit téléchargé' : '📊 Générer l\'audit Google Ads — 2 crédits'}
+                </button>
+                {googleAdsAuditPdfError && (
+                  <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>✗ {googleAdsAuditPdfError}</span>
+                    <button onClick={() => { setGoogleAdsAuditState('idle'); setGoogleAdsAuditPdfError(null) }} style={{ fontSize: 10, color: '#EDFA36', background: 'none', border: '1px solid rgba(29,110,85,0.25)', borderRadius: 5, padding: '2px 8px', cursor: 'pointer', marginLeft: 8 }}>Réessayer</button>
+                  </div>
+                )}
+                {googleAdsAuditState === 'done' && (
+                  <button onClick={() => { setGoogleAdsAuditState('idle'); setGoogleAdsAudit(null) }} style={{ width: '100%', marginTop: 4, fontSize: 10, color: '#64748b', background: 'none', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, padding: '4px 0', cursor: 'pointer' }}>
+                    ↺ Regénérer l'audit
+                  </button>
+                )}
+              </>
+            )}
+
           </div>
 
         </div>

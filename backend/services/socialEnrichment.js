@@ -155,6 +155,33 @@ function detectFAQ($, html) {
   return hasFAQ
 }
 
+function detectNewsletter($, html) {
+  const lower = html.toLowerCase()
+
+  // Patterns textuels indiquant une invite à s'inscrire
+  const textPatterns = ['newsletter', 'inscription', "s'abonner", 'abonnez-vous', 'votre email', 'votre e-mail', 'restez informé', 'nos actualités']
+  const hasTextPattern = textPatterns.some(p => lower.includes(p))
+
+  // Intégrations d'outils de mailing (présence dans le HTML)
+  const toolSignatures = ['mailchimp', 'sendinblue', 'brevo', 'mailjet', 'hubspot', 'convertkit', 'klaviyo', 'sarbacane', 'emailoctopus', 'getresponse', 'list-manage', 'mc.us', 'mlsend']
+  const hasTool = toolSignatures.some(p => lower.includes(p))
+
+  // Formulaire avec champ email dont le contexte texte évoque une inscription newsletter
+  let hasNewsletterForm = false
+  $('form').each((_, form) => {
+    if (hasNewsletterForm) return
+    const $form    = $(form)
+    const formText = $form.text().toLowerCase()
+    const hasEmail = $form.find('input[type="email"]').length > 0
+    const isNL     = textPatterns.some(p => formText.includes(p))
+    if (hasEmail && isNL) hasNewsletterForm = true
+  })
+
+  const hasNewsletter = hasTextPattern || hasTool || hasNewsletterForm
+  console.log(`[Social] newsletter → text:${hasTextPattern} tool:${hasTool} form:${hasNewsletterForm} → ${hasNewsletter}`)
+  return { hasNewsletter }
+}
+
 function detectContactForm($) {
   let hasContactForm = false
   $('form').each((_, form) => {
@@ -263,6 +290,7 @@ function extractSocialLinks(html) {
 
   social.faqDetection         = { hasFAQ: detectFAQ($, html) }
   social.contactFormDetection = { hasContactForm: detectContactForm($) }
+  social.newsletterDetection  = detectNewsletter($, html)
 
   return social;
 }
@@ -285,6 +313,7 @@ async function enrichSocial({ name, website, placeId }) {
     chatbotDetection:     null,
     faqDetection:         null,
     contactFormDetection: null,
+    newsletterDetection:  null,
   };
 
   if (website) {
@@ -294,6 +323,7 @@ async function enrichSocial({ name, website, placeId }) {
       Object.assign(result, found);
       result.faqDetection         = found.faqDetection         || { hasFAQ: false }
       result.contactFormDetection = found.contactFormDetection || { hasContactForm: false }
+      result.newsletterDetection  = found.newsletterDetection  || { hasNewsletter: false }
       result.chatbotDetection = {
         hasChatbot:           found.hasChatbot,
         chatbotsDetected:     found.chatbotsDetected || [],

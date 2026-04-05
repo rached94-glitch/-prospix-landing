@@ -148,7 +148,7 @@ const BOOKING_DOMAIN_MAP = [
 function detectSiteSignalsFromHTML(html, siteUrl) {
   const empty = {
     chatbotDetected: false, chatbotTool: null, bookingPlatform: null,
-    hasFAQ: false, hasContactForm: false, hasPDFContent: false, hasMenuContent: false,
+    hasFAQ: false, hasContactForm: false, hasNewsletter: false, hasPDFContent: false, hasMenuContent: false,
     hasProminentPhone: false, pageCount: 'unknown',
   }
   if (!html || typeof html !== 'string') return empty
@@ -181,6 +181,12 @@ function detectSiteSignalsFromHTML(html, siteUrl) {
   const hasContactForm = /<form/i.test(html) &&
     (/<input[^>]+type=["']email/i.test(html) || /name=["']email["']/i.test(html))
 
+  // Newsletter detection — text patterns + tool signatures
+  const htmlLow = html.toLowerCase()
+  const nlTextPatterns = ['newsletter', 'inscription', "s'abonner", 'abonnez-vous', 'votre email', 'votre e-mail', 'restez informé', 'nos actualités']
+  const nlToolSigs     = ['mailchimp', 'sendinblue', 'brevo', 'mailjet', 'hubspot', 'convertkit', 'klaviyo', 'sarbacane', 'emailoctopus', 'getresponse', 'list-manage', 'mc.us', 'mlsend']
+  const hasNewsletter  = nlTextPatterns.some(p => htmlLow.includes(p)) || nlToolSigs.some(p => htmlLow.includes(p))
+
   // PDF links (menu, tarifs, brochures)
   const hasPDFContent = /href=["'][^"']*\.pdf/i.test(html)
 
@@ -211,9 +217,9 @@ function detectSiteSignalsFromHTML(html, siteUrl) {
   const intLinks = (html.match(/<a[^>]+href=["'](?!\s*(?:https?:|#|mailto:|tel:))[^"']+["']/gi) || []).length
   const pageCount = intLinks > 20 ? 'multipage' : intLinks > 5 ? 'small' : 'onepage'
 
-  console.log(`[SiteSignals] menu:${hasMenuContent}(${menuSignals.join('+') || 'none'}) faq:${hasFAQ} form:${hasContactForm} pdf:${hasPDFContent} phone:${hasProminentPhone} chatbot:${chatbotTool ?? 'none'} booking:${bookingPlatform ?? 'none'} pages:${pageCount}`)
+  console.log(`[SiteSignals] menu:${hasMenuContent}(${menuSignals.join('+') || 'none'}) faq:${hasFAQ} form:${hasContactForm} newsletter:${hasNewsletter} pdf:${hasPDFContent} phone:${hasProminentPhone} chatbot:${chatbotTool ?? 'none'} booking:${bookingPlatform ?? 'none'} pages:${pageCount}`)
 
-  return { chatbotDetected, chatbotTool, bookingPlatform, hasFAQ, hasContactForm, hasPDFContent, hasMenuContent, hasProminentPhone, pageCount }
+  return { chatbotDetected, chatbotTool, bookingPlatform, hasFAQ, hasContactForm, hasNewsletter, hasPDFContent, hasMenuContent, hasProminentPhone, pageCount }
 }
 
 // ── Combined site analysis — single HTTP fetch for CMS + signals ──────────────
@@ -221,7 +227,7 @@ async function detectCMSAndSiteSignals(websiteUrl) {
   const unknownCms = { cms: 'inconnu', confidence: 'low', editable: null }
   const emptySig   = {
     chatbotDetected: false, chatbotTool: null, bookingPlatform: null,
-    hasFAQ: false, hasContactForm: false, hasPDFContent: false, hasMenuContent: false,
+    hasFAQ: false, hasContactForm: false, hasNewsletter: false, hasPDFContent: false, hasMenuContent: false,
     hasProminentPhone: false, pageCount: 'unknown',
   }
   if (!websiteUrl) return { cms: unknownCms, siteSignals: emptySig }
@@ -246,7 +252,7 @@ async function detectCMSAndSiteSignals(websiteUrl) {
 async function getSiteSignals(websiteUrl, category) {
   const sensitiveData = checkSensitiveCategory(category)
   const base = { sensitiveData, ragType: sensitiveData ? 'local' : 'cloud' }
-  if (!websiteUrl) return { ...base, chatbotDetected: false, chatbotTool: null, bookingPlatform: null, isBookingUrl: false, hasFAQ: false, hasContactForm: false, hasPDFContent: false, hasMenuContent: false, hasProminentPhone: false, pageCount: 'unknown' }
+  if (!websiteUrl) return { ...base, chatbotDetected: false, chatbotTool: null, bookingPlatform: null, isBookingUrl: false, hasFAQ: false, hasContactForm: false, hasNewsletter: false, hasPDFContent: false, hasMenuContent: false, hasProminentPhone: false, pageCount: 'unknown' }
 
   // If the website URL is itself a booking platform — skip HTML fetch entirely
   const bookingMatch = BOOKING_DOMAIN_MAP.find(b => b.pattern.test(websiteUrl))
@@ -256,7 +262,7 @@ async function getSiteSignals(websiteUrl, category) {
       ...base,
       chatbotDetected: false, chatbotTool: null,
       bookingPlatform: bookingMatch.name, isBookingUrl: true,
-      hasFAQ: false, hasContactForm: false, hasPDFContent: false, hasMenuContent: false,
+      hasFAQ: false, hasContactForm: false, hasNewsletter: false, hasPDFContent: false, hasMenuContent: false,
       hasProminentPhone: false, pageCount: 'unknown',
     }
   }

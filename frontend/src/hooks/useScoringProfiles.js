@@ -33,7 +33,7 @@ const BUILTIN_PROFILES = [
   },
   {
     id: 'social-media',
-    name: 'Social Media',
+    name: 'Community Manager',
     icon: '📱',
     isPreset: true,
     weights: { googleRating: 10, reviewVolume: 15, digitalPresence: 55, opportunity: 20 },

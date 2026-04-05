@@ -1,4 +1,5 @@
 const Anthropic = require('@anthropic-ai/sdk')
+const { countQuestionsInReviews, detectLanguages, detectLoyaltyMentions, detectEmailThemes } = require('./reviewAnalysis')
 
 function selectRepresentativeReviews(reviews) {
   if (reviews.length <= 30) return { selected: reviews, total: reviews.length }
@@ -127,7 +128,7 @@ function buildFocusDirective(profileId, auditData, meta) {
 }
 
 // ── Prompt builders per profile ───────────────────────────────────────────────
-function buildPrompt(businessName, reviewsText, total, avgRating, unanswered, profileId, meta = {}, auditData = null, negativeCount = 0) {
+function buildPrompt(businessName, reviewsText, total, avgRating, unanswered, profileId, meta = {}, auditData = null, negativeCount = 0, stats = {}) {
   const { websiteUrl = null, city = null, rating = null, reviewCount = null, category = null } = meta
 
   console.log(`[aiReviewAnalysis] Profil actif: ${profileId}`)
@@ -136,12 +137,30 @@ function buildPrompt(businessName, reviewsText, total, avgRating, unanswered, pr
   const focusText  = buildFocusDirective(profileId, auditData, meta)
   const focusBlock = focusText ? `⚡ FOCUS PROFIL : ${focusText}\n\n` : ''
 
+  // ── Build statistics block from full reviews corpus ───────────────────────
+  const statsLines = []
+  if (stats.total)                              statsLines.push(`Total avis analysés : ${stats.total}`)
+  if (stats.starDist) {
+    const t = stats.total || 1
+    statsLines.push(`Distribution : 5★ ${Math.round((stats.starDist[5]||0)/t*100)}% | 4★ ${Math.round((stats.starDist[4]||0)/t*100)}% | 3★ ${Math.round((stats.starDist[3]||0)/t*100)}% | 2★ ${Math.round((stats.starDist[2]||0)/t*100)}% | 1★ ${Math.round((stats.starDist[1]||0)/t*100)}%`)
+  }
+  if (stats.replyRate !== undefined)            statsLines.push(`Taux de réponse propriétaire : ${stats.replyRate}%`)
+  if (stats.questionCount)                      statsLines.push(`Questions dans les avis : ${stats.questionCount}`)
+  if (stats.topThemes?.length > 0)             statsLines.push(`Thèmes fréquents : ${stats.topThemes.join(', ')}`)
+  if (stats.loyaltyMentions > 0)               statsLines.push(`Mentions fidélité/retour : ${stats.loyaltyMentions}`)
+  if (stats.languages?.length > 1)             statsLines.push(`Langues détectées : ${stats.languages.join(', ')}`)
+  const statsBlock = statsLines.length > 0
+    ? `STATISTIQUES CORPUS :\n${statsLines.join('\n')}\n\n`
+    : ''
+
   const header = `Tu es un expert en réputation digitale et en marketing local. Analyse ces avis Google pour "${businessName}".
+
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
 
 Analyse basée sur ${total} avis réels (sélection des plus représentatifs)
 Moyenne : ${avgRating}/5 | Avis négatifs sans réponse : ${unanswered}
 
-AVIS :
+${statsBlock}AVIS :
 ${reviewsText}
 
 `
@@ -181,7 +200,7 @@ ${websiteUrl
   }
 
 AVIS CLIENTS :
-${reviewsText}
+${statsBlock}${reviewsText}
 
 `
 
@@ -282,7 +301,7 @@ DONNÉES CONTEXTUELLES :
 - FAQ sur le site : ${ps?.siteSignals?.hasFAQ ? 'Présente' : 'Absente'}
 
 AVIS CLIENTS :
-${reviewsText}
+${statsBlock}${reviewsText}
 
 Produis une analyse en 5 sections. Prose uniquement — jamais de listes à puces. 300 mots maximum.
 
@@ -517,6 +536,28 @@ async function analyzeWithAI(reviews, businessName, profileId = 'chatbot', meta 
   const { selected, total } = selectRepresentativeReviews(reviews)
   console.log(`[aiReviewAnalysis] avis sélectionnés: ${selected.length}/${total}`)
 
+  // ── Compute corpus statistics from all reviews (not just selected) ──────────
+  const starDist = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+  let repliedCount = 0
+  reviews.forEach(r => {
+    starDist[r.rating] = (starDist[r.rating] || 0) + 1
+    if (r.ownerReply) repliedCount++
+  })
+  const replyRate        = total > 0 ? Math.round(repliedCount / total * 100) : 0
+  const questionAnalysis = countQuestionsInReviews(reviews)
+  const loyaltyData      = detectLoyaltyMentions(reviews)
+  const langData         = detectLanguages(reviews)
+  const emailThemeData   = detectEmailThemes(reviews)
+  const stats = {
+    total,
+    starDist,
+    replyRate,
+    questionCount:   questionAnalysis.totalQuestions,
+    topThemes:       emailThemeData.themes.slice(0, 5).map(t => t.label),
+    loyaltyMentions: loyaltyData.loyaltyMentions,
+    languages:       langData.languages,
+  }
+
   const reviewsText = selected.map((r, i) =>
     `[${i + 1}] ${r.rating}★ — ${r.author} (${r.date ? new Date(r.date).toLocaleDateString('fr-FR') : '?'})\n` +
     `${r.text || '(sans texte)'}\n` +
@@ -530,7 +571,7 @@ async function analyzeWithAI(reviews, businessName, profileId = 'chatbot', meta 
 
   console.log(`[aiReviewAnalysis] avis négatifs: ${negativeCount}/${selected.length} (${Math.round(negativeCount / selected.length * 100)}%)`)
 
-  const prompt = buildPrompt(businessName, reviewsText, total, avgRating, unanswered, profileId, meta, auditData, negativeCount)
+  const prompt = buildPrompt(businessName, reviewsText, total, avgRating, unanswered, profileId, meta, auditData, negativeCount, stats)
 
   const MODEL = 'claude-sonnet-4-6'
   console.log(`[aiReviewAnalysis] → appel API Anthropic (model: ${MODEL}, prompt: ${prompt.length} chars)`)
@@ -652,6 +693,8 @@ async function generateEmailPhotographe({ leadData, visualAnalysis, googleData, 
 
   const prompt = `Tu es un photographe professionnel. Rédige un email de prospection pour un commerce local.
 Ton : chaleureux, direct, sincère — jamais vendeur, jamais de liste à puces dans le corps.
+
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
 
 DONNÉES RÉELLES — UTILISER UNIQUEMENT CES CHIFFRES :
 - Nom : ${leadData.name}
@@ -826,6 +869,8 @@ async function generateEmailSEO({ leadData, pagespeedData, localRank, reviewsDat
   const prompt = `Tu es un consultant SEO local. Rédige un email de prospection pour ${name}.
 Ton : professionnel, direct, factuel — jamais vendeur, jamais de liste à puces dans le corps.
 
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
+
 DONNÉES TECHNIQUES VERROUILLÉES — UTILISER UNIQUEMENT CES CHIFFRES :
 - Nom du commerce : ${name}
 - Ville : ${city || '—'}
@@ -971,6 +1016,8 @@ async function generateEmailChatbot({ leadData, pagespeedData, reviewsData }) {
 
   const prompt = `Tu es un développeur IA spécialisé dans les assistants clients pour commerces locaux. Rédige un email de prospection pour ${name}.
 Ton : ${tone} — jamais vendeur, jamais de liste à puces dans le corps.
+
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
 
 DONNÉES TECHNIQUES VERROUILLÉES — UTILISER UNIQUEMENT CES CHIFFRES :
 - Nom du commerce : ${name}
@@ -1124,6 +1171,8 @@ async function generateAuditSEO({ leadData, pagespeedData, localRank, reviewsDat
 
   const prompt = `Tu es un consultant SEO local expert. Rédige un audit digital pour "${name}" (${category}, ${city || 'France'}).
 Ton : consultant professionnel, factuel, bienveillant — jamais alarmiste, jamais vendeur.
+
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
 
 DONNÉES TECHNIQUES VERROUILLÉES — N'UTILISE QUE CES CHIFFRES :
 - Nom            : ${name}
@@ -1327,6 +1376,8 @@ async function generateAuditPhotographe({ businessName, websiteUrl, googlePhotos
   const prompt = `Tu es un photographe professionnel expert en image de marque pour les commerces locaux. Rédige un audit visuel pour "${name}".
 Ton : consultant professionnel, factuel, bienveillant — jamais alarmiste, jamais vendeur.
 
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
+
 DONNÉES VERROUILLÉES — N'UTILISE QUE CES CHIFFRES :
 - Nom           : ${name}
 - Site web      : ${website || 'ABSENT'}
@@ -1496,6 +1547,8 @@ async function generateEmailSocialMedia({ leadData, socialPresence, socialMediaA
 
   const prompt = `Tu es un social media manager freelance spécialisé dans les commerces locaux. Rédige un email de prospection pour ${name}.
 
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
+
 DONNÉES VERROUILLÉES — UTILISER UNIQUEMENT CES CHIFFRES :
 - Nom : ${name}
 - Ville : ${city || '—'}
@@ -1531,7 +1584,7 @@ P4 — RÉSULTAT CONCRET (1 phrase de preuve, recopier exactement) :
 P5 — CTA (recopier exactement) :
 "Je vous envoie des exemples de contenus réalisés pour des commerces similaires ?
 
-Social Media Manager — ${city || 'France'}"
+Community Manager — ${city || 'France'}"
 
 RÈGLES ABSOLUES :
 - Jamais de liste à puces dans le corps
@@ -1635,6 +1688,8 @@ async function generateAuditChatbot({ businessName, websiteUrl, chatbotDetection
 
   const prompt = `Tu es un développeur IA spécialisé dans les assistants conversationnels pour commerces locaux. Rédige un audit chatbot pour "${name}".
 Ton : expert technique, factuel, bienveillant — jamais alarmiste, jamais vendeur.
+
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
 
 DONNÉES VERROUILLÉES — N'UTILISE QUE CES CHIFFRES :
 - Nom               : ${name}
@@ -1768,7 +1823,7 @@ Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
 }
 
 // ─── generateAuditSocialMedia ─────────────────────────────────────────────────
-async function generateAuditSocialMedia({ businessName, websiteUrl, socialPresence, socialMediaActivity, photoCount, reviewsData, googleRating, totalReviews, domain }) {
+async function generateAuditSocialMedia({ businessName, websiteUrl, socialPresence, socialMediaActivity, photoCount, reviewsData, googleRating, totalReviews, domain, city, instagramDeep }) {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
   const anthropic = new Anthropic({ apiKey })
@@ -1788,34 +1843,59 @@ async function generateAuditSocialMedia({ businessName, websiteUrl, socialPresen
   const rating       = googleRating ?? '—'
   const reviews      = totalReviews ?? 0
   const unanswered   = reviewsData?.unanswered ?? 0
+  const replyRate    = reviews > 0 ? Math.round(((reviews - unanswered) / reviews) * 100) : null
+
+  // Deep IG engagement (si disponible — 12 posts Apify)
+  const igAvgLikes    = instagramDeep?.avgLikes    ?? null
+  const igAvgComments = instagramDeep?.avgComments ?? null
+  const igPostsMonth  = instagramDeep?.postsPerMonth ?? null
+  const igTopHashtags = instagramDeep?.topHashtags  ?? []
 
   const missingNets = [!hasIG && 'Instagram', !hasFB && 'Facebook', !hasLI && 'LinkedIn', !hasTK && 'TikTok'].filter(Boolean)
   const presentNets = [hasIG && 'Instagram', hasFB && 'Facebook', hasLI && 'LinkedIn', hasTK && 'TikTok', hasYT && 'YouTube'].filter(Boolean)
 
   const photoQuality = photos === 0 ? 'Aucune photo' : photos <= 5 ? 'Insuffisant (<5)' : photos <= 15 ? 'Basique (5-15)' : photos <= 30 ? 'Correct (15-30)' : 'Excellent (30+)'
 
-  const prompt = `Tu es un auditeur expert en social media pour commerces locaux. Analyse la présence sociale de "${name}" et retourne un audit structuré.
+  const engagementLine = igAvgLikes != null
+    ? `- Engagement Instagram : ${igAvgLikes} likes/post, ${igAvgComments ?? '—'} commentaires/post, ${igPostsMonth ?? '—'} posts/mois${igTopHashtags.length > 0 ? `, hashtags: ${igTopHashtags.slice(0, 3).join(' ')}` : ''}`
+    : '- Engagement Instagram : données non disponibles (analyse réseaux non effectuée)'
 
-DONNÉES DISPONIBLES :
+  const reputationLine = replyRate != null
+    ? `${reviews} avis — ${unanswered} sans réponse — taux de réponse : ${replyRate}%`
+    : `${reviews} avis — taux de réponse inconnu`
+
+  const prompt = `Tu es un expert en community management et e-réputation pour commerces locaux. Audite la présence sociale et la réputation de "${name}" et retourne un rapport structuré.
+
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
+
+DONNÉES :
+- Ville/zone : ${city || 'France'}
 - Domaine/catégorie : ${domain ?? 'non précisé'}
 - Site web : ${websiteUrl ?? 'absent'}
-- Note Google : ${rating}/5 — ${reviews} avis (${unanswered} sans réponse)
+
+E-RÉPUTATION GOOGLE :
+- Note : ${rating}/5 — ${reputationLine}
+- Avis sans réponse : ${unanswered > 0 ? `${unanswered} avis négatifs sans réponse propriétaire — RISQUE e-réputation` : 'Tous répondus ✓'}
+
+RÉSEAUX SOCIAUX :
 - Réseaux PRÉSENTS : ${presentNets.length > 0 ? presentNets.join(', ') : 'Aucun'}
-- Réseaux ABSENTS : ${missingNets.length > 0 ? missingNets.join(', ') : 'Aucun (présence complète)'}
-- Instagram : ${hasIG ? `${igFollowers !== null ? igFollowers + ' abonnés' : 'abonnés inconnus'}, dernier post il y a ${igDaysAgo ?? '?'} jours` : 'ABSENT'}
-- Facebook : ${hasFB ? `${fbFollowers !== null ? fbFollowers + ' abonnés' : 'abonnés inconnus'}, dernier post il y a ${fbDaysAgo ?? '?'} jours` : 'ABSENT'}
+- Réseaux ABSENTS : ${missingNets.length > 0 ? missingNets.join(', ') : 'Présence complète'}
+- Instagram : ${hasIG ? `${igFollowers !== null ? igFollowers + ' abonnés' : 'abonnés inconnus'}, dernier post ${igDaysAgo !== null ? 'il y a ' + igDaysAgo + ' jours' : 'date inconnue'}` : 'ABSENT'}
+- Facebook : ${hasFB ? `${fbFollowers !== null ? fbFollowers + ' abonnés' : 'abonnés inconnus'}, dernier post ${fbDaysAgo !== null ? 'il y a ' + fbDaysAgo + ' jours' : 'date inconnue'}` : 'ABSENT'}
+${engagementLine}
 - Photos Google : ${photos} (${photoQuality})
 
 RÈGLES :
-- Prose uniquement — pas de listes à puces dans resume_executif
-- Ton neutre, factuel, orienté opportunité commerciale
-- Jamais de noms de plateformes comme outils d'achat (pas de Meta Ads, TikTok Ads)
+- Prose uniquement dans resume_executif — pas de listes à puces
+- Ton expert, orienté résultats concrets et chiffres
+- Les forces/faiblesses intègrent OBLIGATOIREMENT la dimension e-réputation (réponses aux avis)
+- Chaque recommandation doit préciser une action concrète et un résultat attendu
 - Maximum 2800 caractères total pour le JSON
-- Chaque recommandation doit avoir un impact estimé concret
 
-Retourne UNIQUEMENT ce JSON valide (pas de texte avant ni après) :
+Retourne UNIQUEMENT ce JSON valide :
 {
-  "resume_executif": "Paragraphe de 3-4 phrases résumant la situation sociale actuelle et l'opportunité principale",
+  "resume_executif": "Paragraphe 3-4 phrases sur situation sociale + e-réputation actuelle et opportunité principale",
+  "tonalite": "Positive / Mitigée / Négative — 1 phrase sur la tonalité des avis et interactions",
   "forces": [
     {"titre": "...", "description": "..."},
     {"titre": "...", "description": "..."}
@@ -1834,7 +1914,7 @@ Retourne UNIQUEMENT ce JSON valide (pas de texte avant ni après) :
     {"titre": "...", "description": "...", "priorite": 2},
     {"titre": "...", "description": "...", "priorite": 3}
   ],
-  "accroche": "Phrase d'accroche percutante pour le prospect — max 120 caractères"
+  "accroche": "Phrase percutante pour le prospect — max 120 caractères"
 }`
 
   console.log(`[generateAuditSocialMedia] ${name} | present:${presentNets.join(',')} | missing:${missingNets.join(',')} | prompt:${prompt.length} chars`)
@@ -1921,6 +2001,8 @@ async function generateEmailDesigner({ leadData, photoCount, googleAudit, social
 
   const prompt = `Tu es un designer graphique et branding freelance spécialisé dans les commerces locaux. Rédige un email de prospection pour ${name}.
 
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
+
 DONNÉES VERROUILLÉES — UTILISER UNIQUEMENT CES CHIFFRES :
 - Nom : ${name}
 - Ville : ${city || '—'}
@@ -2003,6 +2085,8 @@ async function generateAuditDesigner({ businessName, websiteUrl, photoCount, goo
   const unanswered = reviews.filter(r => !r.ownerReply && !r.reply).length
 
   const prompt = `Tu es un expert branding & identité visuelle. Génère un audit complet pour ${name}.
+
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
 
 DONNÉES :
 - Note Google : ${googleRating ?? '—'}/5 | Avis : ${totalReviews ?? 0} | Non répondus : ${unanswered}
@@ -2126,6 +2210,8 @@ async function generateEmailWebDev({ leadData, websiteUrl, pagespeedData, cms, h
 
   const prompt = `Tu es développeur web freelance spécialisé dans les commerces locaux. Rédige un email de prospection pour ${name}.
 
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
+
 DONNÉES VERROUILLÉES — UTILISER UNIQUEMENT CES CHIFFRES :
 - Nom : ${name}
 - Ville : ${city || '—'}
@@ -2216,6 +2302,8 @@ async function generateAuditWebDev({ businessName, websiteUrl, pagespeedData, cm
 
   const prompt = `Tu es expert en développement web et performance technique. Génère un audit complet pour ${name}.
 
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
+
 DONNÉES TECHNIQUES :
 - Site web : ${hasSite ? websiteUrl : 'ABSENT — aucun site détecté'}
 - Note Google : ${googleRating ?? '—'}/5 | Avis : ${totalReviews ?? 0}
@@ -2298,4 +2386,387 @@ Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
   return parsed
 }
 
-module.exports = { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateEmailSocialMedia, generateEmailDesigner, generateEmailWebDev, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot, generateAuditSocialMedia, generateAuditDesigner, generateAuditWebDev }
+// ── Audit generator — EMAIL MARKETING profile ─────────────────────────���──────
+async function generateAuditEmailMarketing({
+  businessName, websiteUrl, totalReviews, googleRating,
+  ownerReplyRatio, hasNewsletter, hasContactForm, socialPresence, domain, pagespeedData,
+  // Enriched signals — available when reviews/IA/audit have been run
+  loyaltyMentions = 0, loyaltyTopics = [],
+  unansweredCount = null, totalReviewsFull = null, ownerReplyRatioFull = null,
+  visitFrequency = null, businessStability = null, canInvest = false,
+  aiReport = null,
+  facebookActivity = null, instagramActivity = null,
+}) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
+  const anthropic = new Anthropic({ apiKey })
+
+  const name     = businessName ?? 'ce commerce'
+  const hasSite  = !!(websiteUrl && websiteUrl !== 'null' && websiteUrl !== 'undefined')
+  const reviews  = Number(totalReviews) || 0
+  const rating   = googleRating ?? null
+
+  // Reply ratio — prefer full data (100 reviews) over estimate (5 reviews)
+  const effectiveRatio = ownerReplyRatioFull ?? ownerReplyRatio
+  const replyPct = effectiveRatio != null
+    ? `${Math.round(effectiveRatio * 100)}% ${totalReviewsFull ? `(${totalReviewsFull} avis)` : '(5 avis récents)'}`
+    : 'Non analysé'
+
+  const unansweredLine = (unansweredCount != null && totalReviewsFull != null)
+    ? `${unansweredCount}/${totalReviewsFull} (données complètes)`
+    : ownerReplyRatio != null
+      ? `${5 - Math.round(ownerReplyRatio * 5)}/5 (estimation 5 avis récents)`
+      : '—'
+
+  const nets = socialPresence
+    ? [socialPresence.facebook, socialPresence.instagram, socialPresence.tiktok,
+       socialPresence.linkedin, socialPresence.youtube, socialPresence.pinterest]
+        .filter(Boolean).length
+    : 0
+
+  const fbFollowers = facebookActivity?.followersCount ?? facebookActivity?.likes ?? null
+  const igFollowers = instagramActivity?.followersCount ?? instagramActivity?.followers ?? null
+
+  const estimatedClients = Math.round(reviews * 10)
+
+  const prompt = `Tu es consultant en email marketing spécialisé dans les commerces locaux. Génère un audit complet pour ${name}.
+
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
+
+DONNÉES GÉNÉRALES :
+- Nom : ${name}
+- Secteur : ${domain ?? '—'}
+- Site web : ${hasSite ? websiteUrl : 'ABSENT'}
+- Note Google : ${rating ?? '—'}/5
+- Avis Google : ${reviews}
+- Clients estimés : ~${estimatedClients} (base : avis × 10)
+
+DONNÉES ENRICHIES (${totalReviewsFull ? `basées sur ${totalReviewsFull} avis complets` : 'basées sur 5 avis récents'}) :
+- Taux réponse propriétaire : ${replyPct}
+- Avis sans réponse : ${unansweredLine}
+- Mentions fidélité dans les avis : ${loyaltyMentions} mention${loyaltyMentions !== 1 ? 's' : ''}${loyaltyTopics.length > 0 ? ` (thèmes : ${loyaltyTopics.join(', ')})` : ''}
+- Fréquence de visite estimée : ${visitFrequency ?? '—'}
+- Stabilité business : ${businessStability ?? '—'}${canInvest ? ' — capacité d\'investissement confirmée' : ''}
+
+PRÉSENCE DIGITALE :
+- Newsletter détectée : ${hasNewsletter != null ? (hasNewsletter ? 'Oui' : 'Non') : 'Non analysé'}
+- Formulaire de contact : ${hasContactForm != null ? (hasContactForm ? 'Oui' : 'Non') : 'Non analysé'}
+- Réseaux sociaux actifs : ${nets} réseau${nets !== 1 ? 'x' : ''}${fbFollowers ? ` · Facebook ${fbFollowers} abonnés` : ''}${igFollowers ? ` · Instagram ${igFollowers} abonnés` : ''}
+- Performance site (PageSpeed) : ${pagespeedData?.performance != null ? `${Math.round(pagespeedData.performance <= 1 ? pagespeedData.performance * 100 : pagespeedData.performance)}/100` : '—'}
+${aiReport ? `\nANALYSE IA DES AVIS :\n${aiReport.slice(0, 600)}\n` : ''}
+Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
+{
+  "resume_executif": "Synthèse en 3-4 phrases sur le potentiel email marketing de ce commerce",
+  "forces": ["point fort 1", "point fort 2"],
+  "faiblesses": ["faiblesse 1", "faiblesse 2", "faiblesse 3"],
+  "opportunites": ["opportunité 1", "opportunité 2"],
+  "recommandations": [
+    { "titre": "...", "description": "...", "priorite": 1 },
+    { "titre": "...", "description": "...", "priorite": 2 },
+    { "titre": "...", "description": "...", "priorite": 3 }
+  ],
+  "accroche": "Phrase d'accroche percutante orientée ROI pour conclure l'audit (1 phrase)"
+}
+
+Règles :
+- Ton neutre, professionnel, orienté résultats et ROI
+- Aucune marque d'outil email marketing
+- Maximum 3000 chars au total
+- Signature de contexte : "Consultant Email Marketing — ${domain ?? 'commerce local'}"`
+
+  console.log(`[generateAuditEmailMarketing] ${name} | reviews:${reviews}${totalReviewsFull ? `(complets:${totalReviewsFull})` : ''} | newsletter:${hasNewsletter} | loyalty:${loyaltyMentions} | stability:${businessStability ?? '?'} | aiReport:${aiReport ? 'oui' : 'non'} | prompt:${prompt.length} chars`)
+
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 1200,
+      messages:   [{ role: 'user', content: prompt }],
+    })
+  } catch (err) {
+    console.error('[generateAuditEmailMarketing] ✗ Erreur Anthropic:', err.message)
+    throw new Error(`Erreur génération audit email marketing: ${err.message}`)
+  }
+
+  const raw = message.content[0].text
+  console.log(`[generateAuditEmailMarketing] ✓ réponse reçue (${raw.length} chars)`)
+
+  function tryParse(str) { try { return JSON.parse(str) } catch (_) { return null } }
+  function cleanAndParse(str) {
+    const cleaned = str.replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')
+    return tryParse(cleaned)
+  }
+
+  const start = raw.indexOf('{')
+  const end   = raw.lastIndexOf('}')
+  if (start === -1 || end === -1 || end <= start) {
+    console.error('[generateAuditEmailMarketing] Aucun JSON trouvé')
+    return { resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Mettre en place une stratégie email', description: 'Capturer les emails des clients et créer des campagnes de fidélisation adaptées au secteur.', priorite: 1 }], accroche: 'Vos clients satisfaits sont votre meilleure audience — apprenons à les fidéliser.' }
+  }
+
+  const jsonStr = raw.slice(start, end + 1)
+  const parsed  = tryParse(jsonStr) || cleanAndParse(jsonStr)
+
+  if (!parsed) {
+    console.error('[generateAuditEmailMarketing] Parse échoué. JSON extrait:', jsonStr)
+    return { resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Capturer les emails clients', description: 'Ajouter un formulaire de capture email sur le site et les réseaux sociaux.', priorite: 1 }], accroche: 'Vos clients satisfaits sont votre meilleure audience — apprenons à les fidéliser.' }
+  }
+
+  return parsed
+}
+
+// ── Email personnalisé — EMAIL MARKETING profile ─────────────────────��────────
+async function generateEmailEmailMarketing({ leadData, reviewsData, hasNewsletter, hasContactForm, socialPresence, ownerReplyRatio }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
+  const anthropic = new Anthropic({ apiKey })
+
+  const name         = leadData.name      ?? 'ce commerce'
+  const city         = leadData.city      ?? ''
+  const category     = leadData.category  ?? 'ce secteur'
+  const rating       = leadData.rating    ?? null
+  const reviewCount  = leadData.reviewCount ?? null
+  const hasSite      = !!(leadData.website && leadData.website !== 'null')
+  const unanswered   = reviewsData?.unanswered ?? 0
+  const replyPct     = ownerReplyRatio != null ? Math.round(ownerReplyRatio * 100) : null
+  const estimClients = Math.round((reviewCount ?? 0) * 10)
+
+  const nets = socialPresence
+    ? [socialPresence.facebook, socialPresence.instagram, socialPresence.tiktok,
+       socialPresence.linkedin, socialPresence.youtube, socialPresence.pinterest]
+        .filter(Boolean).length
+    : 0
+
+  const topQuotes = (reviewsData?.topQuotes ?? []).slice(0, 2)
+
+  const prompt = `Tu es consultant en email marketing freelance spécialisé dans les commerces locaux. Rédige un email de prospection pour ${name}.
+
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
+
+DONNÉES VERROUILLÉES — UTILISER UNIQUEMENT CES CHIFFRES :
+- Nom : ${name}
+- Ville : ${city || '—'}
+- Catégorie : ${category}
+- Note Google : ${rating ?? '—'}/5 — Avis : ${reviewCount ?? '—'}
+- Clients estimés : ${estimClients} (base : avis × 10)
+- Taux réponse propriétaire : ${replyPct != null ? `${replyPct}%` : 'Non analysé'}
+- Avis sans réponse : ${unanswered}
+- Site web : ${hasSite ? 'Présent' : 'ABSENT'}
+- Newsletter : ${hasNewsletter ? 'Détectée' : 'Absente'}
+- Formulaire contact : ${hasContactForm ? 'Présent' : 'Absent'}
+- Réseaux sociaux actifs : ${nets}
+${topQuotes.length > 0 ? `- Citations clients : ${topQuotes.map(q => `"${q}"`).join(' / ')}` : ''}
+
+STRUCTURE — 5 PARAGRAPHES COURTS :
+P1 — Accroche sur les clients non fidélisés (chiffre concret, ne pas commencer par "Je")
+P2 — Impact concret : clients acquis mais jamais réengagés, perte de revenu récurrent
+P3 — Ta valeur ajoutée : mise en place d'une stratégie email adaptée au commerce local
+P4 — Ce que tu peux faire précisément (capture email, séquences automatiques, campagnes saisonnières)
+P5 — Appel à l'action simple et concret (1-2 phrases)
+
+RÈGLES :
+- Ne jamais inventer de chiffres ou faits non fournis
+- Vouvoiement tout au long de l'email
+- Orienté ROI et résultats concrets — aucune marque d'outil
+- Longueur totale : 150-220 mots
+- Objet : accrocheur, factuel, sans emoji (max 80 caractères)
+- Signature : Consultant Email Marketing — ${city || 'votre ville'}
+
+Retourne UNIQUEMENT un JSON valide :
+{"subject":"...","body":"Corps complet de l'email avec sauts de ligne \\n"}`
+
+  console.log(`[generateEmailEmailMarketing] ${name} | city:${city} | newsletter:${hasNewsletter} | prompt:${prompt.length} chars`)
+
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 800,
+      messages:   [{ role: 'user', content: prompt }],
+    })
+  } catch (err) {
+    console.error('[generateEmailEmailMarketing] ✗ Erreur Anthropic:', err.message)
+    throw new Error(`Erreur génération email marketing: ${err.message}`)
+  }
+
+  const raw = message.content[0].text
+  console.log(`[generateEmailEmailMarketing] ✓ réponse reçue (${raw.length} chars)`)
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error('Réponse JSON invalide du modèle')
+  try { return JSON.parse(jsonMatch[0]) }
+  catch { return JSON.parse(jsonMatch[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')) }
+}
+
+// ── Audit Google Ads ──────────────────────────────────────────────────────────
+async function generateAuditGoogleAds({ businessName, websiteUrl, googleRating, totalReviews, pagespeedData, photoCount, hasDescription, hasHours, socialPresence, domain, reviewsData, city = null }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
+  console.log(`[generateAuditGoogleAds] business:"${businessName}" | site:${websiteUrl ?? 'absent'} | perf:${pagespeedData?.performance ?? '—'} | rating:${googleRating ?? '—'}`)
+
+  const rawPerf = pagespeedData?.performance ?? null
+  const perf    = rawPerf != null ? (rawPerf <= 1 ? Math.round(rawPerf * 100) : Math.round(rawPerf)) : null
+  const hasHttps   = pagespeedData?.https    ?? false
+  const loadTime   = pagespeedData?.loadTime ?? null
+  const hasSitemap = pagespeedData?.sitemap  ?? false
+  const nets = Object.entries(socialPresence ?? {})
+    .filter(([, v]) => v).map(([k]) => k).join(', ') || 'aucun'
+
+  const fiche = [
+    `Photos fiche Google : ${photoCount ?? '?'} (${(photoCount ?? 0) > 10 ? 'bonne visibilité' : 'insuffisant'})`,
+    `Description fiche   : ${hasDescription ? 'Présente' : 'ABSENTE'}`,
+    `Horaires renseignés : ${hasHours ? 'Oui' : 'NON'}`,
+  ].join('\n')
+
+  const siteBlock = websiteUrl
+    ? [
+        `URL                 : ${websiteUrl}`,
+        `Performance mobile  : ${perf !== null ? `${perf}/100` : 'non disponible'}`,
+        `HTTPS               : ${hasHttps ? '✅ Sécurisé' : '❌ NON sécurisé'}`,
+        `Temps de chargement : ${loadTime ?? 'non disponible'}`,
+        `Sitemap XML         : ${hasSitemap ? 'Présent' : 'ABSENT'}`,
+      ].join('\n')
+    : '🚨 AUCUN SITE WEB — ads impossibles sans landing page'
+
+  const reviewBlock = reviewsData
+    ? `Avis positifs : ${reviewsData.positive?.count ?? '?'} | Négatifs : ${reviewsData.negative?.count ?? '?'} | Sans réponse : ${reviewsData.negative?.unanswered ?? '?'}`
+    : `Note : ${googleRating ?? '?'}/5 | Total avis : ${totalReviews ?? '?'}`
+
+  const sigCity = city ? ` — ${city}` : ''
+
+  const prompt = `Tu es un consultant Google Ads spécialisé dans les commerces locaux. Analyse la compatibilité Google Ads de "${businessName}" (secteur : ${domain ?? 'non précisé'}) et produis un audit structuré.
+
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
+
+DONNÉES DISPONIBLES :
+
+📍 FICHE GOOGLE :
+Note Google : ${googleRating ?? '?'}/5 | Volume avis : ${totalReviews ?? '?'}
+${fiche}
+${reviewBlock}
+
+🌐 SITE WEB & PERFORMANCE :
+${siteBlock}
+
+📱 RÉSEAUX SOCIAUX PRÉSENTS : ${nets}
+
+PRODUIS UNIQUEMENT un JSON valide (sans texte avant ou après) avec cette structure :
+{
+  "resume_executif": "2-3 phrases sur le potentiel Google Ads de ce business",
+  "forces": [
+    {"titre": "...", "description": "..."},
+    {"titre": "...", "description": "..."}
+  ],
+  "faiblesses": [
+    {"titre": "...", "description": "..."},
+    {"titre": "...", "description": "..."}
+  ],
+  "opportunites": [
+    {"titre": "...", "description": "..."},
+    {"titre": "...", "description": "..."}
+  ],
+  "recommandations": [
+    {"priorite": 1, "titre": "...", "description": "..."},
+    {"priorite": 2, "titre": "...", "description": "..."},
+    {"priorite": 3, "titre": "...", "description": "..."}
+  ],
+  "accroche": "phrase d'accroche commerciale pour présenter cet audit au prospect"
+}
+
+RÈGLES :
+- Forces et faiblesses : 2 à 4 items chacun, basés strictement sur les données
+- Recommandations : 3 items ordonnés par priorité, focalisés sur les prérequis ads puis la stratégie
+- Prose uniquement, pas de bullet points, max 3000 chars total
+- Pas de marques d'outils de gestion ads
+- Signature implicite : "Consultant Google Ads${sigCity}"`
+
+  const anthropic = new Anthropic({ apiKey })
+  const message = await anthropic.messages.create({
+    model:      'claude-sonnet-4-6',
+    max_tokens: 1200,
+    messages:   [{ role: 'user', content: prompt }],
+  })
+  console.log(`[generateAuditGoogleAds] ✓ réponse (tokens: ${message.usage?.output_tokens ?? '?'})`)
+  const raw = message.content[0].text
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error('Réponse JSON invalide du modèle')
+  try { return JSON.parse(jsonMatch[0]) }
+  catch { return JSON.parse(jsonMatch[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')) }
+}
+
+// ── Email Google Ads ──────────────────────────────────────────────────────────
+async function generateEmailGoogleAds({ leadData, pagespeedData, reviewsData, googleAdsReadiness: readiness, concurrence }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
+
+  const name    = leadData?.name     ?? 'ce commerce'
+  const city    = leadData?.city     ?? ''
+  const rating  = leadData?.rating   ?? '?'
+  const reviews = leadData?.reviewCount ?? '?'
+  const website = leadData?.website  ?? null
+
+  const rawPerf = pagespeedData?.performance ?? null
+  const perf    = rawPerf != null ? (rawPerf <= 1 ? Math.round(rawPerf * 100) : Math.round(rawPerf)) : null
+  const hasHttps  = pagespeedData?.https    ?? null
+  const loadTime  = pagespeedData?.loadTime ?? null
+
+  const unanswered = reviewsData?.unanswered ?? 0
+  const readinessLabel = readiness?.label ?? 'Non évalué'
+  const readinessScore = readiness?.score ?? null
+
+  const concLabel  = concurrence?.level  ?? 'Modérée'
+  const concCpc    = concurrence?.cpc    ?? '1–2€'
+  const concBudget = concurrence?.budget ?? '500–1500€/mois'
+
+  const SIG = city ? `\n— Consultant Google Ads, ${city}` : '\n— Consultant Google Ads'
+
+  const prompt = `Tu es un rédacteur expert en cold email B2B pour consultants Google Ads travaillant avec des commerces locaux.
+
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
+
+MISSION : Rédiger un email de prospection pour "${name}"${city ? ` (${city})` : ''}
+
+─── DONNÉES CHIFFRÉES ────────────────────────────────────────
+• Avis Google         : ${reviews} avis | Note : ${rating}/5
+• Avis sans réponse   : ${unanswered}
+• Site web            : ${website ? `Présent (${website})` : 'ABSENT'}
+• Performance mobile  : ${perf !== null ? `${perf}/100` : 'non disponible'}
+• HTTPS               : ${hasHttps === true ? 'Sécurisé ✅' : hasHttps === false ? 'NON sécurisé ❌' : 'inconnu'}
+• Temps chargement    : ${loadTime ?? 'non disponible'}
+• Compatibilité Ads   : ${readinessLabel}${readinessScore !== null ? ` (${readinessScore}/100)` : ''}
+• Concurrence secteur : ${concLabel} (CPC estimé ${concCpc})
+• Budget recommandé   : ${concBudget}
+──────────────────────────────────────────────────────────────
+
+RÉDIGE un email de prospection orienté ROI et résultats chiffrés.
+
+STRUCTURE :
+[ACCROCHE] — 1 phrase percutante qui montre que tu connais leur secteur et leur situation Google Ads (mention de la concurrence et du CPC)
+[PROBLÈME] — 1-2 phrases : ce qu'ils perdent chaque mois sans campagne Ads (clients captés par les concurrents)
+[PREUVE] — 1 phrase avec les données concrètes (note ${rating}/5, ${reviews} avis = potentiel de conversion élevé${perf !== null ? `, site à ${perf}/100 perf mobile` : ''})
+[SOLUTION] — 1-2 phrases : ce que tu proposes concrètement (audit gratuit, ROI cible, budget)
+[CTA] — 1 phrase courte, appel à action
+
+CONTRAINTES :
+- 150 à 220 mots maximum
+- Pas de markdown, pas de ** ni ##
+- Ton direct, chiffres, ROI — pas émotionnel
+- Pas de "j'espère que ce message vous trouve bien"
+- Introduis-toi comme : "je gère les campagnes publicitaires Google pour les commerces locaux"
+- Ne mentionne aucun outil de gestion ads par son nom
+- Retourne UNIQUEMENT un JSON : {"subject":"...","body":"..."}`
+
+  const anthropic = new Anthropic({ apiKey })
+  const message = await anthropic.messages.create({
+    model:      'claude-sonnet-4-6',
+    max_tokens: 600,
+    messages:   [{ role: 'user', content: prompt }],
+  })
+  console.log(`[generateEmailGoogleAds] ✓ réponse (tokens: ${message.usage?.output_tokens ?? '?'})`)
+  const raw = message.content[0].text
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error('Réponse JSON invalide du modèle')
+  try { return JSON.parse(jsonMatch[0]) }
+  catch { return JSON.parse(jsonMatch[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')) }
+}
+
+module.exports = { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateEmailSocialMedia, generateEmailDesigner, generateEmailWebDev, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot, generateAuditSocialMedia, generateAuditDesigner, generateAuditWebDev, generateAuditEmailMarketing, generateEmailEmailMarketing, generateAuditGoogleAds, generateEmailGoogleAds }

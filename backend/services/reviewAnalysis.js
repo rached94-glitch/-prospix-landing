@@ -210,4 +210,89 @@ function detectLanguages(reviews) {
   return { isMultilingual: languages.length > 1, languages, foreignRatio }
 }
 
-module.exports = { analyzeReviews, countQuestionsInReviews, countPhoneCallMentions, detectOffHoursActivity, detectLanguages }
+// ── Mentions fidélité/email dans les avis ────────────────────────────────────
+const LOYALTY_KEYWORDS = [
+  'carte fidélité', 'programme fidélité', 'fidélisation', 'newsletter',
+  'email', 'promo', 'réduction', 'offre', 'coupon', 'remise',
+  'code promo', 'bon de réduction', 'parrainage',
+]
+
+function detectLoyaltyMentions(reviews) {
+  if (!reviews || reviews.length === 0) return { loyaltyMentions: 0, loyaltyTopics: [], hasExistingLoyalty: false }
+
+  const topicCounts = {}
+  let total = 0
+
+  for (const review of reviews) {
+    const text = (review.text ?? review.comment ?? '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    for (const kw of LOYALTY_KEYWORDS) {
+      const normalized = kw.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      if (text.includes(normalized)) {
+        topicCounts[kw] = (topicCounts[kw] ?? 0) + 1
+        total++
+        break // une mention max par avis
+      }
+    }
+  }
+
+  const loyaltyTopics = Object.entries(topicCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([kw]) => kw)
+
+  return {
+    loyaltyMentions:    total,
+    loyaltyTopics,
+    hasExistingLoyalty: total > 3,
+  }
+}
+
+// Thèmes email-marketing détectés dans les avis — { label, count, type: 'positif'|'opportunite' }
+const EMAIL_THEME_KEYWORDS = {
+  'fidélité':      'positif',
+  'fidèle':        'positif',
+  'revenir':       'positif',
+  'habitué':       'positif',
+  'régulier':      'positif',
+  'recommande':    'opportunite',
+  'offre':         'opportunite',
+  'promo':         'opportunite',
+  'réduction':     'opportunite',
+  'anniversaire':  'opportunite',
+  'carte':         'opportunite',
+  'cadeau':        'opportunite',
+  'abonnement':    'opportunite',
+  'nouveau client':'opportunite',
+  'première fois': 'opportunite',
+  'découvert':     'opportunite',
+}
+
+function detectEmailThemes(reviews) {
+  if (!reviews || reviews.length === 0) return { themes: [], totalMentions: 0 }
+
+  const counts = {}
+  let totalMentions = 0
+
+  for (const review of reviews) {
+    const text = (review.text ?? review.comment ?? '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    const seen = new Set()
+    for (const [kw, type] of Object.entries(EMAIL_THEME_KEYWORDS)) {
+      const norm = kw.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      if (text.includes(norm) && !seen.has(kw)) {
+        seen.add(kw)
+        if (!counts[kw]) counts[kw] = { count: 0, type }
+        counts[kw].count++
+        totalMentions++
+      }
+    }
+  }
+
+  const themes = Object.entries(counts)
+    .map(([label, { count, type }]) => ({ label, count, type }))
+    .sort((a, b) => b.count - a.count)
+
+  return { themes, totalMentions }
+}
+
+module.exports = { analyzeReviews, countQuestionsInReviews, countPhoneCallMentions, detectOffHoursActivity, detectLanguages, detectLoyaltyMentions, detectEmailThemes }

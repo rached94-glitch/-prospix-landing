@@ -1226,12 +1226,12 @@ export async function exportAuditChatbotPDF({ lead, activeProfile, chatbotAudit,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// exportAuditSocialMediaPDF — Rapport "Audit Social Media"
+// exportAuditSocialMediaPDF — Rapport "Audit Community Manager"
 // Page 1 : Couverture dark + réseaux présents/absents + score régularité
 // Page 2 : Résumé exécutif + forces/faiblesses + KPIs activité
 // Page 3 : Opportunités + recommandations + CTA
 // ─────────────────────────────────────────────────────────────────────────────
-export async function exportAuditSocialMediaPDF({ lead, activeProfile, socialAudit, auditData }) {
+export async function exportAuditSocialMediaPDF({ lead, activeProfile, socialAudit, auditData, city: cityProp }) {
   const { jsPDF }      = await import('jspdf')
   const html2canvasLib = (await import('html2canvas')).default
 
@@ -1241,18 +1241,30 @@ export async function exportAuditSocialMediaPDF({ lead, activeProfile, socialAud
   const totalReviews  = lead.google?.totalReviews ?? 0
   const photoCount    = lead.googleAudit?.photoCount ?? 0
   const date          = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-  const city          = (lead.address ?? '').split(',').pop()?.trim() || ''
+  const city          = cityProp || (lead.address ?? '').split(',').pop()?.trim() || ''
   const sColor        = score >= 75 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444'
 
   const resumeExecutif  = esc(socialAudit?.resume_executif ?? '')
+  const tonalite        = esc(socialAudit?.tonalite        ?? '')
   const forces          = socialAudit?.forces          ?? []
   const faiblesses      = socialAudit?.faiblesses      ?? []
   const opportunites    = socialAudit?.opportunites    ?? []
   const recommandations = socialAudit?.recommandations ?? []
   const accroche        = esc(socialAudit?.accroche    ?? '')
 
-  const igActivity = auditData?.instagramActivity ?? null
-  const fbActivity = auditData?.facebookActivity  ?? null
+  const igActivity  = auditData?.instagramActivity ?? null
+  const fbActivity  = auditData?.facebookActivity  ?? null
+  const igDeep      = auditData?.instagramDeep     ?? null
+
+  // E-réputation metrics
+  const unanswered = lead.reviewAnalysis?.negative?.unanswered ?? 0
+  const replyRate  = totalReviews > 0 ? Math.round(((totalReviews - unanswered) / totalReviews) * 100) : null
+  const replyColor = replyRate === null ? '#94a3b8' : replyRate >= 80 ? '#16a34a' : replyRate >= 50 ? '#d97706' : '#dc2626'
+
+  // Deep IG engagement
+  const igAvgLikes   = igDeep?.avgLikes    ?? null
+  const igPostsMo    = igDeep?.postsPerMonth ?? null
+  const igTopHash    = igDeep?.topHashtags ?? []
 
   const NETWORKS = [
     { key: 'instagram', label: 'Instagram', color: '#e1306c' },
@@ -1308,7 +1320,7 @@ export async function exportAuditSocialMediaPDF({ lead, activeProfile, socialAud
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Audit Social Media — ${businessName}</title>
+<title>Audit Community Manager — ${businessName}</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:'Segoe UI',system-ui,sans-serif; background:#fff; color:#0f172a; }
@@ -1378,8 +1390,8 @@ export async function exportAuditSocialMediaPDF({ lead, activeProfile, socialAud
   <div class="cover-main">
     <div>
       <div class="cover-eyebrow">Audit prospect</div>
-      <div class="cover-title">Social<br>Media</div>
-      <div class="cover-subtitle">Audit Présence &amp; Stratégie Sociale</div>
+      <div class="cover-title">Community<br>Management</div>
+      <div class="cover-subtitle">Audit Community Management &amp; E-Réputation</div>
       <div class="cover-business">${businessName}</div>
     </div>
     <div class="cover-score-row">
@@ -1429,12 +1441,17 @@ export async function exportAuditSocialMediaPDF({ lead, activeProfile, socialAud
     <div class="reg-bar-bg"><div class="reg-bar-fill"></div></div>
   </div>
 
-  <div class="section-title" style="margin-top:24px">KPIs d'activité</div>
+  <div class="section-title" style="margin-top:24px">KPIs E-Réputation &amp; Réseaux</div>
   <div class="card">
+    ${kpiRow('Note Google', `${rating}/5`, `${totalReviews} avis`)}
+    ${kpiRow('Avis sans réponse', unanswered > 0 ? `${unanswered} non répondus` : 'Tous répondus ✓', unanswered > 0 ? '⚠ Risque e-réputation' : '')}
+    ${replyRate !== null ? kpiRow('Taux de réponse', `<span style="color:${replyColor};font-weight:800">${replyRate}%</span>`, replyRate >= 80 ? 'Excellent' : replyRate >= 50 ? 'À améliorer' : 'Insuffisant') : ''}
+    ${tonalite ? kpiRow('Tonalité avis', esc(tonalite.split(' — ')[0] || tonalite), '') : ''}
     ${kpiRow('Abonnés Instagram', igFoll !== null ? igFoll.toLocaleString('fr-FR') : '—', igDays !== null ? `(dernier post il y a ${igDays}j)` : '')}
     ${kpiRow('Abonnés Facebook', fbFoll !== null ? fbFoll.toLocaleString('fr-FR') : '—', fbDays !== null ? `(dernier post il y a ${fbDays}j)` : '')}
+    ${igAvgLikes !== null ? kpiRow('Likes moyens / post IG', igAvgLikes.toLocaleString('fr-FR'), igPostsMo !== null ? `${igPostsMo} posts/mois` : '') : ''}
+    ${igTopHash.length > 0 ? kpiRow('Top hashtags IG', igTopHash.slice(0, 3).join(' · '), '') : ''}
     ${kpiRow('Photos Google', `${photoCount} (${photoQualityLabel})`, '')}
-    ${kpiRow('Note Google', `${rating}/5`, `${totalReviews} avis`)}
   </div>
 
   <div class="section-title" style="margin-top:24px">Forces / Faiblesses</div>
@@ -1449,7 +1466,7 @@ export async function exportAuditSocialMediaPDF({ lead, activeProfile, socialAud
     </div>
   </div>
 
-  <div class="page-footer">LeadGenPro · Audit Social Media — ${businessName} · ${date}</div>
+  <div class="page-footer">Rapport généré via LeadGenPro · ${businessName} · ${date}</div>
 </div>
 
 <!-- PAGE 3 — OPPORTUNITÉS + RECOMMANDATIONS -->
@@ -1476,18 +1493,21 @@ export async function exportAuditSocialMediaPDF({ lead, activeProfile, socialAud
   </div>`).join('')}
 
   <div class="cta-block">
-    <div class="cta-badge">Proposition</div>
+    <div class="cta-badge">Passons à l'action</div>
     <div class="cta-headline">${accroche || 'Chaque client satisfait est un contenu — apprenons à le montrer.'}</div>
-    <div class="cta-sub">Résultats attendus en 45 jours — sans budget publicitaire.</div>
+    <div class="cta-sub">Résultats visibles en 45 jours — sans budget publicitaire.${city ? ' · ' + city : ''}</div>
     <div class="cta-grid">
       <div class="cta-item"><div class="cta-item-icon">📱</div><div class="cta-item-text">Ligne éditoriale sur mesure</div></div>
+      <div class="cta-item"><div class="cta-item-icon">💬</div><div class="cta-item-text">Gestion des avis &amp; interactions</div></div>
       <div class="cta-item"><div class="cta-item-icon">🎬</div><div class="cta-item-text">Contenus visuels et vidéos</div></div>
       <div class="cta-item"><div class="cta-item-icon">📊</div><div class="cta-item-text">Reporting mensuel</div></div>
-      <div class="cta-item"><div class="cta-item-icon">💬</div><div class="cta-item-text">Gestion des interactions</div></div>
+    </div>
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.1);font-size:10px;color:rgba(255,255,255,0.45);text-align:right;font-style:italic">
+      Community Manager${city ? ' — ' + city : ''}
     </div>
   </div>
 
-  <div class="page-footer">LeadGenPro · Audit Social Media — ${businessName} · ${date}</div>
+  <div class="page-footer">Rapport généré via LeadGenPro · ${date}</div>
 </div>
 
 </body>
@@ -2148,6 +2168,602 @@ export async function exportAuditWebDevPDF({ lead, activeProfile, webDevAudit, a
       pdf.addImage(slice.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pageWidthMm, pageHeightMm)
     }
     const fileName = `AuditWebDev-${(lead.name ?? 'prospect').replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().slice(0, 10)}.pdf`
+    pdf.save(fileName)
+  } finally {
+    document.body.removeChild(container)
+  }
+}
+
+// exportAuditEmailMarketingPDF — Rapport "Audit Email Marketing & Fidélisation"
+// Page 1 : Couverture dark vert + nom business + score + titre
+// Page 2 : Résumé exécutif + KPIs email + forces/faiblesses
+// Page 3 : Recommandations priorisées + type de campagne + CTA
+// ─────────────────────────────────────────────────────────────────────────────
+export async function exportAuditEmailMarketingPDF({
+  lead, activeProfile, emailAudit, auditData, reviewsData,
+  // Pre-computed enriched signals (computed at click time in handleAuditEmail)
+  visitFrequency = null, businessStability = null, canInvest = false,
+  loyaltyTopics = [], aiReportSummary = null,
+}) {
+  const { jsPDF }      = await import('jspdf')
+  const html2canvasLib = (await import('html2canvas')).default
+
+  const businessName  = esc(lead.name ?? 'Ce commerce')
+  const score         = lead.score?.total ?? 0
+  const rating        = lead.google?.rating       ?? '—'
+  const totalReviews  = lead.google?.totalReviews ?? 0
+  const date          = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  const city          = (lead.address ?? '').split(',').pop()?.trim() || ''
+
+  const resumeExecutif  = esc(emailAudit?.resume_executif ?? '')
+  const forces          = emailAudit?.forces          ?? []
+  const faiblesses      = emailAudit?.faiblesses      ?? []
+  const opportunites    = emailAudit?.opportunites    ?? []
+  const recommandations = emailAudit?.recommandations ?? []
+  const accroche        = esc(emailAudit?.accroche    ?? '')
+
+  // KPIs email-marketing — données les plus complètes disponibles
+  const social          = lead.social ?? {}
+  const ownerRatioBase  = lead.ownerReplyRatio ?? null
+  const totalFull       = reviewsData?.total      ?? null
+  const unansweredFull  = reviewsData?.unanswered ?? null
+  const hasNewsletter   = social.newsletterDetection?.hasNewsletter ?? auditData?.pagespeed?.siteSignals?.hasNewsletter ?? null
+  const hasForm         = auditData?.pagespeed?.siteSignals?.hasContactForm ?? social.contactFormDetection?.hasContactForm ?? null
+  const estimatedClients = Math.round(totalReviews * 10)
+  const socialNets      = ['facebook', 'instagram', 'tiktok', 'linkedin', 'youtube', 'pinterest'].filter(k => !!(social[k]))
+
+  let unansweredVal
+  if (totalFull != null && unansweredFull != null) {
+    unansweredVal = `${unansweredFull}/${totalFull} (données complètes)`
+  } else if (ownerRatioBase != null) {
+    const n = 5 - Math.round(ownerRatioBase * 5)
+    unansweredVal = `${n}/5 (5 avis récents)`
+  } else {
+    unansweredVal = '—'
+  }
+
+  const loyaltyMentions = (reviewsData?.loyaltyAnalysis?.loyaltyMentions ?? lead.loyaltyAnalysis?.loyaltyMentions ?? 0)
+  const loyaltyLabel    = loyaltyMentions === 0 ? 'Aucune' : `${loyaltyMentions} mention${loyaltyMentions > 1 ? 's' : ''}`
+  const loyaltyTopicsStr = loyaltyTopics.length > 0 ? loyaltyTopics.slice(0, 3).join(', ') : null
+  const potentiel       = estimatedClients >= 500 ? 'Fort' : estimatedClients >= 100 ? 'Moyen' : 'Faible'
+
+  // Enriched signals — labels pour affichage PDF
+  const visitFreqLabel  = visitFrequency ?? '—'
+  const stabLabel       = businessStability === 'haute' ? 'Solide' : businessStability === 'moyenne' ? 'Correcte' : businessStability === 'faible' ? 'Incertaine' : '—'
+  const stabNote        = canInvest ? ' · Budget disponible' : ''
+  const dataSource      = totalFull ? `Basé sur ${totalFull} avis complets` : 'Basé sur 5 avis récents'
+
+  // Scoring visual
+  const sColor    = score >= 75 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444'
+  const accentColor = '#edfa36'
+  const darkBg    = '#0D1410'
+  const darkBg2   = '#111813'
+  const greenMain = '#1D6E55'
+
+  const kpiRow = (label, value, ok) => `
+    <div class="kpi-row">
+      <span class="kpi-label">${label}</span>
+      <span class="kpi-value" style="color:${ok === true ? '#16a34a' : ok === false ? '#dc2626' : '#0f172a'}">${value}</span>
+    </div>`
+
+  const ffCard = (items, color, limit = 3) => items.slice(0, limit).map(item => `
+    <div class="ff-item" style="border-left-color:${color}">
+      <div class="ff-title">${esc(item.titre ?? item)}</div>
+      ${item.description ? `<div class="ff-desc">${esc(item.description)}</div>` : ''}
+    </div>`).join('')
+
+  const recCard = (r, i) => `
+    <div class="rec-item">
+      <div class="rec-num">${i + 1}</div>
+      <div>
+        <div class="rec-title">${esc(r.titre ?? '')}</div>
+        <div class="rec-desc">${esc(r.description ?? '')}</div>
+      </div>
+    </div>`
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Audit Email Marketing — ${businessName}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:#fff; color:#0f172a; }
+
+  /* ── COVER ── */
+  .cover { width:100%; height:1123px; background:linear-gradient(145deg,${darkBg} 0%,${darkBg2} 55%,#0a1109 100%); display:flex; flex-direction:column; justify-content:space-between; padding:56px 60px 40px 60px; position:relative; overflow:hidden; page-break-after:always; }
+  .cover::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse 50% 50% at 80% 20%,${greenMain}22 0%,transparent 65%),radial-gradient(ellipse 35% 35% at 15% 75%,${greenMain}10 0%,transparent 55%); pointer-events:none; }
+  .cover-logo    { font-size:8px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:rgba(255,255,255,0.3); }
+  .cover-eyebrow { font-size:10px; font-weight:700; letter-spacing:5px; text-transform:uppercase; color:${accentColor}; margin-bottom:12px; }
+  .cover-title   { font-size:38px; font-weight:900; color:#fff; line-height:1.05; letter-spacing:-1.5px; }
+  .cover-subtitle{ font-size:15px; font-weight:600; color:rgba(255,255,255,0.55); margin-top:6px; }
+  .cover-business{ font-size:24px; font-weight:700; color:rgba(255,255,255,0.88); line-height:1.2; max-width:460px; margin-top:32px; }
+  .cover-main    { flex:1; display:flex; flex-direction:column; justify-content:center; }
+  .cover-score-row { display:flex; align-items:center; gap:24px; margin-top:40px; }
+  .score-ring    { width:110px; height:110px; border-radius:50%; border:4px solid ${sColor}; display:flex; align-items:center; justify-content:center; flex-direction:column; box-shadow:0 0 36px ${sColor}44; background:${sColor}0d; flex-shrink:0; }
+  .score-number  { font-size:32px; font-weight:900; color:${sColor}; line-height:1; }
+  .score-lbl     { font-size:8px; color:rgba(255,255,255,0.4); letter-spacing:2px; margin-top:2px; }
+  .meta-col      { display:flex; flex-direction:column; gap:10px; }
+  .meta-item-lbl { font-size:8px; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:2px; }
+  .meta-item-val { font-size:13px; color:rgba(255,255,255,0.82); font-weight:700; }
+  .cover-footer  { display:flex; flex-direction:column; gap:4px; }
+  .cover-date    { font-size:10px; color:rgba(255,255,255,0.25); }
+  .cover-footer-brand { font-size:9px; color:rgba(255,255,255,0.18); letter-spacing:2px; }
+
+  /* ── PAGES ── */
+  .page { padding:48px 52px; min-height:1123px; position:relative; page-break-after:always; }
+  .page:last-child { page-break-after:auto; }
+  .section-title { font-size:8.5px; font-weight:800; letter-spacing:3.5px; text-transform:uppercase; color:${greenMain}; border-bottom:2px solid ${greenMain}; padding-bottom:7px; margin-bottom:16px; margin-top:28px; }
+  .section-title:first-child { margin-top:0; }
+  .exec-box { background:linear-gradient(135deg,#f0fdf4,#f8fafc); border:1px solid #bbf7d0; border-left:3px solid ${greenMain}; border-radius:8px; padding:16px 18px; font-size:11.5px; line-height:1.8; color:#1e293b; margin-bottom:20px; }
+
+  /* KPIs */
+  .kpi-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+  .kpi-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 14px; }
+  .kpi-card-title { font-size:8px; color:#94a3b8; text-transform:uppercase; letter-spacing:2px; font-weight:700; margin-bottom:10px; }
+  .kpi-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #f1f5f9; }
+  .kpi-row:last-child { border-bottom:none; }
+  .kpi-label { font-size:10.5px; color:#64748b; }
+  .kpi-value { font-size:11px; font-weight:700; color:#0f172a; }
+
+  /* Forces/Faiblesses */
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
+  .card { background:#f8fafc; border-radius:10px; padding:14px 16px; border:1px solid #e2e8f0; }
+  .card-title { font-size:8px; color:#94a3b8; text-transform:uppercase; letter-spacing:2px; font-weight:700; margin-bottom:10px; }
+  .ff-item { padding:9px 12px; border-left:3px solid; border-radius:0 8px 8px 0; background:#f8fafc; margin-bottom:7px; }
+  .ff-title { font-size:11px; font-weight:700; color:#0f172a; margin-bottom:2px; }
+  .ff-desc  { font-size:9.5px; color:#64748b; line-height:1.5; }
+
+  /* Recommandations */
+  .rec-item { display:flex; gap:14px; align-items:flex-start; padding:12px 14px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:10px; background:#fafbfc; }
+  .rec-num  { width:24px; height:24px; border-radius:50%; background:${greenMain}; color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .rec-title { font-size:11.5px; font-weight:700; color:#0f172a; margin-bottom:3px; }
+  .rec-desc  { font-size:10px; color:#64748b; line-height:1.55; }
+
+  /* Campagne */
+  .campagne-box { background:linear-gradient(135deg,#f0fdf4,#ecfdf5); border:1px solid #86efac; border-left:4px solid ${greenMain}; border-radius:8px; padding:16px 18px; margin-bottom:20px; }
+  .campagne-label { font-size:8px; color:${greenMain}; text-transform:uppercase; letter-spacing:2.5px; font-weight:700; margin-bottom:6px; }
+  .campagne-value { font-size:16px; font-weight:800; color:#065f46; line-height:1.3; }
+
+  /* CTA */
+  .cta-box { background:${darkBg}; border-radius:12px; padding:28px 32px; color:#fff; text-align:center; margin-top:28px; }
+  .cta-title { font-size:18px; font-weight:800; color:${accentColor}; margin-bottom:8px; }
+  .cta-sub   { font-size:12px; color:rgba(255,255,255,0.65); margin-bottom:18px; line-height:1.6; }
+  .cta-contact { display:flex; justify-content:center; gap:32px; flex-wrap:wrap; }
+  .cta-item  { font-size:11px; color:rgba(255,255,255,0.6); }
+  .cta-item strong { color:rgba(255,255,255,0.9); display:block; font-size:12px; }
+
+  /* Accroche */
+  .accroche  { font-size:12px; font-style:italic; color:#64748b; text-align:center; padding:12px 24px; border-top:1px solid #e2e8f0; margin-top:20px; line-height:1.7; }
+
+  /* Footer */
+  .page-footer { position:absolute; bottom:24px; left:52px; right:52px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; padding-top:10px; }
+  .footer-brand { font-size:8px; color:#94a3b8; letter-spacing:2px; text-transform:uppercase; }
+  .footer-page  { font-size:8px; color:#cbd5e1; }
+</style>
+</head>
+<body>
+
+<!-- ══ PAGE 1 : COUVERTURE ══════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-logo">LeadGenPro</div>
+  <div class="cover-main">
+    <div class="cover-eyebrow">Rapport confidentiel</div>
+    <div class="cover-title">Audit Email Marketing<br>&amp; Fidélisation</div>
+    <div class="cover-subtitle">Analyse de l'opportunité email &amp; fidélisation client</div>
+    <div class="cover-business">${businessName}${city ? ` · ${city}` : ''}</div>
+    <div class="cover-score-row">
+      <div class="score-ring">
+        <div class="score-number">${score}</div>
+        <div class="score-lbl">SCORE</div>
+      </div>
+      <div class="meta-col">
+        <div><div class="meta-item-lbl">Note Google</div><div class="meta-item-val">${rating} ★ · ${totalReviews} avis</div></div>
+        <div><div class="meta-item-lbl">Newsletter</div><div class="meta-item-val">${hasNewsletter ? 'Présente' : 'Absente'}</div></div>
+        <div><div class="meta-item-lbl">Clients estimés</div><div class="meta-item-val">~${estimatedClients.toLocaleString('fr-FR')}</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="cover-footer">
+    <div class="cover-date">Rapport généré le ${date}</div>
+    <div class="cover-footer-brand">Rapport généré via LeadGenPro</div>
+  </div>
+</div>
+
+<!-- ══ PAGE 2 : ANALYSE ═════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <div class="section-title">Résumé exécutif</div>
+  ${resumeExecutif ? `<div class="exec-box">${resumeExecutif}</div>` : ''}
+
+  <div class="section-title">Indicateurs clés</div>
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-card-title">Réactivité &amp; avis</div>
+      ${kpiRow('Note Google', `${rating} / 5 ★`, null)}
+      ${kpiRow('Volume avis', totalReviews, null)}
+      ${kpiRow('Avis sans réponse', unansweredVal, null)}
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-card-title">Présence digitale</div>
+      ${kpiRow('Site web',        lead.website && lead.website !== 'null' ? 'Présent' : 'Absent',   !!(lead.website && lead.website !== 'null'))}
+      ${kpiRow('Newsletter',      hasNewsletter === null ? '—' : hasNewsletter ? 'Présente' : 'Absente',  hasNewsletter === null ? null : !hasNewsletter)}
+      ${kpiRow('Formulaire email',hasForm === null ? '—' : hasForm ? 'Détecté' : 'Absent',          hasForm === null ? null : hasForm)}
+      ${kpiRow('Réseaux sociaux', `${socialNets.length} réseau${socialNets.length !== 1 ? 'x' : ''}`, socialNets.length >= 2)}
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-card-title">Potentiel fidélisation</div>
+      ${kpiRow('Clients estimés',      `~${estimatedClients.toLocaleString('fr-FR')}`, null)}
+      ${kpiRow('Potentiel',            potentiel,                                       potentiel === 'Fort')}
+      ${kpiRow('Mentions fidélité',    `${loyaltyLabel}${loyaltyTopicsStr ? ` · ${loyaltyTopicsStr}` : ''}`, loyaltyMentions === 0)}
+      ${kpiRow('Fréquence visite',     visitFreqLabel,                                  visitFreqLabel === 'Haute')}
+      ${kpiRow('Stabilité',            `${stabLabel}${stabNote}`,                       businessStability === 'haute')}
+    </div>
+  </div>
+
+  <div style="font-size:8.5px;color:#94a3b8;text-align:right;margin-bottom:14px;font-style:italic">${dataSource}</div>
+
+  ${aiReportSummary ? `
+  <div class="section-title">Analyse IA des avis clients</div>
+  <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:3px solid #1D6E55;border-radius:8px;padding:12px 16px;font-size:10.5px;line-height:1.75;color:#1e293b;margin-bottom:20px;white-space:pre-wrap">${esc(aiReportSummary)}</div>
+  ` : ''}
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Points forts</div>
+      ${forces.length > 0 ? ffCard(forces, '#16a34a') : '<div class="ff-desc" style="color:#94a3b8">—</div>'}
+    </div>
+    <div class="card">
+      <div class="card-title">Points faibles</div>
+      ${faiblesses.length > 0 ? ffCard(faiblesses, '#dc2626') : '<div class="ff-desc" style="color:#94a3b8">—</div>'}
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span class="footer-brand">Rapport généré via LeadGenPro</span>
+    <span class="footer-page">Page 2 / 3</span>
+  </div>
+</div>
+
+<!-- ══ PAGE 3 : RECOMMANDATIONS + CTA ══════════════════════════════════════ -->
+<div class="page">
+
+  ${recommandations.length > 0 ? `
+  <div class="section-title">Recommandations priorisées</div>
+  ${recommandations.slice(0, 4).map((r, i) => recCard(r, i)).join('')}
+  ` : ''}
+
+  ${opportunites.length > 0 ? `
+  <div class="section-title">Opportunités identifiées</div>
+  ${opportunites.slice(0, 3).map(o => `<div class="ff-item" style="border-left-color:#f59e0b"><div class="ff-title">${esc(o.titre ?? o)}</div>${o.description ? `<div class="ff-desc">${esc(o.description)}</div>` : ''}</div>`).join('')}
+  ` : ''}
+
+  <div class="section-title">Stratégie recommandée</div>
+  <div class="campagne-box">
+    <div class="campagne-label">Type de campagne</div>
+    <div class="campagne-value">${accroche || 'Séquences automatiques + fidélisation clients'}</div>
+  </div>
+
+  <div class="cta-box">
+    <div class="cta-title">Passons à l'action</div>
+    <div class="cta-sub">Prêt à mettre en place une stratégie email qui convertit ?<br>Contactez votre consultant pour démarrer dès cette semaine.</div>
+    <div class="cta-contact">
+      <div class="cta-item"><strong>Votre consultant</strong>[Prénom Nom]</div>
+      <div class="cta-item"><strong>Email</strong>[email@exemple.com]</div>
+      <div class="cta-item"><strong>Téléphone</strong>[06 XX XX XX XX]</div>
+    </div>
+  </div>
+
+  ${accroche ? `<div class="accroche">"${accroche}"</div>` : ''}
+
+  <div class="page-footer">
+    <span class="footer-brand">Rapport généré via LeadGenPro</span>
+    <span class="footer-page">Page 3 / 3</span>
+  </div>
+</div>
+
+</body>
+</html>`
+
+  const container = document.createElement('div')
+  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;z-index:-1'
+  container.innerHTML = html
+  document.body.appendChild(container)
+
+  try {
+    const canvas = await html2canvasLib(container, {
+      scale: 2, useCORS: true, allowTaint: true,
+      backgroundColor: '#ffffff', logging: false,
+      windowWidth: 794,
+    })
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const pageWidthMm  = 210, pageHeightMm = 297
+    const pxPerMm      = canvas.width / pageWidthMm
+    const pageHeightPx = Math.round(pageHeightMm * pxPerMm)
+    const imgHeightMm  = (canvas.height * pageWidthMm) / canvas.width
+    const totalPages   = Math.ceil(imgHeightMm / pageHeightMm)
+    let firstPage = true
+    for (let i = 0; i < totalPages; i++) {
+      const srcY = i * pageHeightPx
+      const srcH = Math.min(pageHeightPx, canvas.height - srcY)
+      if (srcH < pageHeightPx * 0.10) continue
+      if (!firstPage) pdf.addPage()
+      firstPage = false
+      const slice = document.createElement('canvas')
+      slice.width = canvas.width; slice.height = pageHeightPx
+      const ctx = slice.getContext('2d')
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, slice.width, slice.height)
+      ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH)
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pageWidthMm, pageHeightMm)
+    }
+    const fileName = `AuditEmailMarketing-${(lead.name ?? 'prospect').replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().slice(0, 10)}.pdf`
+    pdf.save(fileName)
+  } finally {
+    document.body.removeChild(container)
+  }
+}
+
+// exportAuditGoogleAdsPDF — Rapport "Audit Google Ads"
+// Page 1 : Couverture bleu/cyan + nom business + score compatibilité Ads
+// Page 2 : Résumé exécutif + KPIs (site, perf, fiche) + forces/faiblesses
+// Page 3 : Recommandations priorisées + budget estimé + CTA
+// ─────────────────────────────────────────────────────────────────────────────
+export async function exportAuditGoogleAdsPDF({ lead, activeProfile, googleAdsAudit, auditData }) {
+  const { jsPDF }      = await import('jspdf')
+  const html2canvasLib = (await import('html2canvas')).default
+
+  const businessName  = esc(lead.name ?? 'Ce commerce')
+  const score         = lead.score?.total ?? 0
+  const rating        = lead.google?.rating       ?? '—'
+  const totalReviews  = lead.google?.totalReviews ?? 0
+  const date          = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  const city          = (lead.address ?? '').split(',').pop()?.trim() || ''
+  const profileName   = activeProfile?.name ?? 'Consultant Google Ads'
+  const hasWebsite    = !!(lead.website && !['null', 'undefined', ''].includes(String(lead.website)))
+
+  const resumeExecutif  = esc(googleAdsAudit?.resume_executif ?? '')
+  const forces          = googleAdsAudit?.forces          ?? []
+  const faiblesses      = googleAdsAudit?.faiblesses      ?? []
+  const recommandations = googleAdsAudit?.recommandations ?? []
+  const accroche        = esc(googleAdsAudit?.accroche    ?? '')
+
+  const ps        = auditData?.pagespeed ?? null
+  const rawPerf   = ps?.performance
+  const perfScore = rawPerf != null ? (rawPerf <= 1 ? Math.round(rawPerf * 100) : Math.round(rawPerf)) : null
+  const loadTime  = ps?.loadTime  ?? null
+  const hasHttps  = ps?.https     ?? false
+  const hasSitemap = ps?.sitemap  ?? false
+
+  // Score compatibilité Ads (mirrors scoring.js googleAdsReadiness)
+  let adsScore = 0
+  const rt = Number(rating) || 0
+  if (rt >= 4.0) adsScore += 20; else if (rt >= 3.5) adsScore += 10; else adsScore += 5
+  const rev = Number(totalReviews) || 0
+  if (rev > 50) adsScore += 15; else if (rev >= 20) adsScore += 10; else adsScore += 5
+  if (hasWebsite)  adsScore += 15
+  if (perfScore != null) { if (perfScore >= 70) adsScore += 15; else if (perfScore >= 50) adsScore += 10; else adsScore += 5 }
+  if (hasHttps)    adsScore += 10
+  const loadSec = loadTime !== null ? parseFloat(String(loadTime).replace('s', '')) : null
+  if (loadSec !== null) { if (loadSec < 3) adsScore += 10; else if (loadSec < 5) adsScore += 5 }
+  const photoCount = lead.googleAudit?.photoCount ?? 0
+  const hasDesc    = lead.googleAudit?.hasDescription ?? false
+  const hasHours   = lead.googleAudit?.hasHours ?? false
+  if (photoCount > 10 && hasDesc && hasHours) adsScore += 10
+  adsScore = Math.min(100, adsScore)
+  const adsLabel = adsScore >= 75 ? 'Idéal' : adsScore >= 55 ? 'Prêt' : adsScore >= 35 ? 'À préparer' : 'Non compatible'
+  const adsColor = adsScore >= 75 ? '#22c55e' : adsScore >= 55 ? '#3b82f6' : adsScore >= 35 ? '#f59e0b' : '#ef4444'
+
+  const accentColor = '#0ea5e9'
+
+  const kpiRow = (label, value, ok) => `
+    <div class="stat-row">
+      <span class="stat-label">${label}</span>
+      <span class="stat-value" style="color:${ok === true ? '#16a34a' : ok === false ? '#dc2626' : '#0f172a'}">${value}</span>
+    </div>`
+
+  const forceFaiblCard = (items, color) => items.slice(0, 3).map(item => `
+    <div class="ff-item" style="border-left-color:${color}">
+      <div class="ff-title">${esc(item.titre ?? '')}</div>
+      <div class="ff-desc">${esc(item.description ?? '')}</div>
+    </div>`).join('')
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Audit Google Ads — ${businessName}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:#fff; color:#0f172a; }
+  .cover { width:100%; height:1123px; background:linear-gradient(145deg,#030d1f 0%,#051830 55%,#041526 100%); display:flex; flex-direction:column; justify-content:space-between; padding:56px 60px 0 60px; position:relative; overflow:hidden; page-break-after:always; }
+  .cover::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse 50% 50% at 80% 20%,${accentColor}20 0%,transparent 65%),radial-gradient(ellipse 35% 35% at 15% 75%,#4338ca12 0%,transparent 55%); pointer-events:none; }
+  .cover-logo { font-size:8px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:rgba(255,255,255,0.3); }
+  .cover-eyebrow { font-size:10px; font-weight:700; letter-spacing:5px; text-transform:uppercase; color:${accentColor}; margin-bottom:12px; }
+  .cover-title { font-size:56px; font-weight:800; color:#fff; line-height:1.05; margin-bottom:8px; }
+  .cover-subtitle { font-size:13px; color:rgba(255,255,255,0.55); margin-bottom:32px; }
+  .cover-business { font-size:22px; font-weight:700; color:#fff; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.15); border-radius:10px; padding:12px 20px; display:inline-block; }
+  .cover-main { flex:1; display:flex; flex-direction:column; justify-content:center; gap:28px; }
+  .cover-score-row { display:flex; align-items:center; gap:28px; }
+  .cover-score-ring { width:90px; height:90px; border-radius:50%; border:4px solid ${adsColor}; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(255,255,255,0.04); }
+  .cover-score-number { font-size:30px; font-weight:800; color:${adsColor}; line-height:1; }
+  .cover-score-label  { font-size:9px; color:rgba(255,255,255,0.45); font-weight:600; }
+  .cover-score-meta { display:flex; flex-direction:column; gap:10px; }
+  .cover-score-meta-item { display:flex; flex-direction:column; gap:1px; }
+  .cover-score-meta-label { font-size:9px; color:rgba(255,255,255,0.4); font-weight:600; letter-spacing:0.5px; text-transform:uppercase; }
+  .cover-score-meta-value { font-size:15px; font-weight:700; color:#fff; }
+  .cover-ads-badge { display:inline-block; background:${adsColor}22; border:1px solid ${adsColor}55; border-radius:8px; padding:8px 16px; font-size:13px; font-weight:700; color:${adsColor}; margin-top:10px; }
+  .cover-footer { padding:24px 0 32px; display:flex; justify-content:space-between; align-items:flex-end; border-top:1px solid rgba(255,255,255,0.08); }
+  .cover-freelancer { font-size:11px; color:rgba(255,255,255,0.45); }
+  .cover-date { font-size:11px; color:rgba(255,255,255,0.3); font-family:monospace; }
+  .cover-watermark { font-size:8px; color:rgba(255,255,255,0.15); letter-spacing:1px; text-transform:uppercase; }
+  .report { padding:48px 56px; max-width:100%; }
+  .section-title { font-size:9px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:${accentColor}; margin-bottom:14px; padding-bottom:8px; border-bottom:2px solid ${accentColor}22; }
+  .exec-box { background:#f8faff; border:1px solid #e0edff; border-left:4px solid ${accentColor}; border-radius:0 10px 10px 0; padding:16px 18px; font-size:12.5px; color:#1e293b; line-height:1.65; margin-bottom:8px; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:8px; }
+  .card { background:#fafbfc; border:1px solid #e2e8f0; border-radius:10px; padding:16px 18px; }
+  .card-title { font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#64748b; margin-bottom:12px; }
+  .ff-item { padding:10px 14px; border-left:3px solid #e2e8f0; border-radius:0 8px 8px 0; margin-bottom:8px; background:#fafbfc; }
+  .ff-title { font-size:11.5px; font-weight:700; color:#0f172a; margin-bottom:3px; }
+  .ff-desc  { font-size:10px; color:#64748b; line-height:1.5; }
+  .stat-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f1f5f9; }
+  .stat-row:last-child { border-bottom:none; }
+  .stat-label { font-size:11px; color:#64748b; }
+  .stat-value { font-size:12px; font-weight:700; color:#0f172a; }
+  .badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:10px; font-weight:700; margin:3px; }
+  .badge-green { background:#dcfce7; color:#16a34a; }
+  .badge-red   { background:#fee2e2; color:#dc2626; }
+  .badge-blue  { background:#dbeafe; color:#1d4ed8; }
+  .rec-item { padding:13px 16px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:8px; background:#f8fafc; display:flex; gap:14px; align-items:flex-start; }
+  .rec-num { width:24px; height:24px; border-radius:50%; background:${accentColor}; color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+  .rec-content { flex:1; }
+  .rec-title  { font-size:12px; font-weight:700; color:#0f172a; margin-bottom:3px; }
+  .rec-detail { font-size:10.5px; color:#64748b; line-height:1.5; }
+  .cta-block { background:linear-gradient(135deg,${accentColor} 0%,#0369a1 100%); border-radius:12px; padding:22px 28px; margin-top:16px; }
+  .cta-badge    { display:inline-block; background:rgba(255,255,255,0.2); color:#fff; font-size:8px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; padding:3px 10px; border-radius:4px; margin-bottom:12px; }
+  .cta-headline { font-size:18px; font-weight:800; color:#fff; margin-bottom:6px; }
+  .cta-sub      { font-size:11px; color:rgba(255,255,255,0.7); margin-bottom:20px; line-height:1.5; }
+  .accroche-box { background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:14px 18px; margin-bottom:20px; font-size:12px; font-style:italic; color:#0369a1; line-height:1.6; }
+  .page-footer { font-size:7.5px; color:rgba(0,0,0,0.18); text-align:center; margin-top:32px; letter-spacing:0.5px; }
+  .card,.ff-item,.rec-item,.cta-block,.exec-box,.grid-2 { page-break-inside:avoid; break-inside:avoid; }
+  @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } @page { size:A4 portrait; margin:0; } }
+</style>
+</head>
+<body>
+
+<!-- ═══════ PAGE 1 : COUVERTURE ═══════ -->
+<div class="cover">
+  <div class="cover-logo">LeadGenPro</div>
+  <div class="cover-main">
+    <div>
+      <div class="cover-eyebrow">Audit prospect</div>
+      <div class="cover-title">Google<br>Ads</div>
+      <div class="cover-subtitle">Audit Compatibilité &amp; Stratégie Google Ads</div>
+      <div class="cover-business">${businessName}</div>
+      <div class="cover-ads-badge">Compatibilité : ${adsLabel} — ${adsScore}/100</div>
+    </div>
+    <div class="cover-score-row">
+      <div class="cover-score-ring">
+        <div class="cover-score-number">${adsScore}</div>
+        <div class="cover-score-label">/ 100</div>
+      </div>
+      <div class="cover-score-meta">
+        <div class="cover-score-meta-item">
+          <div class="cover-score-meta-label">Note Google</div>
+          <div class="cover-score-meta-value">⭐ ${rating}/5</div>
+        </div>
+        <div class="cover-score-meta-item">
+          <div class="cover-score-meta-label">Avis clients</div>
+          <div class="cover-score-meta-value">${totalReviews} avis</div>
+        </div>
+        <div class="cover-score-meta-item">
+          <div class="cover-score-meta-label">Site web</div>
+          <div class="cover-score-meta-value">${hasWebsite ? '✅ Présent' : '❌ Absent'}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="cover-footer">
+    <div class="cover-freelancer">Rapport préparé par <strong>${esc(profileName)}</strong>${city ? ` — ${esc(city)}` : ''}</div>
+    <div class="cover-date">${date}</div>
+    <div class="cover-watermark">Rapport généré via LeadGenPro</div>
+  </div>
+</div>
+
+<!-- ═══════ PAGE 2 : RÉSUMÉ + KPIS + FORCES/FAIBLESSES ═══════ -->
+<div class="report">
+
+  <div class="section-title">1 · Résumé exécutif</div>
+  <div class="exec-box">${resumeExecutif || '—'}</div>
+
+  <div class="section-title" style="margin-top:28px">2 · Compatibilité Google Ads</div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Site &amp; Performances</div>
+      ${kpiRow('Site web',           hasWebsite ? '✅ Présent' : '❌ Absent',  hasWebsite)}
+      ${kpiRow('Performance mobile', perfScore !== null ? `${perfScore}/100` : '—', perfScore !== null ? perfScore >= 70 : null)}
+      ${kpiRow('HTTPS',              hasHttps ? '✅ Sécurisé' : '❌ Non sécurisé', hasHttps)}
+      ${kpiRow('Temps chargement',   loadTime ?? '—',  loadSec !== null ? loadSec < 3 : null)}
+      ${kpiRow('Sitemap XML',        hasSitemap ? '✅ Présent' : 'Absent',  hasSitemap || null)}
+    </div>
+    <div class="card">
+      <div class="card-title">Fiche Google &amp; Avis</div>
+      ${kpiRow('Note Google',     `${rating}/5`,   rt >= 4.0 ? true : rt >= 3.5 ? null : false)}
+      ${kpiRow('Volume avis',     `${totalReviews} avis`, rev >= 50 ? true : rev >= 20 ? null : false)}
+      ${kpiRow('Photos fiche',    `${photoCount} photos`, photoCount > 10 ? true : photoCount > 3 ? null : false)}
+      ${kpiRow('Description',     hasDesc ? '✅ Présente' : '❌ Absente', hasDesc)}
+      ${kpiRow('Horaires',        hasHours ? '✅ Renseignés' : '❌ Absents', hasHours)}
+    </div>
+  </div>
+
+  <div class="section-title" style="margin-top:28px">3 · Forces &amp; faiblesses</div>
+  <div class="grid-2">
+    <div>
+      <div style="font-size:8px;letter-spacing:2px;font-weight:700;text-transform:uppercase;color:#16a34a;margin-bottom:10px">✓ Forces</div>
+      ${forces.length > 0 ? forceFaiblCard(forces, '#16a34a') : '<div class="ff-item" style="border-left-color:#e2e8f0"><div class="ff-desc">Non identifié</div></div>'}
+    </div>
+    <div>
+      <div style="font-size:8px;letter-spacing:2px;font-weight:700;text-transform:uppercase;color:#dc2626;margin-bottom:10px">✗ Faiblesses</div>
+      ${faiblesses.length > 0 ? forceFaiblCard(faiblesses, '#dc2626') : '<div class="ff-item" style="border-left-color:#e2e8f0"><div class="ff-desc">Aucune critique détectée</div></div>'}
+    </div>
+  </div>
+
+  <div class="page-footer">LeadGenPro · ${date}</div>
+</div>
+
+<!-- ═══════ PAGE 3 : RECOMMANDATIONS + CTA ═══════ -->
+<div class="report" style="padding-top:40px">
+  ${accroche ? `<div class="accroche-box">"${accroche}"</div>` : ''}
+
+  <div class="section-title">4 · Recommandations priorisées</div>
+  ${recommandations.slice(0, 4).map((r, i) => `
+    <div class="rec-item">
+      <div class="rec-num">${r.priorite ?? i + 1}</div>
+      <div class="rec-content">
+        <div class="rec-title">${esc(r.titre ?? '')}</div>
+        <div class="rec-detail">${esc(r.description ?? '')}</div>
+      </div>
+    </div>`).join('')}
+
+  <div class="cta-block">
+    <div class="cta-badge">Prochaine étape</div>
+    <div class="cta-headline">Passons à la mise en oeuvre</div>
+    <div class="cta-sub">Cet audit vous donne une vision claire de votre potentiel Google Ads. La prochaine étape est de définir votre stratégie de campagne adaptée à votre secteur et votre budget.</div>
+  </div>
+
+  <div class="page-footer">LeadGenPro · ${date} · Confidentiel — Préparé pour ${businessName}</div>
+</div>
+
+</body>
+</html>`
+
+  const container = document.createElement('div')
+  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;z-index:-1'
+  container.innerHTML = html
+  document.body.appendChild(container)
+
+  try {
+    const canvas = await html2canvasLib(container, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', width: 794 })
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const pageWidthMm = 210, pageHeightMm = 297
+    const pxPerMm    = canvas.width / pageWidthMm
+    const pageHeightPx = Math.round(pageHeightMm * pxPerMm)
+    const imgHeightMm  = (canvas.height * pageWidthMm) / canvas.width
+    const totalPages   = Math.ceil(imgHeightMm / pageHeightMm)
+    let firstPage = true
+    for (let i = 0; i < totalPages; i++) {
+      const srcY = i * pageHeightPx
+      const srcH = Math.min(pageHeightPx, canvas.height - srcY)
+      if (srcH < pageHeightPx * 0.10) continue
+      if (!firstPage) pdf.addPage()
+      firstPage = false
+      const slice = document.createElement('canvas')
+      slice.width = canvas.width; slice.height = pageHeightPx
+      const ctx = slice.getContext('2d')
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, slice.width, slice.height)
+      ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH)
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pageWidthMm, pageHeightMm)
+    }
+    const fileName = `AuditGoogleAds-${(lead.name ?? 'prospect').replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().slice(0, 10)}.pdf`
     pdf.save(fileName)
   } finally {
     document.body.removeChild(container)

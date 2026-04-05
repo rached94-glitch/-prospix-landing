@@ -188,7 +188,8 @@ export default function SidebarSearch({
   const [domain,       setDomain]       = useState(() => loadSavedForm().domain   ?? '')
   const [keywords,     setKeywords]     = useState(() => loadSavedForm().keywords ?? [])
   const [keywordInput, setKeywordInput] = useState('')
-  const [sources,      setSources]      = useState(['google', 'linkedin', 'facebook', 'instagram'])
+  const [sources,         setSources]         = useState(['google', 'linkedin', 'facebook', 'instagram'])
+  const [selectedMaxLeads, setSelectedMaxLeads] = useState(30)
   const tagInputRef = useRef(null)
 
   // Country autocomplete
@@ -341,7 +342,7 @@ export default function SidebarSearch({
       params: { country, city, radius, domain, keywords, sources },
     })
 
-    onSearch({ city, lat, lng, radius, domain, keywords, sources })
+    onSearch({ city, lat, lng, radius, domain, keywords, sources, maxLeads: selectedMaxLeads })
   }
 
   const isDisabled = !city.trim() || isLoading
@@ -607,6 +608,45 @@ export default function SidebarSearch({
         </div>
       )}
 
+      {/* Nombre de leads */}
+      {(() => {
+        const CHIPS = [
+          { value: 30,  label: '30 leads',  cost: '2 crédits' },
+          { value: 60,  label: '60 leads',  cost: '4 crédits' },
+          { value: 120, label: '120 leads', cost: '7 crédits' },
+        ]
+        return (
+          <div style={{ flexShrink: 0 }}>
+            <span style={sectionLabel}>Nombre de leads</span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {CHIPS.map(chip => {
+                const sel = selectedMaxLeads === chip.value
+                return (
+                  <div
+                    key={chip.value}
+                    onClick={() => { try { playClick() } catch (_) {} setSelectedMaxLeads(chip.value) }}
+                    style={{
+                      flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                      padding: '7px 4px', borderRadius: 9, cursor: 'pointer', userSelect: 'none',
+                      border: `1px solid ${sel ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                      background: sel ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)',
+                      transition: 'all 0.12s',
+                    }}
+                  >
+                    <span style={{ fontSize: 11, fontFamily: 'var(--font-body)', fontWeight: 600, color: sel ? '#f5f5f0' : 'rgba(255,255,255,0.6)' }}>
+                      {chip.label}
+                    </span>
+                    <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: sel ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.28)' }}>
+                      {chip.cost}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Bouton */}
       <button
         type="submit"
@@ -634,7 +674,7 @@ export default function SidebarSearch({
         )}
         {isLoading
           ? <><Loader size={13} style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} /><span style={{ fontFamily: 'var(--font-body)', fontWeight: 600 }}>Génération en cours...</span></>
-          : <><Zap size={13} style={{ flexShrink: 0 }} /><span style={{ fontFamily: 'var(--font-body)', fontWeight: 600 }}>Générer les leads</span></>
+          : <><Zap size={13} style={{ flexShrink: 0 }} /><span style={{ fontFamily: 'var(--font-body)', fontWeight: 600 }}>Générer les leads — {selectedMaxLeads === 30 ? '2' : selectedMaxLeads === 60 ? '4' : '7'} crédits</span></>
         }
       </button>
 

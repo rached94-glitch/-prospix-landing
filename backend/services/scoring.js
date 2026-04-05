@@ -355,6 +355,106 @@ function webDevScore(pagespeedData, websiteUrl, cms, hasHttps, hasSitemap, hasRo
   return { score, label }
 }
 
+// ── Fréquence de visite estimée par secteur ──────────────────────────────────
+const VISIT_FREQ_HIGH   = ['restaurant', 'cafe', 'boulangerie', 'bakery', 'pharmacie', 'supermarche', 'epicerie', 'tabac', 'pressing', 'gym', 'sport', 'fitness', 'brasserie', 'pizz', 'burger', 'traiteur', 'bistrot']
+const VISIT_FREQ_LOW    = ['avocat', 'notaire', 'comptable', 'assurance', 'immo', 'architecte', 'dentiste', 'orthodontiste', 'psy', 'psychiatre', 'psychologue']
+
+function estimateVisitFrequency(domain, types) {
+  const raw = [(domain ?? ''), ...(types || [])].join(' ').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  if (VISIT_FREQ_HIGH.some(k => raw.includes(k)))  return { label: 'Haute',  potential: 'Très fort', monthlyVisits: 4 }
+  if (VISIT_FREQ_LOW.some(k  => raw.includes(k)))  return { label: 'Faible', potential: 'Faible',    monthlyVisits: 0.5 }
+  return { label: 'Modérée', potential: 'Fort', monthlyVisits: 1 }
+}
+
+// ── Stabilité du business ─────────────────────────────────────────────────────
+function evaluateBusinessStability(hasHours, pappersData) {
+  let score = 0
+  if (hasHours) score += 2  // horaires définis = établissement organisé
+
+  if (pappersData) {
+    const ca   = pappersData.chiffreAffaires ?? null
+    const date = pappersData.dateCreation    ?? null
+    const eff  = pappersData.effectifs       ?? null
+
+    if (date) {
+      const ageYears = (Date.now() - new Date(date).getTime()) / (365.25 * 24 * 3600 * 1000)
+      if      (ageYears >= 5) score += 3
+      else if (ageYears >= 2) score += 2
+      else if (ageYears >= 1) score += 1
+    }
+    if (ca !== null) {
+      if      (ca >= 200000) score += 3
+      else if (ca >= 50000)  score += 2
+      else                   score += 1
+    }
+    if (eff !== null && eff >= 1) score += 1
+  }
+
+  const stability = score >= 6 ? 'haute' : score >= 3 ? 'moyenne' : 'faible'
+  const canInvest = score >= 5 && (pappersData?.chiffreAffaires ?? 0) >= 50000
+  return { stability, canInvest, score }
+}
+
+// ── Email Marketing Opportunity Score ────────────────────────────────────────
+function emailMarketingScore(totalReviews, ownerReplyRatio, hasWebsite, hasNewsletter, hasContactForm, socialPresence, loyaltyMentions, visitFrequencyPotential, stability, canInvest) {
+  let score = 0
+  const reviews = Number(totalReviews) || 0
+  const nets    = socialPresence
+    ? [socialPresence.facebook, socialPresence.instagram, socialPresence.tiktok,
+       socialPresence.linkedin, socialPresence.youtube, socialPresence.pinterest].filter(Boolean).length
+    : 0
+
+  // Volume de clients potentiels à fidéliser
+  if      (reviews > 200) score += 20
+  else if (reviews > 100) score += 15
+  else if (reviews > 50)  score += 10
+  else                    score += 5
+
+  // Propriétaire peu réactif = pas de suivi client = opportunité
+  if ((ownerReplyRatio ?? 1) < 0.3) score += 20
+
+  // Présence digitale = capacité de capture
+  if (hasWebsite)     score += 15
+  if (!hasNewsletter) score += 20  // pas de newsletter = opportunité directe
+  if (hasContactForm) score += 10
+  if (nets >= 3)      score += 15  // audience sociale à convertir
+
+  // Signaux de fidélisation (avis clients)
+  const lm = Number(loyaltyMentions) || 0
+  if      (lm === 0) score += 10  // aucun programme = opportunité vierge
+  else if (lm > 3)   score -= 10  // programme existant → moins d'urgence
+
+  // Fréquence de visite — potentiel de réengagement
+  if (visitFrequencyPotential === 'Très fort') score += 10
+  else if (visitFrequencyPotential === 'Fort') score += 10
+  else if (visitFrequencyPotential === 'Faible') score -= 5
+
+  // Stabilité business — capacité d'investissement
+  if (stability === 'haute' && canInvest) score += 10
+
+  score = Math.min(100, score)
+
+  const label = score >= 80 ? 'Inexistant'
+    : score >= 60 ? 'Faible'
+    : score >= 40 ? 'Basique'
+    : score >= 20 ? 'Actif'
+    : 'Avancé'
+
+  return { score, label }
+}
+
+// ── Recommandation Email Marketing ────────────────────────────────────────────
+function getEmailMarketingRecommendation(domain, hasNewsletter, totalReviews, hasWebsite) {
+  if (!hasWebsite) {
+    return { priority: 'Création landing page de capture email', estimatedPrice: '500–1500€' }
+  }
+  if (!hasNewsletter) {
+    return { priority: 'Mise en place stratégie email complète', estimatedPrice: '800–2000€' }
+  }
+  return { priority: 'Optimisation et automatisation des campagnes', estimatedPrice: '400–1000€/mois' }
+}
+
 // ── Recommandation WebDev ────────────────────────────────────────────────────
 function getWebDevRecommendation(websiteUrl, cms, pagespeedData, hasHttps, hasSitemap) {
   if (!sitePresent(websiteUrl)) {
@@ -404,6 +504,96 @@ function seoOpportunityScore(placeData, pagespeedData) {
   if (!pagespeedData.sitemap)           score += 5
 
   return Math.min(100, score)
+}
+
+// ── Concurrence Google Ads par secteur ───────────────────────────────────────
+const ADS_CONCURRENCE_MAP = [
+  { pattern: /restaurant|brasserie|cafe|pizz|burger|traiteur|bistrot|bar|food/, level: 'Modérée',    cpc: '0,50–1,50€', budget: '500–1500€/mois' },
+  { pattern: /avocat|juridiqu|notaire|huissier|cabinet.*juri/,                  level: 'Très élevée', cpc: '3–8€',       budget: '2000–5000€/mois' },
+  { pattern: /plombier|serrurier|electricien|depannage|urgence/,                level: 'Élevée',      cpc: '2–5€',       budget: '1500–3000€/mois' },
+  { pattern: /coiffure|salon|barbier|beaute|spa|esthetique|onglerie/,          level: 'Faible',      cpc: '0,30–1€',    budget: '300–500€/mois' },
+  { pattern: /immo|agence.*immo|location|transaction.*immo/,                   level: 'Élevée',      cpc: '2–6€',       budget: '1500–3000€/mois' },
+  { pattern: /ecommerce|boutique|commerce.*en.*ligne|shop|magasin/,            level: 'Modérée',     cpc: '0,50–2€',    budget: '500–1500€/mois' },
+  { pattern: /medecin|sante|clinique|kine|psy|dentiste|pharmacie|docteur/,     level: 'Élevée',      cpc: '2–4€',       budget: '1500–3000€/mois' },
+]
+
+function getGoogleAdsConcurrence(domain) {
+  const raw = ((domain ?? '') + '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const match = ADS_CONCURRENCE_MAP.find(m => m.pattern.test(raw))
+  if (match) return { level: match.level, cpc: match.cpc, budget: match.budget }
+  return { level: 'Modérée', cpc: '1–2€', budget: '500–1500€/mois' }
+}
+
+// ── Compatibilité Google Ads ─────────────────────────────────────────────────
+function googleAdsReadiness(googleRating, totalReviews, websiteUrl, pagespeedData, photoCount, hasDescription, hasHours, negativeRatio) {
+  let score = 0
+
+  // Note Google
+  const rating = Number(googleRating) || 0
+  if      (rating >= 4.0) score += 20
+  else if (rating >= 3.5) score += 10
+  else                    score += 5
+
+  // Volume d'avis
+  const reviews = Number(totalReviews) || 0
+  if      (reviews > 50) score += 15
+  else if (reviews >= 20) score += 10
+  else                    score += 5
+
+  // Site web
+  if (sitePresent(websiteUrl)) score += 15
+
+  // Performance mobile
+  const rawPerf = pagespeedData?.performance ?? null
+  const perf    = rawPerf != null ? (rawPerf <= 1 ? Math.round(rawPerf * 100) : Math.round(rawPerf)) : null
+  if (perf !== null) {
+    if      (perf >= 70) score += 15
+    else if (perf >= 50) score += 10
+    else                 score += 5
+  }
+
+  // HTTPS
+  if (pagespeedData?.https) score += 10
+
+  // Temps de chargement
+  const loadRaw = pagespeedData?.loadTime ?? null
+  const loadSec = loadRaw !== null ? parseFloat(String(loadRaw).replace('s', '')) : null
+  if (loadSec !== null) {
+    if      (loadSec < 3) score += 10
+    else if (loadSec < 5) score += 5
+  }
+
+  // Fiche Google complète (photos + description + horaires)
+  if ((photoCount ?? 0) > 10 && hasDescription && hasHours) score += 10
+
+  // Pénalité avis négatifs > 20%
+  if ((negativeRatio ?? 0) > 0.2) score -= 15
+
+  score = Math.max(0, Math.min(100, score))
+  const label = score >= 75 ? 'Idéal'
+              : score >= 55 ? 'Prêt'
+              : score >= 35 ? 'À préparer'
+              : 'Non compatible'
+  return { score, label }
+}
+
+// ── Recommandation Google Ads ─────────────────────────────────────────────────
+function getGoogleAdsRecommendation(domain, googleRating, websiteUrl, pagespeedData) {
+  if (!sitePresent(websiteUrl)) {
+    return { priority: 'Créer un site + landing page optimisée pour les ads', estimatedPrice: '1500–3000€ + 500€/mois gestion' }
+  }
+
+  const rawPerf = pagespeedData?.performance ?? null
+  const perf    = rawPerf != null ? (rawPerf <= 1 ? Math.round(rawPerf * 100) : Math.round(rawPerf)) : null
+  const hasHttps = pagespeedData?.https ?? false
+
+  if (perf !== null && perf < 50 && !hasHttps) {
+    return { priority: 'Optimiser le site avant de lancer les ads', estimatedPrice: '500–1000€ + 800€/mois gestion' }
+  }
+  if (perf !== null && perf < 50) {
+    return { priority: 'Optimiser les performances mobiles avant de lancer les ads', estimatedPrice: '300–800€ + 800€/mois gestion' }
+  }
+  return { priority: 'Lancer une campagne Google Ads locale', estimatedPrice: '500–1500€/mois (budget ads + gestion)' }
 }
 
 // ── Module-level constants ────────────────────────────────────────────────────
@@ -468,4 +658,4 @@ function calculateScore(placeData, socialPresence, reviewAnalysis, weights = DEF
   }
 }
 
-module.exports = { calculateScore, DEFAULT_WEIGHTS, getDomainComplexity, getRecommendedRAGType, estimateMonthlyConversations, getRecommendedStack, socialRegularityScore, getSocialRecommendation, brandingScore, getDesignerRecommendation, webDevScore, getWebDevRecommendation }
+module.exports = { calculateScore, DEFAULT_WEIGHTS, getDomainComplexity, getRecommendedRAGType, estimateMonthlyConversations, getRecommendedStack, socialRegularityScore, getSocialRecommendation, brandingScore, getDesignerRecommendation, webDevScore, getWebDevRecommendation, emailMarketingScore, getEmailMarketingRecommendation, estimateVisitFrequency, evaluateBusinessStability, getGoogleAdsConcurrence, googleAdsReadiness, getGoogleAdsRecommendation }
