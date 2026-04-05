@@ -1057,48 +1057,44 @@ async function generateEmailChatbot({ leadData, pagespeedData, reviewsData }) {
 
   const bookingText = bookingPlatform ? 'Oui (outil de réservation en ligne détecté)' : 'Non'
 
-  const prompt = `Tu rédiges un email de prospection à froid pour un développeur chatbot/IA local qui contacte un commerce.
+  const prompt = `Tu rédiges un email de prospection à froid pour un développeur chatbot/IA local.
 
-DONNÉES DU PROSPECT (utilise-les dans l'email) :
-- Nom du commerce : ${name}
-- Note Google : ${rating ?? '—'}/5
-- Nombre d'avis : ${reviewCount ?? '—'}
+DONNÉES DU PROSPECT :
+- Nom : ${name}
+- Note Google : ${rating ?? '—'}/5, ${reviewCount ?? '—'} avis
 - Avis sans réponse : ${unansweredReviews ?? '—'}
 - Questions détectées dans les avis : ${questionsInReviewsText}
-- Thèmes récurrents des avis : ${reviewThemesText}
-- Réservation en ligne : ${bookingText}
+- Thèmes récurrents : ${reviewThemesText}
+- Réservation en ligne : ${bookingPlatform ? 'détectée' : 'absente'}
 - Secteur : ${category}
 
-STRUCTURE OBLIGATOIRE DE L'EMAIL (5 lignes max entre l'intro et le CTA) :
+FORMAT :
 
-1. OBJET : Doit mentionner le nom du commerce + un chiffre concret tiré de l'analyse (ex: "Institut Sarah Beauté — vos 15 avis sans réponse perdent des clientes"). Ne JAMAIS utiliser un objet vague ou générique.
+OBJET : [Nom du commerce] + un fait concret des données. JAMAIS vague.
 
-2. ACCROCHE (1 ligne) : Commencer par un fait concret tiré des avis du prospect. Pas "probablement" ni "peut-être". Utiliser les vrais thèmes détectés. Exemples :
-   - "Vos clientes demandent si les hommes sont acceptés, combien coûte le blanchiment, et si les forfaits incluent 1h ou 1h30 — j'ai lu vos 30 avis Google."
-   - "14 de vos 30 avis Google posent des questions sur vos horaires, tarifs ou soins disponibles."
+CORPS (6-8 lignes max) :
 
-3. PROBLÈME (1-2 lignes) : Quantifier la perte avec les données du prospect. Exemples :
-   - "15 de ces avis n'ont pas de réponse. À chaque question sans réponse rapide, la cliente réserve chez un concurrent ouvert en ligne."
-   - "Votre équipe traite ces demandes une par une entre deux soins."
+Ligne 1 — Fait concret tiré des données. JAMAIS dire "j'ai lu vos X avis". Dire "vos avis Google montrent que..." ou utiliser les données directement sans expliquer comment on les a eues.
 
-4. SOLUTION (2 lignes max) : Ce qu'un assistant IA changerait concrètement pour CE commerce. Mentionner les cas d'usage spécifiques au secteur :
-   - Institut beauté : prise de RDV par type de soin, réponse aux questions sur les prestations/tarifs, disponibilités en temps réel
-   - Restaurant : réservation, menu du jour, allergies
-   - Médical : motif de consultation, documents à apporter
-   NE PAS expliquer comment fonctionne l'IA. Le commerçant veut le résultat, pas la technique.
+Lignes 2-3 — Problème concret pour CE commerce avec SES chiffres.
 
-5. CTA (1 ligne) : Proposer un échange court avec une question directe. Exemples :
-   - "Ça vous dirait que je vous montre en 10 minutes ce que ça donnerait sur votre institut ?"
-   - "Est-ce que vous avez 10 minutes cette semaine pour un test rapide sur votre commerce ?"
+Lignes 4-5 — Solution adaptée :
+- Si réservation détectée : "Un assistant connecté à votre outil de réservation existant..."
+- Si réservation absente : "Un assistant qui prend les RDV depuis votre site ou WhatsApp..."
+- 2-3 cas d'usage spécifiques au secteur (beauté : type de soin, durée, tarif / restaurant : table, menu, allergies / médical : motif, documents)
 
-RÈGLES STRICTES :
-- Maximum 6-8 lignes au total (hors signature). Un commerçant lit sur mobile entre deux clients.
-- JAMAIS de stats génériques (pas de "48% des recherches...", pas de "76% des..."). Le seul chiffre autorisé vient des données du prospect (ses avis, son score, ses questions).
-- JAMAIS de nom de marque (pas Planity, pas Doctolib, pas Crisp). Dire "votre outil de réservation" ou "votre solution de prise de RDV".
-- JAMAIS "probablement", "peut-être", "il est possible que". Utiliser les données concrètes.
-- JAMAIS de paragraphe technique sur l'IA, le RAG, les modèles de langage.
-- Ton : direct, factuel, humain. Comme un artisan local qui parle à un autre artisan. Pas un commercial SaaS.
-- Signature : [Votre prénom] + [Votre rôle] + Strasbourg + [Votre numéro]
+Ligne 6 — CTA question directe. "Ça vous dirait que je vous montre en 10 minutes ?"
+
+Signature : [Votre prénom] / [Votre rôle] — Strasbourg / [Votre numéro]
+
+INTERDIT :
+- Statistique externe (SQ Magazine, Bain, Google, Chatbot.com, etc.)
+- "J'ai lu vos X avis" (l'outil a analysé, pas le freelancer)
+- Nom de marque (Planity, Doctolib, Crisp, Tidio)
+- "Probablement", "peut-être", "il est possible"
+- Paragraphe technique sur l'IA
+- Plus de 8 lignes
+- Inventer une donnée qui n'est pas dans les paramètres
 
 Retourne UNIQUEMENT un JSON valide :
 {"subject":"...","body":"Corps complet de l'email avec sauts de ligne \\n"}`

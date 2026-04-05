@@ -517,12 +517,27 @@ Retourne UNIQUEMENT un JSON valide (pas de texte avant ou après) :
 
     // ── Email spécialisé CHATBOT / DEV-CHATBOT → fonction dédiée ────────────────
     if (profileId === 'chatbot' || profileId === 'dev-chatbot') {
-      console.log(`[generate-email] Délégation CHATBOT → generateEmailChatbot (category:${req.body.category ?? 'n/a'})`)
       const leadCity = leadData?.address?.split(',').pop()?.trim() || req.body.city || ''
+      const chatbotReviewsData = {
+        unanswered: unanswered ?? null,
+        avgRating,
+        keywords:   reviewsData?.keywords  ?? [],
+        topQuotes:  reviewsData?.topQuotes ?? [],
+        reviews:    reviewsData?.reviews   ?? [],
+      }
+      console.log(`[generate-email] Délégation CHATBOT → generateEmailChatbot`, {
+        category:        req.body.category ?? 'n/a',
+        rating:          leadData.rating ?? avgRating,
+        reviewCount:     leadData.reviewCount ?? totalReviews,
+        unanswered:      chatbotReviewsData.unanswered,
+        keywords:        chatbotReviewsData.keywords.slice(0, 5),
+        reviewsWithQ:    chatbotReviewsData.reviews.filter(r => (r.text ?? '').includes('?')).length,
+        bookingPlatform: pagespeedData?.bookingPlatform ?? pagespeedData?.siteSignals?.bookingPlatform ?? null,
+      })
       const emailResult = await generateEmailChatbot({
         leadData:      { name: businessName, city: leadCity, category: req.body.category ?? null, rating: leadData.rating ?? avgRating, reviewCount: leadData.reviewCount ?? totalReviews, website: leadData.website ?? null },
         pagespeedData: pagespeedData ?? null,
-        reviewsData:   { unanswered, avgRating, keywords: reviewsData?.keywords ?? [], topQuotes: reviewsData?.topQuotes ?? [] },
+        reviewsData:   chatbotReviewsData,
       })
       return res.json(emailResult)
     }
