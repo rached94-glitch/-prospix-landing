@@ -1042,101 +1042,73 @@ async function generateEmailChatbot({ leadData, pagespeedData, reviewsData }) {
   const reviewCount = leadData.reviewCount ?? null
 
   // pagespeedData peut être flat (getSiteSignals, profil chatbot) ou imbriqué (getPageSpeed, profil SEO)
-  const siteSignals     = pagespeedData?.siteSignals     ?? pagespeedData ?? null
-  const chatbotDetected = siteSignals?.chatbotDetected   ?? false
-  const bookingPlatform = siteSignals?.bookingPlatform   ?? null
-  const hasFAQ          = siteSignals?.hasFAQ            ?? false
-  const sensitiveData   = pagespeedData?.sensitiveData   ?? false
+  const siteSignals     = pagespeedData?.siteSignals ?? pagespeedData ?? null
+  const bookingPlatform = siteSignals?.bookingPlatform ?? null
 
-  const keywords    = reviewsData?.keywords ?? []
-  const keywordsText = keywords.length > 0 ? keywords.slice(0, 5).join(', ') : '—'
+  // Données avis
+  const unansweredReviews = reviewsData?.unanswered ?? null
+  const keywords          = reviewsData?.keywords ?? []
+  const reviewThemesText  = keywords.length > 0 ? keywords.slice(0, 5).join(', ') : '—'
 
-  // ── P1 — accroche verrouillée : questions réelles si dispo, sinon par catégorie ─
-  const catLow = category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  const topKw = (keywords ?? []).slice(0, 3).filter(Boolean)
-  let p1Hint
-  if (topKw.length >= 2) {
-    // Build from real recurring keywords extracted from reviews
-    const kwList = topKw.length >= 3
-      ? `${topKw[0]}, ${topKw[1]} et ${topKw[2]}`
-      : `${topKw[0]} et ${topKw[1]}`
-    p1Hint = `Chaque semaine, vos clients cherchent des réponses sur ${kwList} — et n'obtiennent pas toujours de réponse immédiate.`
-  } else if (/restaurant|cafe|brasserie|pizz|burger/.test(catLow))
-    p1Hint = `Chaque semaine, vos clients cherchent vos horaires, votre menu ou vos conditions de réservation — et ne trouvent pas de réponse immédiate.`
-  else if (/avocat|notaire|comptable/.test(catLow))
-    p1Hint = `Vos prospects cherchent vos honoraires et vos domaines d'intervention avant de vous appeler — la plupart ne rappellent pas s'ils n'obtiennent pas de réponse rapidement.`
-  else if (/salon|spa|coiffure|beaute|barbier/.test(catLow))
-    p1Hint = `Vos clientes veulent savoir vos disponibilités et vos tarifs sans avoir à téléphoner.`
-  else if (/garage|auto|carrosserie/.test(catLow))
-    p1Hint = `Vos clients veulent un devis rapide et savoir si vous traitez leur marque — avant même de se déplacer.`
-  else
-    p1Hint = `Vos clients posent les mêmes questions chaque semaine — et n'obtiennent pas toujours de réponse immédiate.`
+  // Questions détectées dans les avis (reviews contenant "?")
+  const reviews = reviewsData?.reviews ?? []
+  const questionsFound = reviews
+    .filter(r => (r.text ?? '').includes('?'))
+    .slice(0, 3)
+    .map(r => `"${(r.text ?? '').substring(0, 80).trim()}${(r.text?.length ?? 0) > 80 ? '…' : ''}"`)
+  const questionsInReviewsText = questionsFound.length > 0
+    ? questionsFound.join(' / ')
+    : keywords.length > 0 ? `Questions sur : ${keywords.slice(0, 3).join(', ')}` : '—'
 
-  const tone = /avocat|notaire|comptable/.test(catLow) ? 'formel et professionnel' : 'direct et conversationnel'
+  const bookingText = bookingPlatform ? 'Oui (outil de réservation en ligne détecté)' : 'Non'
 
-  const sensitiveBlock = sensitiveData
-    ? `\nBLOC SENSIBLE (insérer en fin de P3, obligatoire) :\n"Le système fonctionne sur votre propre serveur — aucune donnée client ne quitte votre cabinet."`
-    : ''
+  const prompt = `Tu rédiges un email de prospection à froid pour un développeur chatbot/IA local qui contacte un commerce.
 
-  const bookingBlock = bookingPlatform
-    ? `\nBLOC BOOKING (insérer après P4, si pertinent) :\n"${bookingPlatform} gère vos réservations. Ce système répond à tout le reste — tarifs, conditions, questions spécifiques — sans remplacer ce que vous avez déjà."`
-    : ''
-
-  const faqBlock = hasFAQ
-    ? `\nBLOC FAQ (insérer en P4 si pertinent) :\n"Votre FAQ existe déjà — elle devient la base du système en quelques heures."`
-    : ''
-
-  const prompt = `Tu es un développeur IA spécialisé dans les assistants clients pour commerces locaux. Rédige un email de prospection pour ${name}.
-Ton : ${tone} — jamais vendeur, jamais de liste à puces dans le corps.
-
-RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
-
-DONNÉES TECHNIQUES VERROUILLÉES — UTILISER UNIQUEMENT CES CHIFFRES :
+DONNÉES DU PROSPECT (utilise-les dans l'email) :
 - Nom du commerce : ${name}
-- Ville : ${city || '—'}
-- Catégorie : ${category}
-- Site web : ${website || 'absent'}
 - Note Google : ${rating ?? '—'}/5
 - Nombre d'avis : ${reviewCount ?? '—'}
-- Mots-clés récurrents : ${keywordsText}
+- Avis sans réponse : ${unansweredReviews ?? '—'}
+- Questions détectées dans les avis : ${questionsInReviewsText}
+- Thèmes récurrents des avis : ${reviewThemesText}
+- Réservation en ligne : ${bookingText}
+- Secteur : ${category}
 
-STRUCTURE OBLIGATOIRE EN 5 PARAGRAPHES :
+STRUCTURE OBLIGATOIRE DE L'EMAIL (5 lignes max entre l'intro et le CTA) :
 
-OBJET : ${name} — une question sur vos échanges clients
+1. OBJET : Doit mentionner le nom du commerce + un chiffre concret tiré de l'analyse (ex: "Institut Sarah Beauté — vos 15 avis sans réponse perdent des clientes"). Ne JAMAIS utiliser un objet vague ou générique.
 
-SALUTATION : "Bonjour,"
+2. ACCROCHE (1 ligne) : Commencer par un fait concret tiré des avis du prospect. Pas "probablement" ni "peut-être". Utiliser les vrais thèmes détectés. Exemples :
+   - "Vos clientes demandent si les hommes sont acceptés, combien coûte le blanchiment, et si les forfaits incluent 1h ou 1h30 — j'ai lu vos 30 avis Google."
+   - "14 de vos 30 avis Google posent des questions sur vos horaires, tarifs ou soins disponibles."
 
-P1 — ACCROCHE (reformuler naturellement en prose, sans déformer le sens) :
-"${p1Hint}"
+3. PROBLÈME (1-2 lignes) : Quantifier la perte avec les données du prospect. Exemples :
+   - "15 de ces avis n'ont pas de réponse. À chaque question sans réponse rapide, la cliente réserve chez un concurrent ouvert en ligne."
+   - "Votre équipe traite ces demandes une par une entre deux soins."
 
-P2 — PREUVE PAR LES AVIS :
-Citer 1-2 questions ou demandes réelles extraites des mots-clés. Lier à la perte concrète de clients potentiels.
+4. SOLUTION (2 lignes max) : Ce qu'un assistant IA changerait concrètement pour CE commerce. Mentionner les cas d'usage spécifiques au secteur :
+   - Institut beauté : prise de RDV par type de soin, réponse aux questions sur les prestations/tarifs, disponibilités en temps réel
+   - Restaurant : réservation, menu du jour, allergies
+   - Médical : motif de consultation, documents à apporter
+   NE PAS expliquer comment fonctionne l'IA. Le commerçant veut le résultat, pas la technique.
 
-P3 — CE QUE ÇA DONNE CONCRÈTEMENT :
-Expliquer comment un assistant IA entraîné sur les données du commerce répond 24h/24 aux questions spécifiques sans jargon.${sensitiveBlock}
+5. CTA (1 ligne) : Proposer un échange court avec une question directe. Exemples :
+   - "Ça vous dirait que je vous montre en 10 minutes ce que ça donnerait sur votre institut ?"
+   - "Est-ce que vous avez 10 minutes cette semaine pour un test rapide sur votre commerce ?"
 
-P4 — ARGUMENT DÉCISIF (reformuler en prose naturelle) :
-"Cette automatisation existe — elle reste juste à connecter à votre activité."${faqBlock}${bookingBlock}
-
-P5 — CTA (recopier exactement) :
-"Une démonstration de 15 minutes sur votre commerce suffit pour voir ce que ça donne concrètement.
-
-Développeur IA local — ${city || 'France'}"
-
-${EMAIL_STATS_NOTE}
-
-RÈGLES ABSOLUES :
-- Jamais de liste à puces dans le corps
-- Jamais "Bonjour [nom]" — uniquement "Bonjour,"
-- Jamais de placeholder entre crochets dans l'email livré
-- INTERDIT : RAG, NLP, LLM, vecteur, embedding, modèle de langage — utiliser uniquement "système", "assistant IA" ou "automatisation"
-- INTERDIT d'écrire un autre chiffre que ${reviewCount} pour le total d'avis Google
-- Maximum 200 mots
+RÈGLES STRICTES :
+- Maximum 6-8 lignes au total (hors signature). Un commerçant lit sur mobile entre deux clients.
+- JAMAIS de stats génériques (pas de "48% des recherches...", pas de "76% des..."). Le seul chiffre autorisé vient des données du prospect (ses avis, son score, ses questions).
+- JAMAIS de nom de marque (pas Planity, pas Doctolib, pas Crisp). Dire "votre outil de réservation" ou "votre solution de prise de RDV".
+- JAMAIS "probablement", "peut-être", "il est possible que". Utiliser les données concrètes.
+- JAMAIS de paragraphe technique sur l'IA, le RAG, les modèles de langage.
+- Ton : direct, factuel, humain. Comme un artisan local qui parle à un autre artisan. Pas un commercial SaaS.
+- Signature : [Votre prénom] + [Votre rôle] + Strasbourg + [Votre numéro]
 
 Retourne UNIQUEMENT un JSON valide :
 {"subject":"...","body":"Corps complet de l'email avec sauts de ligne \\n"}`
 
-  console.log(`[generateEmailChatbot] ${name} | city:${city} | category:${category} | booking:${bookingPlatform ?? 'none'} | sensitive:${sensitiveData} | prompt:${prompt.length} chars`)
+  console.log(`[generateEmailChatbot] ${name} | city:${city} | category:${category} | booking:${bookingPlatform ?? 'none'} | unanswered:${unansweredReviews ?? '—'} | prompt:${prompt.length} chars`)
 
   let message
   try {
