@@ -85,14 +85,12 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
   const [savedToSheets,    setSavedToSheets]    = useState(false)
   const [wide,             setWide]             = useState(false)
   const [copiedReport,     setCopiedReport]     = useState(false)
-  const [copiedEmail,      setCopiedEmail]      = useState(false)
   const [showDescriptionModal, setShowDescriptionModal] = useState(false)
   const [showTooltip,          setShowTooltip]          = useState(false)
   const [auditTab, setAuditTab] = useState('fiche') // 'fiche' | 'performance' | 'reseaux'
 
   // Décideur LinkedIn state
   const [dmState,      setDmState]      = useState('idle') // idle | loading | found | not_found
-  const [copiedEmails, setCopiedEmails] = useState(null) // null | email string
 
   // Apify reviews state
   const [reviewsState, setReviewsState]   = useState('idle') // idle | loading | done
@@ -164,7 +162,6 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
     if (scrollRef.current) scrollRef.current.scrollTop = 0
     setSavedToSheets(false)
     setDmState(lead?.decisionMaker ? 'found' : 'idle')
-    setCopiedEmails(false)
     setReviewsState('idle')
     setReviewsData(null)
     setWide(false)
@@ -909,78 +906,6 @@ Bien cordialement,
 
 
 
-
-
-
-
-  const handleDownloadEmailPDF = async () => {
-    const tpl = aiEmail ?? buildEmail(activeProfile?.id ?? 'chatbot')
-    if (!tpl) return
-
-    try {
-      const { jsPDF } = await import('jspdf')
-      const doc      = new jsPDF({ unit: 'mm', format: 'a4' })
-      const margin   = 20
-      const pageW    = doc.internal.pageSize.getWidth()
-      const pageH    = doc.internal.pageSize.getHeight()
-      const maxW     = pageW - margin * 2
-      const dateStr  = new Date().toLocaleDateString('fr-FR')
-      const profileName = activeProfile?.name ?? 'Défaut'
-
-      let y = margin
-
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(15)
-      doc.setTextColor(30, 30, 30)
-      const titleLines = doc.splitTextToSize(`Email de prospection — ${lead.name ?? ''}`, maxW)
-      doc.text(titleLines, margin, y)
-      y += titleLines.length * 7 + 5
-
-      doc.setDrawColor(200, 200, 200)
-      doc.line(margin, y, pageW - margin, y)
-      y += 7
-
-      doc.setFontSize(10)
-      doc.setTextColor(80, 80, 80)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Objet :', margin, y)
-      doc.setFont('helvetica', 'normal')
-      const subjLines = doc.splitTextToSize(tpl.subject ?? '', maxW - 18)
-      doc.text(subjLines, margin + 18, y)
-      y += Math.max(subjLines.length, 1) * 5 + 8
-
-      doc.setDrawColor(230, 230, 230)
-      doc.line(margin, y, pageW - margin, y)
-      y += 7
-
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(10)
-      doc.setTextColor(40, 40, 40)
-      const bodyLines = doc.splitTextToSize(tpl.body ?? '', maxW)
-      const lineH = 5.2
-      for (const line of bodyLines) {
-        if (y + lineH > pageH - 22) {
-          doc.addPage()
-          y = margin
-        }
-        doc.text(line, margin, y)
-        y += lineH
-      }
-
-      const lastPageH = doc.internal.pageSize.getHeight()
-      doc.setDrawColor(200, 200, 200)
-      doc.line(margin, lastPageH - 16, pageW - margin, lastPageH - 16)
-      doc.setFontSize(8)
-      doc.setTextColor(150, 150, 150)
-      doc.text(`Généré par LeadGen Pro · ${dateStr} · Profil ${profileName}`, margin, lastPageH - 10)
-
-      const filename = `email-${(lead.name ?? 'lead').replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.pdf`
-      doc.save(filename)
-    } catch (err) {
-      console.error('[EmailPDF] erreur jsPDF:', err)
-      alert('Erreur lors de la génération du PDF email')
-    }
-  }
 
   // ── Profile-based data logic (KPIs + problems) ──
   const getProfileData = () => {
