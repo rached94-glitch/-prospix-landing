@@ -67,6 +67,7 @@ export default function AIEmailGenerator({
           },
           // pagespeedData contient siteSignals.bookingPlatform, hasFAQ, cms, etc.
           pagespeedData:     auditData?.pagespeed         ?? null,
+          localRank:         auditData?.localRank         ?? null,
           siteAnalysis:      auditData?.siteAnalysis      ?? null,
           reviewsData:       reviewsData                  ?? null,
           facebookActivity:  auditData?.facebookActivity  ?? null,

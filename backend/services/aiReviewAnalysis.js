@@ -861,145 +861,97 @@ async function generateEmailSEO({ leadData, pagespeedData, localRank, reviewsDat
   const anthropic = new Anthropic({ apiKey })
 
   const name        = leadData.name        ?? 'ce commerce'
-  const city        = leadData.city        ?? ''
-  const category    = leadData.category    ?? 'ce secteur'
-  const website     = leadData.website     ?? null
   const rating      = leadData.rating      ?? null
   const reviewCount = leadData.reviewCount ?? null
+  const sector      = leadData.category    ?? 'ce secteur'
 
-  const performance    = pagespeedData?.performance    ?? null
-  const seoScore       = pagespeedData?.seo            ?? null
-  const loadTime       = pagespeedData?.loadTime       ?? null
-  const https          = pagespeedData?.https          ?? null
-  const sitemap        = pagespeedData?.sitemap        ?? null
-  const cms            = pagespeedData?.cms?.cms       ?? null
+  const mobileScore    = pagespeedData?.performance ?? null
+  const seoScore       = pagespeedData?.seo         ?? null
+  const loadTime       = pagespeedData?.loadTime    ?? null
+  const rawIndexed     = pagespeedData?.indexedPages
+  const indexedPages   = rawIndexed?.indexedPages ?? (typeof rawIndexed === 'number' ? rawIndexed : null)
+  const bookingPlatform = pagespeedData?.bookingPlatform ?? pagespeedData?.siteSignals?.bookingPlatform ?? null
 
-  const rankFound = localRank?.found    ?? false
-  const rank      = localRank?.rank     ?? null
-  const topThree  = localRank?.topThree ?? false
-  const topTen    = localRank?.topTen   ?? false
+  const mapsRanking = localRank?.rank ?? null
 
-  const unanswered = reviewsData?.unanswered ?? 0
-  const keywords   = reviewsData?.keywords   ?? []
+  const napConsistent = napData ? napData.napScore === 'consistent' : null
 
-  // ── P1 — accroche technique verrouillée côté JS ──────────────────────────────
-  let p1Hint
-  const lt = loadTime != null ? parseFloat(loadTime) : null
-  if (lt !== null && lt > 8 && performance !== null) {
-    p1Hint = `En passant votre site dans Google PageSpeed Insights, j'ai obtenu un score de performance mobile de ${performance}/100 — Google considère ce niveau comme insuffisant et le pénalise dans le classement local.`
-  } else if (lt !== null && lt > 8) {
-    p1Hint = `Google PageSpeed Insights attribue à votre site un score de performance mobile insuffisant — ce signal technique pèse directement sur votre positionnement dans les résultats locaux.`
-  } else if (performance !== null && performance < 50) {
-    p1Hint = `En passant votre site dans Google PageSpeed Insights, j'ai obtenu un score de performance mobile de ${performance}/100 — Google considère ce niveau comme insuffisant et le pénalise dans le classement local.`
-  } else if (!rankFound) {
-    p1Hint = `En cherchant "${category} ${city}" sur Google Maps, votre établissement n'apparaît pas dans les 20 premiers résultats.`
-  } else {
-    p1Hint = `En auditant votre présence en ligne, j'ai identifié plusieurs points techniques qui freinent votre visibilité sur Google.`
-  }
+  const unansweredReviews = reviewsData?.unanswered ?? null
+  const reviewThemes      = reviewsData?.keywords   ?? []
 
-  // ── P4 — 3 problèmes prioritaires verrouillés côté JS ───────────────────────
-  const problemPool = []
-  if (lt !== null && lt > 8)                 problemPool.push('la vitesse de chargement')
-  if (!rankFound)                            problemPool.push('votre invisibilité sur Google Maps local')
-  if (performance !== null && performance < 50) problemPool.push('les performances mobiles')
-  if (https === false)                       problemPool.push('la sécurité HTTPS')
-  if (sitemap === false)                     problemPool.push("l'indexation Google")
-  if (unanswered > 0)                        problemPool.push('les avis clients sans réponse qui nuisent à la crédibilité de votre fiche aux yeux de Google')
+  console.log('[generateEmailSEO] data check:', JSON.stringify({
+    bookingPlatform, unansweredReviews, mobileScore, loadTime,
+    seoScore, mapsRanking, napConsistent, indexedPages, reviewThemes: reviewThemes.slice(0, 5),
+  }, null, 2))
 
-  const fallbacks = ['le référencement local', 'la visibilité organique', "l'optimisation technique"]
-  while (problemPool.length < 3) problemPool.push(fallbacks[problemPool.length])
-  const [prob1, prob2, prob3] = problemPool.slice(0, 3)
+  const prompt = `Rédige un email de prospection à froid pour un consultant SEO local. 3 blocs, 5 lignes max.
 
-  const keywordsText = keywords.length > 0 ? keywords.slice(0, 5).join(', ') : '—'
-  const rankLabel    = rankFound
-    ? (topThree ? `Top 3 (position ${rank})` : topTen ? `Top 10 (position ${rank})` : `Position ${rank}`)
-    : 'Hors top 20'
+DONNÉES DU PROSPECT :
+- Nom : ${name}
+- Note : ${rating}/5, ${reviewCount} avis
+- Avis sans réponse : ${unansweredReviews ?? 'inconnu'}
+- Score SEO : ${seoScore ?? 'non mesuré'}
+- Score mobile : ${mobileScore ?? 'non mesuré'}
+- Temps de chargement : ${loadTime ?? 'non mesuré'}
+- Classement Maps local : ${mapsRanking ?? 'non mesuré'}
+- Cohérence NAP : ${napConsistent === null ? 'non mesuré' : napConsistent ? 'OK' : 'incohérence détectée'}
+- Pages indexées : ${indexedPages ?? 'non mesuré'}
+- Réservation en ligne : ${bookingPlatform ? 'détectée' : 'absente'}
+- Secteur : ${sector}
 
-  // ── NAP — message spécifique selon les champs en incohérence ─────────────
-  let napParagraphHint = null
-  if (napData?.napScore === 'not_found') {
-    napParagraphHint = `Votre commerce ne figure pas sur PagesJaunes — ce manque de présence sur les annuaires est un signal négatif pour le classement local de Google.`
-  } else if (napData?.napScore === 'inconsistent') {
-    const napIssues  = napData.issues ?? []
-    const hasPhone   = napIssues.some(i => i.toLowerCase().includes('téléphone'))
-    const hasAddress = napIssues.some(i => i.toLowerCase().includes('adresse'))
-    const fields     = [hasPhone && 'votre numéro de téléphone', hasAddress && 'votre adresse'].filter(Boolean)
-    const fieldText  = fields.length > 0
-      ? fields.join(' et ') + ' ne correspondent pas'
-      : 'vos coordonnées ne sont pas identiques'
-    napParagraphHint = `${fieldText.charAt(0).toUpperCase() + fieldText.slice(1)} entre votre fiche Google et PagesJaunes — Google pénalise ces incohérences dans le classement local.`
-  }
+CHOIX DE L'ANGLE — UN SEUL, le plus douloureux :
 
-  const prompt = `Tu es un consultant SEO local. Rédige un email de prospection pour ${name}.
-Ton : professionnel, direct, factuel — jamais vendeur, jamais de liste à puces dans le corps.
+Priorité 1 — INVISIBLE SUR MAPS MALGRÉ BONS AVIS : Si mapsRanking > 10 ET rating >= 4.0 ET reviewCount > 30
+→ Angle : "Vous avez [X] avis à [Y]/5 mais vous n'apparaissez pas dans le top [Z] Google Maps. Vos concurrents moins bien notés passent devant."
+→ C'est le plus douloureux car le commerçant ne comprend pas pourquoi il est invisible
 
-RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
+Priorité 2 — SITE LENT : Si loadTime > 5 secondes
+→ Angle : "Votre site met [X] secondes à charger — la moitié de vos visiteurs mobiles partent avant de le voir."
 
-DONNÉES TECHNIQUES VERROUILLÉES — UTILISER UNIQUEMENT CES CHIFFRES :
-- Nom du commerce : ${name}
-- Ville : ${city || '—'}
-- Catégorie : ${category}
-- Site web : ${website || 'absent'}
-- Note Google : ${rating ?? '—'}/5
-- Nombre d'avis : ${reviewCount ?? '—'}
-- Score performance mobile : ${performance ?? '—'}/100
-- Score SEO technique : ${seoScore ?? '—'}/100
-- Temps de chargement : ${loadTime ?? '—'}s
-- Position Google Maps locale : ${rankLabel}
-- CMS détecté : ${cms ?? 'non identifié'}
-- Mots-clés récurrents : ${keywordsText}
+Priorité 3 — INCOHÉRENCE NAP : Si napConsistent = false
+→ Angle : "Votre numéro de téléphone diffère entre Google et PagesJaunes — Google pénalise votre classement pour ça."
 
-STRUCTURE OBLIGATOIRE EN 5 PARAGRAPHES :
+Priorité 4 — AVIS SANS RÉPONSE : Si unansweredReviews > 10
+→ Angle : "[X] avis sans réponse — chaque avis ignoré réduit votre visibilité locale."
 
-OBJET : ${name} — un point sur votre visibilité Google locale
+Priorité 5 — SCORE SEO/MOBILE BAS : Si seoScore < 50 ou mobileScore < 50
+→ Angle : "Google donne [X]/100 à votre site sur mobile — en dessous de 50, le classement local est pénalisé."
 
-SALUTATION : "Bonjour,"
+NE JAMAIS COMBINER. Un email = un seul problème.
 
-P1 — ACCROCHE TECHNIQUE (reformuler naturellement en prose, sans déformer le sens) :
-"${p1Hint}"
+FORMAT :
 
-P2 — PROBLÈMES CONCRETS :
-2-3 problèmes réels tirés des données ci-dessus avec chiffres exacts, en prose fluide.
-Ne jamais inventer un chiffre absent de la liste ci-dessus.
+OBJET : [Nom] — reformulation du point de douleur avec un chiffre réel.
 
-P3 — IMPACT BUSINESS :
-Expliquer ce que ces problèmes coûtent concrètement en clients perdus.
-Terminer OBLIGATOIREMENT par : "Cette visibilité existe — elle reste juste inexploitée."
+BLOC 1 (1-2 lignes) : Le problème avec SES données. Pas de compliment. Pas "j'ai analysé votre site". Utiliser les données directement.
+BLOC 2 (1-2 lignes) : Ce que ça change en une phrase. Pas de feature list. Pas "j'interviens sur X, Y, Z". Juste le résultat.
+BLOC 3 (1 ligne) : Question directe. "15 minutes pour voir ce qu'on corrige en priorité ?"
 
-P4 — CE QUE TU CORRIGES (reformuler en prose naturelle, pas de liste) :
-"J'interviens exactement sur ces points : ${prob1}, ${prob2} et ${prob3}."${napParagraphHint ? `
+Signature : [Votre prénom] / Consultant SEO — Strasbourg / [Votre numéro]
 
-P4B — INCOHÉRENCE NAP (ajouter après P4, en prose courte) :
-"${napParagraphHint}"` : ''}
-
-P5 — CTA (recopier exactement) :
-"Un audit complet de 30 minutes suffit pour identifier toutes les corrections prioritaires.
-Auriez-vous 15 minutes cette semaine pour en discuter ?
-
-Consultant SEO local — ${city || 'France'}"
-
-${EMAIL_STATS_NOTE}
-
-RÈGLES ABSOLUES :
-- Jamais de liste à puces dans le corps de l'email
-- Jamais "Bonjour [nom]" — uniquement "Bonjour,"
-- Jamais [Votre prénom], [Votre numéro] ni aucun placeholder entre crochets
-- Jamais "j'ai analysé vos avis" — partir du site ou de la position Google
-- Chaque chiffre mentionné doit figurer dans la liste DONNÉES TECHNIQUES ci-dessus
-- INTERDIT d'écrire un autre chiffre que ${reviewCount} pour le total d'avis Google
-- Maximum 200 mots
-- Ton factuel, jamais émotionnel ou flatteur
+INTERDIT :
+1. Statistique externe (SQ Magazine, Bain, Google/Deloitte, BrightLocal)
+2. "J'ai analysé/passé votre site dans PageSpeed/Semrush/Ahrefs" — ne pas révéler les outils
+3. Nom de marque ou d'outil (PageSpeed Insights, Semrush, Screaming Frog, WordPress)
+4. "Probablement", "peut-être"
+5. Plus de 5 lignes de contenu
+6. Inventer une donnée absente des paramètres
+7. Combiner plusieurs angles
+8. Compliment d'ouverture
+9. Feature list ("j'interviens sur la vitesse, le NAP, le contenu...")
+10. Double CTA
+11. Mentionner le CMS du prospect
 
 Retourne UNIQUEMENT un JSON valide :
 {"subject":"...","body":"..."}`
 
-  console.log(`[generateEmailSEO] ${name} | city:${city} | loadTime:${loadTime ?? 'n/a'} | rank:${rank ?? 'n/a'} | prompt: ${prompt.length} chars`)
+  console.log(`[generateEmailSEO] ${name} | mobileScore:${mobileScore ?? 'n/a'} | rank:${mapsRanking ?? 'n/a'} | prompt: ${prompt.length} chars`)
 
   let message
   try {
     message = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
-      max_tokens: 800,
+      max_tokens: 600,
       messages:   [{ role: 'user', content: prompt }],
     })
   } catch (err) {
