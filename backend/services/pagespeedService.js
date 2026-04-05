@@ -149,7 +149,7 @@ function detectSiteSignalsFromHTML(html, siteUrl) {
   const empty = {
     chatbotDetected: false, chatbotTool: null, bookingPlatform: null,
     hasFAQ: false, hasContactForm: false, hasNewsletter: false, hasPDFContent: false, hasMenuContent: false,
-    hasProminentPhone: false, pageCount: 'unknown',
+    hasProminentPhone: false, pageCount: 'unknown', hasBlog: false,
   }
   if (!html || typeof html !== 'string') return empty
 
@@ -217,9 +217,14 @@ function detectSiteSignalsFromHTML(html, siteUrl) {
   const intLinks = (html.match(/<a[^>]+href=["'](?!\s*(?:https?:|#|mailto:|tel:))[^"']+["']/gi) || []).length
   const pageCount = intLinks > 20 ? 'multipage' : intLinks > 5 ? 'small' : 'onepage'
 
-  console.log(`[SiteSignals] menu:${hasMenuContent}(${menuSignals.join('+') || 'none'}) faq:${hasFAQ} form:${hasContactForm} newsletter:${hasNewsletter} pdf:${hasPDFContent} phone:${hasProminentPhone} chatbot:${chatbotTool ?? 'none'} booking:${bookingPlatform ?? 'none'} pages:${pageCount}`)
+  // Blog detection — href patterns + class patterns
+  const BLOG_PATH_RE = /href=["'][^"']*\/(blog|actualites|articles|news|magazine|journal|actu|publications)(\/|["'])/i
+  const BLOG_CLASS_RE = /class=["'][^"']*(blog-?list|article-?list|post-?list|news-?list)[^"']*/i
+  const hasBlog = BLOG_PATH_RE.test(html) || BLOG_CLASS_RE.test(html)
 
-  return { chatbotDetected, chatbotTool, bookingPlatform, hasFAQ, hasContactForm, hasNewsletter, hasPDFContent, hasMenuContent, hasProminentPhone, pageCount }
+  console.log(`[SiteSignals] menu:${hasMenuContent}(${menuSignals.join('+') || 'none'}) faq:${hasFAQ} form:${hasContactForm} newsletter:${hasNewsletter} pdf:${hasPDFContent} phone:${hasProminentPhone} chatbot:${chatbotTool ?? 'none'} booking:${bookingPlatform ?? 'none'} pages:${pageCount} blog:${hasBlog}`)
+
+  return { chatbotDetected, chatbotTool, bookingPlatform, hasFAQ, hasContactForm, hasNewsletter, hasPDFContent, hasMenuContent, hasProminentPhone, pageCount, hasBlog }
 }
 
 // ── Combined site analysis — single HTTP fetch for CMS + signals ──────────────
@@ -228,7 +233,7 @@ async function detectCMSAndSiteSignals(websiteUrl) {
   const emptySig   = {
     chatbotDetected: false, chatbotTool: null, bookingPlatform: null,
     hasFAQ: false, hasContactForm: false, hasNewsletter: false, hasPDFContent: false, hasMenuContent: false,
-    hasProminentPhone: false, pageCount: 'unknown',
+    hasProminentPhone: false, pageCount: 'unknown', hasBlog: false,
   }
   if (!websiteUrl) return { cms: unknownCms, siteSignals: emptySig }
   try {
@@ -252,7 +257,7 @@ async function detectCMSAndSiteSignals(websiteUrl) {
 async function getSiteSignals(websiteUrl, category) {
   const sensitiveData = checkSensitiveCategory(category)
   const base = { sensitiveData, ragType: sensitiveData ? 'local' : 'cloud' }
-  if (!websiteUrl) return { ...base, chatbotDetected: false, chatbotTool: null, bookingPlatform: null, isBookingUrl: false, hasFAQ: false, hasContactForm: false, hasNewsletter: false, hasPDFContent: false, hasMenuContent: false, hasProminentPhone: false, pageCount: 'unknown' }
+  if (!websiteUrl) return { ...base, chatbotDetected: false, chatbotTool: null, bookingPlatform: null, isBookingUrl: false, hasFAQ: false, hasContactForm: false, hasNewsletter: false, hasPDFContent: false, hasMenuContent: false, hasProminentPhone: false, pageCount: 'unknown', hasBlog: false }
 
   // If the website URL is itself a booking platform — skip HTML fetch entirely
   const bookingMatch = BOOKING_DOMAIN_MAP.find(b => b.pattern.test(websiteUrl))
@@ -263,7 +268,7 @@ async function getSiteSignals(websiteUrl, category) {
       chatbotDetected: false, chatbotTool: null,
       bookingPlatform: bookingMatch.name, isBookingUrl: true,
       hasFAQ: false, hasContactForm: false, hasNewsletter: false, hasPDFContent: false, hasMenuContent: false,
-      hasProminentPhone: false, pageCount: 'unknown',
+      hasProminentPhone: false, pageCount: 'unknown', hasBlog: false,
     }
   }
 

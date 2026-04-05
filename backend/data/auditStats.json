@@ -1,0 +1,47 @@
+{
+  "sources": {
+    "birdeye_2025": "State of Google Business Profile 2025, Birdeye",
+    "localo_2025": "Étude 2M+ profils Google Business, Localo 2025",
+    "brightlocal_2025": "Local Consumer Review Survey 2025, BrightLocal",
+    "webfx_2026": "Google Business Profile Benchmarks 2026, WebFX",
+    "sqmagazine_2025": "Google My Business Statistics 2025, SQ Magazine",
+    "google_deloitte": "Milliseconds Make Millions, Google/Deloitte 2020"
+  },
+  "photos": {
+    "direction_boost": "+42% de demandes d'itinéraire pour les fiches avec photos (Birdeye 2025)",
+    "website_clicks_boost": "+35% de clics vers le site web (Birdeye 2025)",
+    "engagement_15plus": "Les fiches avec 15+ photos reçoivent plus d'interactions sur tous les indicateurs (Birdeye 2025)",
+    "views_boost": "+30 à 50% de vues pour les fiches avec photos, x2 engagement avec 10+ photos (WebFX 2026)"
+  },
+  "description": {
+    "top3_with_description": "75% des fiches en position 1-3 ont une description complète vs moins de 40% en position 11-20 (Localo 2025)",
+    "complete_profile_clicks": "Les profils complets reçoivent 7x plus de clics que les profils incomplets (WebFX 2026)"
+  },
+  "reviews": {
+    "top3_average": "Les fiches en position 1-3 ont en moyenne 240 avis (Localo 2025)",
+    "consumers_read_google": "83% des consommateurs lisent les avis principalement sur Google (BrightLocal 2025)",
+    "response_clicks": "+17% de clics vers le site pour les commerces qui répondent aux avis (SQ Magazine 2025)",
+    "low_rating_impact": "Seulement 13% des consommateurs envisageraient un commerce noté 1-2 étoiles (BrightLocal 2025)",
+    "new_review_visits": "Chaque nouvel avis génère environ 80 visites supplémentaires sur le site (Birdeye 2025)"
+  },
+  "engagement": {
+    "monthly_actions": "81 actions mensuelles moyennes par fiche Google (SQ Magazine 2025)",
+    "website_clicks_share": "48% des interactions sont des clics vers le site (Birdeye 2025)",
+    "direction_share": "34% sont des demandes d'itinéraire (Birdeye 2025)",
+    "calls_share": "17% sont des appels téléphoniques (Birdeye 2025)",
+    "local_intent_24h": "48% des recherches locales mènent à une interaction dans les 24h (SQ Magazine 2025)",
+    "trusted_complete": "72% des consommateurs sont plus susceptibles de visiter un commerce avec un profil complet (SQ Magazine 2025)",
+    "mobile_share": "71% des interactions proviennent du mobile (SQ Magazine 2025)"
+  },
+  "website": {
+    "speed_conversion": "Chaque seconde de chargement supplémentaire réduit les conversions de 7% (Google/Deloitte 2020)",
+    "mobile_conversion": "+34% de taux de conversion mobile vs desktop pour les actions locales (SQ Magazine 2025)"
+  },
+  "booking": {
+    "conversion_with": "6.3% de taux de conversion avec réservation en ligne vs 3.9% sans (SQ Magazine 2025)"
+  },
+  "posts": {
+    "recent_posts": "+21% d'interactions pour les fiches avec des posts récents (SQ Magazine 2025)",
+    "faq_boost": "+13% d'engagement pour les fiches avec section FAQ (SQ Magazine 2025)"
+  }
+}

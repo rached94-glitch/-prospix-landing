@@ -857,25 +857,111 @@ router.post('/audit-prospect/:placeId', async (req, res, next) => {
     }
     const { placeId } = req.params
     if (!validatePlaceId(placeId)) throw new AppError('placeId invalide', 400)
+
+    // Fat payload — union de tous les champs nécessaires selon le profil
     const {
-      profile          = 'seo',
-      leadData         = {},
-      pagespeedData    = null,
-      localRank        = null,
-      reviewsData      = null,
-      napData          = null,
-      facebookActivity = null,
-      instagramActivity = null,
+      profileId            = 'seo',
+      // SEO / générique
+      leadData             = {},
+      pagespeedData        = null,
+      localRank            = null,
+      reviewsData          = null,
+      napData              = null,
+      facebookActivity     = null,
+      instagramActivity    = null,
+      // Photographe
+      businessName         = leadData.name ?? 'ce commerce',
+      websiteUrl           = leadData.website ?? null,
+      googlePhotos         = [],
+      photoCount           = 0,
+      social               = {},
+      googleRating         = leadData.rating ?? null,
+      totalReviews         = leadData.userRatingsTotal ?? 0,
+      // Chatbot
+      chatbotDetection     = null,
+      questionsAnalysis    = null,
+      domainComplexity     = null,
+      faqDetection         = null,
+      contactFormDetection = null,
+      // Social / Community Manager
+      socialPresence       = null,
+      socialMediaActivity  = null,
+      domain               = null,
+      city                 = null,
+      instagramDeep        = null,
+      // Designer
+      googleAudit          = null,
+      // Web Dev
+      cms                  = null,
+      hasHttps             = null,
+      hasSitemap           = null,
+      hasRobots            = null,
+      domainAge            = null,
+      indexedPages         = null,
+      // Email Marketing
+      ownerReplyRatio      = null,
+      hasNewsletter        = null,
+      hasContactForm       = null,
+      loyaltyMentions      = 0,
+      loyaltyTopics        = [],
+      unansweredCount      = null,
+      totalReviewsFull     = null,
+      ownerReplyRatioFull  = null,
+      visitFrequency       = null,
+      businessStability    = null,
+      canInvest            = false,
+      aiReport             = null,
+      // Google Ads
+      hasDescription       = false,
+      hasHours             = false,
+      semrushData          = null,
     } = req.body
 
-    console.log(`[audit-prospect] placeId:${placeId} | profile:${profile} | business:"${leadData.name ?? '?'}"`)
+    console.log(`[audit-prospect] placeId:${placeId} | profileId:${profileId} | business:"${businessName}"`)
 
-    const SUPPORTED = ['seo', 'consultant-seo']
-    if (!SUPPORTED.includes(profile)) {
-      throw new AppError(`Profil "${profile}" non pris en charge pour l'audit prospect (supportés : ${SUPPORTED.join(', ')})`, 400)
+    let result
+    switch (profileId) {
+      case 'photographe': {
+        const socialActivity = {
+          hasInstagram: !!(social.instagram),
+          hasFacebook:  !!(social.facebook),
+          hasTiktok:    !!(social.tiktok),
+          hasYoutube:   !!(social.youtube),
+          hasPinterest: !!(social.pinterest),
+        }
+        result = await generateAuditPhotographe({ businessName, websiteUrl, googlePhotos, photoCount, socialActivity, reviewsData, googleRating, totalReviews })
+        break
+      }
+      case 'chatbot':
+      case 'dev-chatbot':
+        result = await generateAuditChatbot({ businessName, websiteUrl, chatbotDetection, reviewsData, googleRating, totalReviews, questionsAnalysis, domainComplexity, faqDetection, contactFormDetection, pagespeedData })
+        break
+      case 'social-media':
+        result = await generateAuditSocialMedia({ businessName, websiteUrl, socialPresence, socialMediaActivity, photoCount, reviewsData, googleRating, totalReviews, domain, city, instagramDeep })
+        break
+      case 'designer':
+        result = await generateAuditDesigner({ businessName, websiteUrl, photoCount, googleAudit, socialPresence, reviewsData, googleRating, totalReviews, domain, pagespeedData })
+        break
+      case 'dev-web':
+        result = await generateAuditWebDev({ businessName, websiteUrl, pagespeedData, cms, hasHttps, hasSitemap, hasRobots, domainAge, indexedPages, socialPresence, googleRating, totalReviews, domain })
+        break
+      case 'email-marketing':
+        result = await generateAuditEmailMarketing({ businessName, websiteUrl, totalReviews, googleRating, ownerReplyRatio, hasNewsletter, hasContactForm, socialPresence, domain, pagespeedData, loyaltyMentions, loyaltyTopics, unansweredCount, totalReviewsFull, ownerReplyRatioFull, visitFrequency, businessStability, canInvest, aiReport, facebookActivity, instagramActivity })
+        break
+      case 'pub-google':
+        result = await generateAuditGoogleAds({ businessName, websiteUrl, googleRating, totalReviews, pagespeedData, photoCount, hasDescription, hasHours, socialPresence, domain, semrushData, facebookActivity, instagramActivity, localRank })
+        break
+      case 'copywriter':
+        console.warn('[audit-prospect] copywriter → fallback SEO en attendant generateAuditCopywriter')
+        result = await generateAuditSEO({ leadData, pagespeedData, localRank, reviewsData, napData, facebookActivity, instagramActivity })
+        break
+      case 'seo':
+      case 'consultant-seo':
+      default:
+        result = await generateAuditSEO({ leadData, pagespeedData, localRank, reviewsData, napData, facebookActivity, instagramActivity })
+        break
     }
 
-    const result = await generateAuditSEO({ leadData, pagespeedData, localRank, reviewsData, napData, facebookActivity, instagramActivity })
     res.json(result)
   } catch (e) {
     next(e)

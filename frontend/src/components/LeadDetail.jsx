@@ -227,37 +227,6 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
     // Reset prospect audit on lead change
     setProspectAudit(null)
     setProspectAuditState('idle')
-    // Reset photo audit on lead change
-    setPhotoAudit(null)
-    setPhotoAuditState('idle')
-    setPhotoAuditPdfLoading(false)
-    setPhotoAuditPdfError(null)
-    // Reset chatbot audit on lead change
-    setChatbotAudit(null)
-    setChatbotAuditState('idle')
-    setChatbotAuditPdfLoading(false)
-    setChatbotAuditPdfError(null)
-    setSocialAudit(null)
-    setSocialAuditState('idle')
-    setSocialAuditPdfLoading(false)
-    setSocialAuditPdfError(null)
-    setDesignerAudit(null)
-    setDesignerAuditState('idle')
-    setDesignerAuditPdfLoading(false)
-    setDesignerAuditPdfError(null)
-    setWebDevAudit(null)
-    setWebDevAuditState('idle')
-    setWebDevAuditPdfLoading(false)
-    setWebDevAuditPdfError(null)
-    // Reset email audit on lead change
-    setEmailAudit(null)
-    setEmailAuditState('idle')
-    setEmailAuditError(null)
-    // Reset Google Ads audit on lead change
-    setGoogleAdsAudit(null)
-    setGoogleAdsAuditState('idle')
-    setGoogleAdsAuditPdfLoading(false)
-    setGoogleAdsAuditPdfError(null)
     // Reset SEMrush on lead change
     setSemrushData(null); setSemrushLoading(false); setSemrushError(null)
   }, [lead?.id, lead?._id])
@@ -1006,43 +975,6 @@ Bien cordialement,
   const [auditPdfLoading, setAuditPdfLoading] = useState(false)
   const [auditPdfError,   setAuditPdfError]   = useState(null)
 
-  // Audit photographe — on-demand
-  const [photoAudit,          setPhotoAudit]          = useState(null)
-  const [photoAuditState,     setPhotoAuditState]     = useState('idle') // idle | loading | done | error
-  const [photoAuditPdfLoading,setPhotoAuditPdfLoading]= useState(false)
-  const [photoAuditPdfError,  setPhotoAuditPdfError]  = useState(null)
-
-  // Audit chatbot — on-demand
-  const [chatbotAudit,           setChatbotAudit]           = useState(null)
-  const [chatbotAuditState,      setChatbotAuditState]      = useState('idle') // idle | loading | done | error
-  const [chatbotAuditPdfLoading, setChatbotAuditPdfLoading] = useState(false)
-  const [chatbotAuditPdfError,   setChatbotAuditPdfError]   = useState(null)
-
-  const [socialAudit,           setSocialAudit]           = useState(null)
-  const [socialAuditState,      setSocialAuditState]      = useState('idle') // idle | loading | done | error
-  const [socialAuditPdfLoading, setSocialAuditPdfLoading] = useState(false)
-  const [socialAuditPdfError,   setSocialAuditPdfError]   = useState(null)
-
-  const [designerAudit,           setDesignerAudit]           = useState(null)
-  const [designerAuditState,      setDesignerAuditState]      = useState('idle') // idle | loading | done | error
-  const [designerAuditPdfLoading, setDesignerAuditPdfLoading] = useState(false)
-  const [designerAuditPdfError,   setDesignerAuditPdfError]   = useState(null)
-
-  const [webDevAudit,           setWebDevAudit]           = useState(null)
-  const [webDevAuditState,      setWebDevAuditState]      = useState('idle') // idle | loading | done | error
-  const [webDevAuditPdfLoading, setWebDevAuditPdfLoading] = useState(false)
-  const [webDevAuditPdfError,   setWebDevAuditPdfError]   = useState(null)
-
-  // Audit email marketing — on-demand
-  const [emailAudit,      setEmailAudit]      = useState(null)
-  const [emailAuditState, setEmailAuditState] = useState('idle') // idle | loading | done | error
-  const [emailAuditError,      setEmailAuditError]      = useState(null)
-  const [emailAuditPdfLoading, setEmailAuditPdfLoading] = useState(false)
-  const [emailAuditPdfError,   setEmailAuditPdfError]   = useState(null)
-  const [googleAdsAudit,          setGoogleAdsAudit]          = useState(null)
-  const [googleAdsAuditState,     setGoogleAdsAuditState]     = useState('idle') // idle | loading | done | error
-  const [googleAdsAuditPdfLoading, setGoogleAdsAuditPdfLoading] = useState(false)
-  const [googleAdsAuditPdfError,   setGoogleAdsAuditPdfError]   = useState(null)
 
   const handleExportPDF = async () => {
     setPdfLoading(true)
@@ -1055,22 +987,70 @@ Bien cordialement,
     }
   }
 
+  const AUDIT_LABEL = {
+    'seo':             "Générer l'audit SEO — 2 crédits",
+    'consultant-seo':  "Générer l'audit SEO — 2 crédits",
+    'photographe':     "Générer l'audit photo — 2 crédits",
+    'chatbot':         "Générer l'audit chatbot — 2 crédits",
+    'dev-chatbot':     "Générer l'audit chatbot — 2 crédits",
+    'social-media':    "Générer l'audit Community Manager — 2 crédits",
+    'designer':        "Générer l'audit branding — 2 crédits",
+    'dev-web':         "Générer l'audit technique — 2 crédits",
+    'email-marketing': "Générer l'audit email marketing — 2 crédits",
+    'pub-google':      "Générer l'audit Google Ads — 2 crédits",
+    'copywriter':      "Générer l'audit contenu — 2 crédits",
+  }
+
   const handleExportAuditPDF = async () => {
+    if (auditPdfLoading || prospectAuditState === 'loading') return
     // TODO: Supabase — déduire 2 crédits avant l'appel
     setAuditPdfLoading(true)
     setAuditPdfError(null)
     setProspectAuditState('loading')
     try {
-      const placeId  = lead.id || lead._id || 'unknown'
+      const placeId   = lead.id || lead._id || 'unknown'
       const profileId = activeProfile?.id ?? 'seo'
       const leadCity  = lead.address?.split(',').pop()?.trim() || ''
+      const social    = lead.social ?? null
+      const pappersData = lead.pappers ?? null
 
-      // Step 1 — generate AI audit via backend
+      // ── Signaux enrichis (email-marketing + autres profils) ─────────────────
+      const loyaltyAnalysis    = reviewsData?.loyaltyAnalysis ?? lead.loyaltyAnalysis ?? null
+      const loyaltyMentions    = loyaltyAnalysis?.loyaltyMentions ?? 0
+      const loyaltyTopics      = loyaltyAnalysis?.loyaltyTopics   ?? []
+      const totalReviewsFull   = reviewsData?.total      ?? null
+      const unansweredCount    = reviewsData?.unanswered ?? null
+      const ownerReplyRatioFull = (totalReviewsFull != null && totalReviewsFull > 0 && unansweredCount != null)
+        ? (totalReviewsFull - unansweredCount) / totalReviewsFull
+        : null
+      const catRaw = [(lead.keyword || lead.domain || ''), ...(lead.types || [])].join(' ')
+        .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      const _FREQ_HIGH = ['restaurant', 'cafe', 'boulangerie', 'bakery', 'pharmacie', 'supermarche', 'epicerie', 'tabac', 'pressing', 'gym', 'sport', 'fitness', 'brasserie', 'pizz', 'burger', 'traiteur', 'bistrot']
+      const _FREQ_LOW  = ['avocat', 'notaire', 'comptable', 'assurance', 'immo', 'architecte', 'dentiste', 'orthodontiste', 'psy', 'psychiatre', 'psychologue']
+      const visitFrequency = _FREQ_HIGH.some(k => catRaw.includes(k)) ? 'Haute'
+                           : _FREQ_LOW.some(k  => catRaw.includes(k)) ? 'Faible'
+                           : 'Modérée'
+      let stabScore = !!(lead.googleAudit?.hasHours) ? 2 : 0
+      if (pappersData) {
+        const ca  = pappersData.chiffreAffaires ?? null
+        const dc  = pappersData.dateCreation    ?? null
+        const eff = pappersData.effectifs       ?? null
+        if (dc) { const y = (Date.now() - new Date(dc).getTime()) / (365.25 * 24 * 3600 * 1000); stabScore += y >= 5 ? 3 : y >= 2 ? 2 : y >= 1 ? 1 : 0 }
+        if (ca !== null) stabScore += ca >= 200000 ? 3 : ca >= 50000 ? 2 : 1
+        if (eff !== null && eff >= 1) stabScore += 1
+      }
+      const businessStability = stabScore >= 6 ? 'haute' : stabScore >= 3 ? 'moyenne' : 'faible'
+      const canInvest         = stabScore >= 5 && (pappersData?.chiffreAffaires ?? 0) >= 50000
+      const _aiReportStr      = typeof aiReport === 'string' ? aiReport : (aiReport?.report ?? '')
+      const aiReportSummary   = _aiReportStr ? _aiReportStr.slice(0, 600) : null
+
+      // Step 1 — generate AI audit via backend (fat payload)
       const r = await fetch(`${API}/api/leads/audit-prospect/${placeId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          profile: profileId,
+          profileId,
+          // SEO / générique
           leadData: {
             name:        lead.name        ?? '',
             address:     lead.address     ?? '',
@@ -1087,6 +1067,52 @@ Bien cordialement,
           napData:          auditData?.napData           ?? null,
           facebookActivity: auditData?.facebookActivity  ?? null,
           instagramActivity:auditData?.instagramActivity ?? null,
+          // Champs communs
+          businessName:  lead.name    ?? '',
+          websiteUrl:    lead.website ?? null,
+          googleRating:  lead.google?.rating        ?? null,
+          totalReviews:  lead.google?.totalReviews  ?? 0,
+          domain:        lead.domain ?? lead.keyword ?? null,
+          city:          leadCity,
+          photoCount:    lead.googleAudit?.photoCount ?? 0,
+          socialPresence: social,
+          // Photographe
+          googlePhotos:  [],
+          social:        social ?? {},
+          // Chatbot
+          chatbotDetection:     lead.chatbotDetection ?? null,
+          questionsAnalysis:    reviewsData?.questionAnalysis ?? lead.reviewAnalysis?.questionAnalysis ?? null,
+          domainComplexity:     lead.domainComplexity ?? null,
+          faqDetection:         auditData?.pagespeed?.hasFAQ         ?? null,
+          contactFormDetection: auditData?.pagespeed?.hasContactForm  ?? null,
+          // Social / Community Manager
+          socialMediaActivity: {
+            instagramActivity: auditData?.instagramActivity ?? null,
+            facebookActivity:  auditData?.facebookActivity  ?? null,
+          },
+          instagramDeep: auditData?.instagramDeep ?? null,
+          // Designer
+          googleAudit:   lead.googleAudit ?? null,
+          // Web Dev
+          cms:           auditData?.pagespeed?.cms?.cms ?? null,
+          hasHttps:      auditData?.pagespeed?.https    ?? null,
+          hasSitemap:    auditData?.pagespeed?.sitemap  ?? null,
+          hasRobots:     auditData?.pagespeed?.robots   ?? null,
+          domainAge:     auditData?.pagespeed?.domainAge    ?? null,
+          indexedPages:  auditData?.pagespeed?.indexedPages ?? null,
+          // Email Marketing
+          ownerReplyRatio:     lead.ownerReplyRatio ?? null,
+          hasNewsletter:       social?.newsletterDetection?.hasNewsletter ?? auditData?.pagespeed?.siteSignals?.hasNewsletter ?? null,
+          hasContactForm:      auditData?.pagespeed?.siteSignals?.hasContactForm ?? social?.contactFormDetection?.hasContactForm ?? null,
+          loyaltyMentions, loyaltyTopics,
+          unansweredCount, totalReviewsFull,
+          ownerReplyRatioFull: ownerReplyRatioFull ?? lead.ownerReplyRatio ?? null,
+          visitFrequency, businessStability, canInvest,
+          aiReport: aiReportSummary,
+          // Google Ads
+          hasDescription: lead.googleAudit?.hasDescription ?? false,
+          hasHours:       lead.googleAudit?.hasHours       ?? false,
+          semrushData:    semrushData ?? null,
         }),
       })
       if (!r.ok) {
@@ -1097,8 +1123,34 @@ Bien cordialement,
       setProspectAudit(prospectAuditResult)
       setProspectAuditState('done')
 
-      // Step 2 — generate PDF with AI content
-      await exportAuditPDF({ lead, activeProfile, activeWeights, aiReport, auditData, prospectAudit: prospectAuditResult })
+      // Step 2 — generate PDF with AI content, dispatch by profile
+      switch (profileId) {
+        case 'photographe':
+          await exportAuditPhotographePDF({ lead, activeProfile, photoAudit: prospectAuditResult, auditData })
+          break
+        case 'chatbot':
+        case 'dev-chatbot':
+          await exportAuditChatbotPDF({ lead, activeProfile, chatbotAudit: prospectAuditResult, reviewsData, auditData })
+          break
+        case 'social-media':
+          await exportAuditSocialMediaPDF({ lead, activeProfile, socialAudit: prospectAuditResult, auditData, city: leadCity })
+          break
+        case 'designer':
+          await exportAuditDesignerPDF({ lead, activeProfile, designerAudit: prospectAuditResult, auditData })
+          break
+        case 'dev-web':
+          await exportAuditWebDevPDF({ lead, activeProfile, webDevAudit: prospectAuditResult, auditData, visualAnalysis })
+          break
+        case 'email-marketing':
+          await exportAuditEmailMarketingPDF({ lead, activeProfile, emailAudit: prospectAuditResult, auditData, reviewsData, visitFrequency, businessStability, canInvest, loyaltyTopics, aiReportSummary })
+          break
+        case 'pub-google':
+          await exportAuditGoogleAdsPDF({ lead, activeProfile, googleAdsAudit: prospectAuditResult, auditData })
+          break
+        default:
+          await exportAuditPDF({ lead, activeProfile, activeWeights, aiReport, auditData, prospectAudit: prospectAuditResult })
+          break
+      }
     } catch (err) {
       console.error('[AuditPDF]', err)
       setProspectAuditState('error')
@@ -1108,359 +1160,12 @@ Bien cordialement,
     }
   }
 
-  const handleExportPhotoAuditPDF = async () => {
-    // TODO: Supabase — déduire 2 crédits avant l'appel
-    setPhotoAuditPdfLoading(true)
-    setPhotoAuditPdfError(null)
-    setPhotoAuditState('loading')
-    try {
-      const placeId  = lead.id || lead._id || 'unknown'
-      const leadCity = lead.address?.split(',').pop()?.trim() || ''
 
-      // Step 1 — generate AI audit via backend
-      const r = await fetch(`/api/leads/audit-photo/${placeId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          businessName: lead.name          ?? '',
-          websiteUrl:   lead.website       ?? null,
-          photoCount:   lead.googleAudit?.photoCount ?? lead.google?.photoCount ?? 0,
-          googlePhotos: [],
-          social:       lead.social        ?? {},
-          reviewsData:  reviewsData        ?? null,
-          googleRating: lead.google?.rating       ?? null,
-          totalReviews: lead.google?.totalReviews  ?? null,
-        }),
-      })
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}))
-        throw new Error(err.error ?? `Erreur serveur ${r.status}`)
-      }
-      const photoAuditResult = await r.json()
-      setPhotoAudit(photoAuditResult)
-      setPhotoAuditState('done')
 
-      // Step 2 — generate PDF with AI content
-      await exportAuditPhotographePDF({ lead, activeProfile, photoAudit: photoAuditResult, auditData })
-    } catch (err) {
-      console.error('[PhotoAuditPDF]', err)
-      setPhotoAuditState('error')
-      setPhotoAuditPdfError(err.message ?? 'Erreur inconnue')
-    } finally {
-      setPhotoAuditPdfLoading(false)
-    }
-  }
 
-  const handleExportChatbotAuditPDF = async () => {
-    // TODO: Supabase — déduire 2 crédits avant l'appel
-    setChatbotAuditPdfLoading(true)
-    setChatbotAuditPdfError(null)
-    setChatbotAuditState('loading')
-    try {
-      const placeId = lead.id || lead._id || 'unknown'
 
-      // Step 1 — generate AI audit via backend
-      const r = await fetch(`${API}/api/leads/audit-chatbot/${placeId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          businessName:         lead.name        ?? '',
-          websiteUrl:           lead.website     ?? null,
-          chatbotDetection:     lead.chatbotDetection ?? null,
-          reviewsData:          reviewsData      ?? null,
-          googleRating:         lead.google?.rating       ?? null,
-          totalReviews:         lead.google?.totalReviews  ?? null,
-          questionsAnalysis:    reviewsData?.questionAnalysis ?? lead.reviewAnalysis?.questionAnalysis ?? null,
-          domainComplexity:     lead.domainComplexity ?? null,
-          faqDetection:         auditData?.pagespeed?.hasFAQ         ?? null,
-          contactFormDetection: auditData?.pagespeed?.hasContactForm  ?? null,
-          pagespeedData:        auditData?.pagespeed ?? null,
-        }),
-      })
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}))
-        throw new Error(err.error ?? `Erreur serveur ${r.status}`)
-      }
-      const chatbotAuditResult = await r.json()
-      setChatbotAudit(chatbotAuditResult)
-      setChatbotAuditState('done')
 
-      // Step 2 — generate PDF with AI content
-      await exportAuditChatbotPDF({ lead, activeProfile, chatbotAudit: chatbotAuditResult, reviewsData, auditData })
-    } catch (err) {
-      console.error('[ChatbotAuditPDF]', err)
-      setChatbotAuditState('error')
-      setChatbotAuditPdfError(err.message ?? 'Erreur inconnue')
-    } finally {
-      setChatbotAuditPdfLoading(false)
-    }
-  }
 
-  const handleExportSocialAuditPDF = async () => {
-    // TODO: Supabase — déduire 2 crédits avant l'appel
-    setSocialAuditPdfLoading(true)
-    setSocialAuditPdfError(null)
-    setSocialAuditState('loading')
-    try {
-      const placeId = lead.id || lead._id
-      if (!placeId) throw new Error('placeId manquant')
-      const r = await fetch(`${API}/api/leads/audit-social/${placeId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          businessName:        lead.name,
-          websiteUrl:          lead.website        ?? null,
-          socialPresence:      lead.social         ?? null,
-          socialMediaActivity: {
-            instagramActivity: auditData?.instagramActivity ?? null,
-            facebookActivity:  auditData?.facebookActivity  ?? null,
-          },
-          photoCount:    lead.googleAudit?.photoCount ?? 0,
-          reviewsData:   reviewsData                  ?? null,
-          googleRating:  lead.google?.rating          ?? null,
-          totalReviews:  lead.google?.totalReviews    ?? 0,
-          domain:        lead.domain || lead.keyword  || null,
-          city:          (lead.address ?? '').split(',').pop()?.trim() || null,
-          instagramDeep: auditData?.instagramDeep    ?? null,
-        }),
-      })
-      if (!r.ok) throw new Error(`HTTP ${r.status}`)
-      const result = await r.json()
-      setSocialAudit(result)
-      setSocialAuditState('done')
-      const city = (lead.address ?? '').split(',').pop()?.trim() || ''
-      await exportAuditSocialMediaPDF({ lead, activeProfile, socialAudit: result, auditData, city })
-    } catch (err) {
-      console.error('[SocialAuditPDF]', err)
-      setSocialAuditState('error')
-      setSocialAuditPdfError(err.message ?? 'Erreur inconnue')
-    } finally {
-      setSocialAuditPdfLoading(false)
-    }
-  }
-
-  const handleExportDesignerAuditPDF = async () => {
-    if (designerAuditState === 'loading') return
-    // TODO: Supabase — déduire 2 crédits avant l'appel
-    setDesignerAuditPdfLoading(true)
-    setDesignerAuditPdfError(null)
-    setDesignerAuditState('loading')
-    try {
-      const placeId = lead.id || lead._id
-      if (!placeId) throw new Error('placeId manquant')
-      const r = await fetch(`${API}/api/leads/audit-designer/${placeId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          businessName:  lead.name,
-          websiteUrl:    lead.website           ?? null,
-          photoCount:    lead.googleAudit?.photoCount ?? 0,
-          googleAudit:   lead.googleAudit        ?? null,
-          socialPresence: lead.social            ?? null,
-          reviewsData:   reviewsData             ?? null,
-          googleRating:  lead.google?.rating     ?? null,
-          totalReviews:  lead.google?.totalReviews ?? 0,
-          domain:        lead.domain || lead.keyword || null,
-          pagespeedData: auditData?.pagespeed    ?? null,
-        }),
-      })
-      if (!r.ok) throw new Error(`HTTP ${r.status}`)
-      const result = await r.json()
-      setDesignerAudit(result)
-      setDesignerAuditState('done')
-      await exportAuditDesignerPDF({ lead, activeProfile, designerAudit: result, auditData })
-    } catch (err) {
-      console.error('[DesignerAuditPDF]', err)
-      setDesignerAuditState('error')
-      setDesignerAuditPdfError(err.message ?? 'Erreur inconnue')
-    } finally {
-      setDesignerAuditPdfLoading(false)
-    }
-  }
-
-  const handleExportWebDevAuditPDF = async () => {
-    if (webDevAuditState === 'loading') return
-    // TODO: Supabase — déduire 2 crédits avant l'appel
-    setWebDevAuditPdfLoading(true)
-    setWebDevAuditPdfError(null)
-    setWebDevAuditState('loading')
-    try {
-      const placeId = lead.id || lead._id
-      if (!placeId) throw new Error('placeId manquant')
-      const r = await fetch(`/api/leads/audit-webdev/${placeId}`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          businessName:  lead.name ?? '',
-          websiteUrl:    lead.website ?? null,
-          pagespeedData: auditData?.pagespeed ?? null,
-          cms:           auditData?.pagespeed?.cms?.cms ?? null,
-          hasHttps:      auditData?.pagespeed?.https ?? null,
-          hasSitemap:    auditData?.pagespeed?.sitemap ?? null,
-          hasRobots:     auditData?.pagespeed?.robots ?? null,
-          domainAge:     auditData?.pagespeed?.domainAge ?? null,
-          indexedPages:  auditData?.pagespeed?.indexedPages ?? null,
-          socialPresence: lead.social ?? null,
-          googleRating:  lead.google?.rating ?? lead.rating ?? null,
-          totalReviews:  lead.google?.totalReviews ?? lead.totalReviews ?? 0,
-          domain:        lead.domain ?? lead.keyword ?? null,
-        }),
-      })
-      if (!r.ok) throw new Error(`HTTP ${r.status}`)
-      const result = await r.json()
-      setWebDevAudit(result)
-      setWebDevAuditState('done')
-      await exportAuditWebDevPDF({ lead, activeProfile, webDevAudit: result, auditData, visualAnalysis })
-    } catch (err) {
-      console.error('[WebDevAuditPDF]', err)
-      setWebDevAuditState('error')
-      setWebDevAuditPdfError(err.message ?? 'Erreur inconnue')
-    } finally {
-      setWebDevAuditPdfLoading(false)
-    }
-  }
-
-  const handleAuditEmail = async () => {
-    if (emailAuditState === 'loading') return
-    // TODO: Supabase — déduire 2 crédits avant l'appel
-    setEmailAuditPdfLoading(true)
-    setEmailAuditPdfError(null)
-    setEmailAuditState('loading')
-    try {
-      const placeId = lead.id || lead._id
-      if (!placeId) throw new Error('placeId manquant')
-      const social       = lead.social ?? null
-      const pappersData  = lead.pappers ?? null
-
-      // ── Signaux enrichis calculés au moment du clic ─────────────���─────────
-      // Loyalty — enrichi si 100 avis chargés, sinon données lead initiales
-      const loyaltyAnalysis  = reviewsData?.loyaltyAnalysis ?? lead.loyaltyAnalysis ?? null
-      const loyaltyMentions  = loyaltyAnalysis?.loyaltyMentions ?? 0
-      const loyaltyTopics    = loyaltyAnalysis?.loyaltyTopics   ?? []
-
-      // Avis sans réponse — données complètes si reviewsData dispo
-      const totalReviewsFull    = reviewsData?.total      ?? null
-      const unansweredCount     = reviewsData?.unanswered ?? null
-      const ownerReplyRatioFull = (totalReviewsFull != null && totalReviewsFull > 0 && unansweredCount != null)
-        ? (totalReviewsFull - unansweredCount) / totalReviewsFull
-        : null
-
-      // Fréquence de visite (même logique que le render)
-      const catRaw = [(lead.keyword || lead.domain || ''), ...(lead.types || [])].join(' ')
-        .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      const _FREQ_HIGH = ['restaurant', 'cafe', 'boulangerie', 'bakery', 'pharmacie', 'supermarche', 'epicerie', 'tabac', 'pressing', 'gym', 'sport', 'fitness', 'brasserie', 'pizz', 'burger', 'traiteur', 'bistrot']
-      const _FREQ_LOW  = ['avocat', 'notaire', 'comptable', 'assurance', 'immo', 'architecte', 'dentiste', 'orthodontiste', 'psy', 'psychiatre', 'psychologue']
-      const visitFrequency = _FREQ_HIGH.some(k => catRaw.includes(k)) ? 'Haute'
-                           : _FREQ_LOW.some(k  => catRaw.includes(k)) ? 'Faible'
-                           : 'Modérée'
-
-      // Stabilité business (même logique que le render)
-      let stabScore = !!(lead.googleAudit?.hasHours) ? 2 : 0
-      if (pappersData) {
-        const ca  = pappersData.chiffreAffaires ?? null
-        const dc  = pappersData.dateCreation    ?? null
-        const eff = pappersData.effectifs       ?? null
-        if (dc) { const y = (Date.now() - new Date(dc).getTime()) / (365.25 * 24 * 3600 * 1000); stabScore += y >= 5 ? 3 : y >= 2 ? 2 : y >= 1 ? 1 : 0 }
-        if (ca !== null) stabScore += ca >= 200000 ? 3 : ca >= 50000 ? 2 : 1
-        if (eff !== null && eff >= 1) stabScore += 1
-      }
-      const businessStability = stabScore >= 6 ? 'haute' : stabScore >= 3 ? 'moyenne' : 'faible'
-      const canInvest         = stabScore >= 5 && (pappersData?.chiffreAffaires ?? 0) >= 50000
-
-      // Rapport IA — résumé des 600 premiers chars si disponible
-      const _aiReportStr    = typeof aiReport === 'string' ? aiReport : (aiReport?.report ?? '')
-      const aiReportSummary = _aiReportStr ? _aiReportStr.slice(0, 600) : null
-
-      // Activité réseaux sociaux
-      const facebookActivity  = auditData?.facebookActivity  ?? null
-      const instagramActivity = auditData?.instagramActivity ?? null
-
-      const r = await fetch(`/api/leads/audit-email/${placeId}`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          businessName:        lead.name,
-          websiteUrl:          lead.website ?? null,
-          totalReviews:        lead.google?.totalReviews ?? lead.totalReviews ?? 0,
-          googleRating:        lead.google?.rating ?? lead.rating ?? null,
-          ownerReplyRatio:     lead.ownerReplyRatio ?? null,
-          hasNewsletter:       social?.newsletterDetection?.hasNewsletter ?? auditData?.pagespeed?.siteSignals?.hasNewsletter ?? null,
-          hasContactForm:      auditData?.pagespeed?.siteSignals?.hasContactForm ?? social?.contactFormDetection?.hasContactForm ?? null,
-          socialPresence:      social,
-          domain:              lead.domain ?? lead.keyword ?? null,
-          pagespeedData:       auditData?.pagespeed ?? null,
-          // Enriched signals
-          loyaltyMentions,
-          loyaltyTopics,
-          unansweredCount,
-          totalReviewsFull,
-          ownerReplyRatioFull: ownerReplyRatioFull ?? lead.ownerReplyRatio ?? null,
-          visitFrequency,
-          businessStability,
-          canInvest,
-          aiReport:            aiReportSummary,
-          facebookActivity,
-          instagramActivity,
-        }),
-      })
-      if (!r.ok) throw new Error(`HTTP ${r.status}`)
-      const result = await r.json()
-      setEmailAudit(result)
-      setEmailAuditState('done')
-      await exportAuditEmailMarketingPDF({
-        lead, activeProfile, emailAudit: result, auditData, reviewsData,
-        visitFrequency, businessStability, canInvest,
-        loyaltyTopics, aiReportSummary,
-      })
-    } catch (err) {
-      console.error('[EmailAuditPDF]', err)
-      setEmailAuditState('error')
-      setEmailAuditPdfError(err.message ?? 'Erreur inconnue')
-    } finally {
-      setEmailAuditPdfLoading(false)
-    }
-  }
-
-  const handleExportGoogleAdsAuditPDF = async () => {
-    if (googleAdsAuditState === 'loading') return
-    // TODO: Supabase — déduire 2 crédits avant l'appel
-    setGoogleAdsAuditPdfLoading(true)
-    setGoogleAdsAuditPdfError(null)
-    setGoogleAdsAuditState('loading')
-    try {
-      const placeId = lead.id || lead._id
-      if (!placeId) throw new Error('placeId manquant')
-      const r = await fetch(`/api/leads/audit-ads/${placeId}`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          businessName:   lead.name ?? '',
-          websiteUrl:     lead.website ?? null,
-          googleRating:   lead.google?.rating ?? lead.rating ?? null,
-          totalReviews:   lead.google?.totalReviews ?? lead.totalReviews ?? 0,
-          pagespeedData:  auditData?.pagespeed ?? null,
-          photoCount:     lead.googleAudit?.photoCount ?? 0,
-          hasDescription: lead.googleAudit?.hasDescription ?? false,
-          hasHours:       lead.googleAudit?.hasHours ?? false,
-          socialPresence: lead.social ?? null,
-          domain:         lead.domain ?? lead.keyword ?? null,
-          reviewsData:    lead.reviewAnalysis ?? null,
-          city:           (lead.address ?? '').split(',').pop()?.trim() || '',
-        }),
-      })
-      if (!r.ok) throw new Error(`HTTP ${r.status}`)
-      const result = await r.json()
-      setGoogleAdsAudit(result)
-      setGoogleAdsAuditState('done')
-      await exportAuditGoogleAdsPDF({ lead, activeProfile, googleAdsAudit: result, auditData })
-    } catch (err) {
-      console.error('[GoogleAdsAuditPDF]', err)
-      setGoogleAdsAuditState('error')
-      setGoogleAdsAuditPdfError(err.message ?? 'Erreur inconnue')
-    } finally {
-      setGoogleAdsAuditPdfLoading(false)
-    }
-  }
 
   const handleDownloadEmailPDF = async () => {
     const tpl = aiEmail ?? buildEmail(activeProfile?.id ?? 'chatbot')
@@ -1993,20 +1698,53 @@ Bien cordialement,
       }
 
       case 'copywriter': {
-        const hasReplies    = !!(lead.reviewAnalysis?.ownerReplies)
+        const hasReplies     = !!(lead.reviewAnalysis?.ownerReplies)
         const hasDescription = !!(lead.googleAudit?.descriptionText)
-        const posKeywords   = lead.reviewAnalysis?.positive?.keywords?.length || 0
+        const posKeywords    = lead.reviewAnalysis?.positive?.keywords?.length || 0
+
+        // Données disponibles après "Analyser le contenu du site"
+        const auditDoneCW    = auditState === 'done'
+        const hasTitleTag    = auditData?.pagespeed?.title === 'Présente' ? true
+                             : auditData?.pagespeed?.title === 'Absente'  ? false : null
+        const indexedPages   = auditData?.pagespeed?.indexedPages ?? null
+        const cmsDetected    = auditData?.pagespeed?.cms?.cms ?? (typeof auditData?.pagespeed?.cms === 'string' ? auditData?.pagespeed?.cms : null)
+        // hasBlog : siteSignals (après analyse) prioritaire, puis unlock (enrichSocial) en fallback
+        const hasBlog        = auditData?.pagespeed?.siteSignals?.hasBlog
+                               ?? lead.social?.blogDetection?.hasBlog
+                               ?? null
+
+        const hasSite        = !!(lead.website)
+        const domain         = lead.domain ?? lead.category ?? null
+
         return {
           kpis: [
-            kpi('Meta description',  hasMeta ? 'Présente' : 'Absente',               hasMeta ? 'good' : 'danger'),
-            kpi('Réponses avis',     hasReplies ? 'Personnalisées' : 'Absentes',      hasReplies ? 'good' : 'danger'),
-            kpi('Description fiche', hasDescription ? 'Présente' : 'Absente',        hasDescription ? 'good' : 'danger'),
-            kpi('Mots-clés positifs', posKeywords > 0 ? posKeywords : '—',         posKeywords > 0 ? 'good' : 'neutral'),
+            // ── 4 KPIs existants ──
+            kpi('Meta description',   hasMeta ? 'Présente' : 'Absente',               hasMeta ? 'good' : 'danger'),
+            kpi('Réponses avis',      hasReplies ? 'Personnalisées' : 'Absentes',      hasReplies ? 'good' : 'danger'),
+            kpi('Description fiche',  hasDescription ? 'Présente' : 'Absente',        hasDescription ? 'good' : 'danger'),
+            kpi('Mots-clés positifs', posKeywords > 0 ? posKeywords : '—',            posKeywords > 0 ? 'good' : 'neutral'),
+            // ── 6 KPIs nouveaux ──
+            kpi('Site web',           hasSite ? 'Présent' : 'Absent',                 hasSite ? 'good' : 'danger'),
+            kpi('Balise title',       hasTitleTag === null ? '—' : hasTitleTag ? 'Présente' : 'Absente',
+                                      hasTitleTag === null ? 'neutral' : hasTitleTag ? 'good' : 'danger',
+                                      hasTitleTag === null ? 'Après analyse' : null),
+            kpi('Blog détecté',       hasBlog === null ? '—' : hasBlog ? 'Oui' : 'Non (opportunité)',
+                                      hasBlog === null ? 'neutral' : hasBlog ? 'warn' : 'good',
+                                      hasBlog === null ? 'Après analyse' : null),
+            kpi('Pages indexées',     indexedPages !== null ? indexedPages : auditDoneCW ? 'Non disponible' : '—',
+                                      indexedPages !== null ? (indexedPages >= 10 ? 'good' : 'warn') : 'neutral',
+                                      indexedPages === null && !auditDoneCW ? 'Après analyse' : null),
+            kpi('CMS détecté',        cmsDetected ?? '—',                             cmsDetected ? 'neutral' : 'neutral',
+                                      cmsDetected === null ? 'Après analyse' : null),
+            kpi('Secteur',            domain ?? '—',                                  'neutral'),
           ],
+          auditDoneCW,
           problems: [
             ...(!hasReplies     ? [prob("Réponses aux avis absentes — nuit à l'image", '#ef4444')] : []),
             ...(!hasMeta        ? [prob('Aucune meta description — Google affiche un texte aléatoire', '#ef4444')] : []),
             ...(!hasDescription ? [prob('Description fiche Google absente — fiche incomplète', '#f59e0b')] : []),
+            ...(hasTitleTag === false ? [prob('Balise title absente ou non optimisée', '#ef4444')] : []),
+            ...(hasBlog === false ? [prob('Pas de blog — aucun contenu SEO régulier', '#f59e0b')] : []),
           ],
         }
       }
@@ -3066,7 +2804,7 @@ Bien cordialement,
                     <div style={CARD}>
                       {auditState === 'idle' && (
                         <button onClick={handleAnalyzePerformance} onMouseEnter={e => e.currentTarget.style.background='rgba(29,110,85,0.06)'} onMouseLeave={e => e.currentTarget.style.background='transparent'} style={{ ...BTN, borderTop: 'none' }}>
-                          Analyser les performances digitales
+                          {activeProfile?.id === 'copywriter' ? 'Analyser le contenu du site' : 'Analyser les performances digitales'}
                           <span style={BADGE}>1 crédit</span>
                         </button>
                       )}
@@ -3656,21 +3394,20 @@ Bien cordialement,
                   return null
                 })()}
 
-                {activeProfile?.id === 'social-media' && (
-                  <>
-                    <button className="ld-btn" onClick={handleExportSocialAuditPDF} disabled={socialAuditPdfLoading}
-                      style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: socialAuditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: socialAuditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginBottom: 4 }}
-                      onMouseEnter={e => { if (!socialAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
-                      {socialAuditState === 'loading' ? '⏳ Génération de l\'audit…' : socialAuditPdfLoading ? '⏳ Mise en page PDF…' : '📱 Générer l\'audit community manager — 2 crédits'}
-                    </button>
-                    {socialAuditPdfError && (
-                      <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 3, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
-                        ✗ {socialAuditPdfError}
-                      </div>
-                    )}
-                  </>
-                )}
+
+                {/* ANALYSER LE CONTENU — copywriter uniquement, inline sous les KPIs */}
+                {activeProfile?.id === 'copywriter' && lead.website && (() => {
+                  if (auditState === 'idle')
+                    return (
+                      <button className="ld-btn" onClick={handleAnalyzePerformance}
+                        style={{ width: '100%', height: 28, borderRadius: 6, border: '1px solid rgba(29,110,85,0.25)', background: 'rgba(29,110,85,0.08)', color: '#1d6e55', fontSize: 10.5, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 10 }}>
+                        Analyser le contenu du site — 1 crédit
+                      </button>
+                    )
+                  if (auditState === 'loading')
+                    return <div style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, color: '#64748b', marginBottom: 10 }}>Analyse en cours…</div>
+                  return null
+                })()}
 
                 {/* SCORE IMAGE DE MARQUE + RECOMMANDATION — designer uniquement */}
                 {activeProfile?.id === 'designer' && (() => {
@@ -3978,8 +3715,8 @@ Bien cordialement,
             <div style={{ marginBottom: 12, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#64748b' }}>Audit en cours…</div>
           )}
 
-          {/* ── ANALYSE VISUELLE IA ── designer / photographe / copywriter / dev-web */}
-          {['designer', 'photographe', 'copywriter', 'dev-web'].includes(activeProfile?.id) && lead.website && (() => {
+          {/* ── ANALYSE VISUELLE IA ── designer / photographe / dev-web uniquement */}
+          {['designer', 'photographe', 'dev-web'].includes(activeProfile?.id) && lead.website && (() => {
             const isDevWeb      = activeProfile?.id === 'dev-web'
             const ZONE_OPTIONS  = [
               { id: 'header', label: 'Header uniquement', desc: 'Première impression du site',    cost: 1, badge: null },
@@ -4336,14 +4073,14 @@ Bien cordialement,
           </div>
 
           {/* Perf audit on-demand */}
-          {!['seo', 'consultant-seo', 'dev-web', 'pub-google', 'photographe', 'chatbot', 'dev-chatbot', 'email-marketing'].includes(activeProfile?.id) && auditState === 'idle' && (lead.website || lead.social?.facebook || lead.social?.instagram) && (
+          {!['seo', 'consultant-seo', 'dev-web', 'pub-google', 'photographe', 'chatbot', 'dev-chatbot', 'email-marketing', 'copywriter'].includes(activeProfile?.id) && auditState === 'idle' && (lead.website || lead.social?.facebook || lead.social?.instagram) && (
             <div style={{ marginBottom: 20 }}>
               <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ width: '100%', height: 40, borderRadius: 10, border: '1px solid rgba(29,110,85,0.25)', background: 'rgba(29,110,85,0.12)', color: '#1d6e55', fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                Analyser les performances digitales — 1 crédit
+                {activeProfile?.id === 'copywriter' ? 'Analyser le contenu du site — 1 crédit' : 'Analyser les performances digitales — 1 crédit'}
               </button>
             </div>
           )}
-          {!['seo', 'consultant-seo', 'dev-web', 'pub-google', 'photographe', 'email-marketing'].includes(activeProfile?.id) && auditState === 'loading' && (
+          {!['seo', 'consultant-seo', 'dev-web', 'pub-google', 'photographe', 'email-marketing', 'copywriter'].includes(activeProfile?.id) && auditState === 'loading' && (
             <div style={{ marginBottom: 20, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#64748b' }}>Audit en cours…</div>
           )}
 
@@ -4418,175 +4155,29 @@ Bien cordialement,
               {pdfLoading ? '⏳ Génération en cours…' : '↓ Exporter fiche PDF'}
             </button>
 
-            {/* Audit prospect PDF — masqué pour designer, dev-web, email-marketing, pub-google, social-media (ont leurs propres audits) */}
-            {!['designer', 'dev-web', 'email-marketing', 'pub-google', 'social-media'].includes(activeProfile?.id) && (
-              <>
-                <button
-                  className="ld-btn"
-                  onClick={handleExportAuditPDF}
-                  disabled={auditPdfLoading}
-                  style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: auditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: auditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
-                  onMouseEnter={e => { if (!auditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
-                  {prospectAuditState === 'loading' ? '⏳ Génération de l\'audit…' : auditPdfLoading ? '⏳ Mise en page PDF…' : '↓ Générer l\'audit prospect — 2 crédits'}
+            {/* Audit PDF — bouton universel pour tous les profils */}
+            <>
+              <button
+                className="ld-btn"
+                onClick={handleExportAuditPDF}
+                disabled={auditPdfLoading || prospectAuditState === 'loading'}
+                style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: (auditPdfLoading || prospectAuditState === 'loading') ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: (auditPdfLoading || prospectAuditState === 'loading') ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
+                onMouseEnter={e => { if (!auditPdfLoading && prospectAuditState !== 'loading') { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
+                {prospectAuditState === 'loading' ? '⏳ Génération de l\'audit…' : auditPdfLoading ? '⏳ Mise en page PDF…' : prospectAuditState === 'done' ? '✅ Audit téléchargé' : (AUDIT_LABEL[activeProfile?.id] ?? "Générer l'audit prospect — 2 crédits")}
+              </button>
+              {auditPdfError && (
+                <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>✗ {auditPdfError}</span>
+                  <button onClick={() => { setProspectAuditState('idle'); setAuditPdfError(null) }} style={{ fontSize: 10, color: '#EDFA36', background: 'none', border: '1px solid rgba(29,110,85,0.25)', borderRadius: 5, padding: '2px 8px', cursor: 'pointer', marginLeft: 8 }}>Réessayer</button>
+                </div>
+              )}
+              {prospectAuditState === 'done' && (
+                <button onClick={() => { setProspectAuditState('idle'); setProspectAudit(null) }} style={{ width: '100%', marginTop: 4, fontSize: 10, color: '#64748b', background: 'none', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, padding: '4px 0', cursor: 'pointer' }}>
+                  ↺ Regénérer l'audit
                 </button>
-                {auditPdfError && (
-                  <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
-                    ✗ {auditPdfError}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Audit chatbot — profils Chatbot / Dev-Chatbot uniquement */}
-            {(activeProfile?.id === 'chatbot' || activeProfile?.id === 'dev-chatbot') && (
-              <>
-                <button
-                  className="ld-btn"
-                  onClick={handleExportChatbotAuditPDF}
-                  disabled={chatbotAuditPdfLoading}
-                  style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: chatbotAuditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: chatbotAuditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
-                  onMouseEnter={e => { if (!chatbotAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
-                  {chatbotAuditState === 'loading' ? '⏳ Génération de l\'audit…' : chatbotAuditPdfLoading ? '⏳ Mise en page PDF…' : '🤖 Générer l\'audit chatbot — 2 crédits'}
-                </button>
-                {chatbotAuditPdfError && (
-                  <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
-                    ✗ {chatbotAuditPdfError}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Audit photo — profil Photographe uniquement */}
-            {activeProfile?.id === 'photographe' && (
-              <>
-                <button
-                  className="ld-btn"
-                  onClick={handleExportPhotoAuditPDF}
-                  disabled={photoAuditPdfLoading}
-                  style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: photoAuditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: photoAuditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
-                  onMouseEnter={e => { if (!photoAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
-                  {photoAuditState === 'loading' ? '⏳ Génération de l\'audit…' : photoAuditPdfLoading ? '⏳ Mise en page PDF…' : '📷 Générer l\'audit photo — 2 crédits'}
-                </button>
-                {photoAuditPdfError && (
-                  <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
-                    ✗ {photoAuditPdfError}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Audit Community Manager — profil social-media uniquement */}
-            {activeProfile?.id === 'social-media' && (
-              <>
-                <button
-                  className="ld-btn"
-                  onClick={handleExportSocialAuditPDF}
-                  disabled={socialAuditPdfLoading}
-                  style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: socialAuditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: socialAuditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
-                  onMouseEnter={e => { if (!socialAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
-                  {socialAuditState === 'loading' ? '⏳ Génération de l\'audit…' : socialAuditPdfLoading ? '⏳ Mise en page PDF…' : '📱 Générer l\'audit Community Manager — 2 crédits'}
-                </button>
-                {socialAuditPdfError && (
-                  <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
-                    ✗ {socialAuditPdfError}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Audit branding — profil Designer uniquement */}
-            {activeProfile?.id === 'designer' && (
-              <>
-                <button
-                  className="ld-btn"
-                  onClick={handleExportDesignerAuditPDF}
-                  disabled={designerAuditPdfLoading}
-                  style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: designerAuditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: designerAuditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
-                  onMouseEnter={e => { if (!designerAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
-                  {designerAuditState === 'loading' ? '⏳ Génération de l\'audit…' : designerAuditPdfLoading ? '⏳ Mise en page PDF…' : '🎨 Générer l\'audit branding — 2 crédits'}
-                </button>
-                {designerAuditPdfError && (
-                  <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
-                    ✗ {designerAuditPdfError}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Audit technique — profil Dev-Web uniquement */}
-            {activeProfile?.id === 'dev-web' && (
-              <>
-                <button
-                  className="ld-btn"
-                  onClick={handleExportWebDevAuditPDF}
-                  disabled={webDevAuditPdfLoading}
-                  style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: webDevAuditPdfLoading ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: webDevAuditPdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
-                  onMouseEnter={e => { if (!webDevAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
-                  {webDevAuditState === 'loading' ? '⏳ Génération de l\'audit…' : webDevAuditPdfLoading ? '⏳ Mise en page PDF…' : '💻 Générer l\'audit technique — 2 crédits'}
-                </button>
-                {webDevAuditPdfError && (
-                  <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)' }}>
-                    ✗ {webDevAuditPdfError}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Audit email marketing — profil Email Marketing uniquement */}
-            {activeProfile?.id === 'email-marketing' && (
-              <>
-                <button
-                  onClick={handleAuditEmail}
-                  disabled={emailAuditState === 'loading' || emailAuditPdfLoading}
-                  style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: (emailAuditState === 'loading' || emailAuditPdfLoading) ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: (emailAuditState === 'loading' || emailAuditPdfLoading) ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
-                  onMouseEnter={e => { if (emailAuditState !== 'loading' && !emailAuditPdfLoading) { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
-                  {emailAuditState === 'loading' ? '⏳ Analyse en cours…' : emailAuditPdfLoading ? '⏳ Mise en page PDF…' : emailAuditState === 'done' ? '✅ Audit téléchargé' : '📧 Générer l\'audit email marketing — 2 crédits'}
-                </button>
-                {emailAuditPdfError && (
-                  <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span>✗ {emailAuditPdfError}</span>
-                    <button onClick={() => { setEmailAuditState('idle'); setEmailAuditPdfError(null) }} style={{ fontSize: 10, color: '#EDFA36', background: 'none', border: '1px solid rgba(29,110,85,0.25)', borderRadius: 5, padding: '2px 8px', cursor: 'pointer', marginLeft: 8 }}>Réessayer</button>
-                  </div>
-                )}
-                {emailAuditState === 'done' && (
-                  <button onClick={() => { setEmailAuditState('idle'); setEmailAudit(null) }} style={{ width: '100%', marginTop: 4, fontSize: 10, color: '#64748b', background: 'none', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, padding: '4px 0', cursor: 'pointer' }}>
-                    ↺ Regénérer l'audit
-                  </button>
-                )}
-              </>
-            )}
-
-            {/* Audit Google Ads — profil Pub Google uniquement */}
-            {activeProfile?.id === 'pub-google' && (
-              <>
-                <button
-                  onClick={handleExportGoogleAdsAuditPDF}
-                  disabled={googleAdsAuditState === 'loading' || googleAdsAuditPdfLoading}
-                  style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(14,165,233,0.3)', background: 'rgba(14,165,233,0.12)', color: (googleAdsAuditState === 'loading' || googleAdsAuditPdfLoading) ? '#475569' : '#38bdf8', fontSize: 12, fontWeight: 600, cursor: (googleAdsAuditState === 'loading' || googleAdsAuditPdfLoading) ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
-                  onMouseEnter={e => { if (googleAdsAuditState !== 'loading' && !googleAdsAuditPdfLoading) { e.currentTarget.style.background = 'rgba(14,165,233,0.2)'; e.currentTarget.style.borderColor = 'rgba(14,165,233,0.5)' } }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(14,165,233,0.12)'; e.currentTarget.style.borderColor = 'rgba(14,165,233,0.3)' }}>
-                  {googleAdsAuditState === 'loading' ? '⏳ Analyse en cours…' : googleAdsAuditPdfLoading ? '⏳ Mise en page PDF…' : googleAdsAuditState === 'done' ? '✅ Audit téléchargé' : '📊 Générer l\'audit Google Ads — 2 crédits'}
-                </button>
-                {googleAdsAuditPdfError && (
-                  <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span>✗ {googleAdsAuditPdfError}</span>
-                    <button onClick={() => { setGoogleAdsAuditState('idle'); setGoogleAdsAuditPdfError(null) }} style={{ fontSize: 10, color: '#EDFA36', background: 'none', border: '1px solid rgba(29,110,85,0.25)', borderRadius: 5, padding: '2px 8px', cursor: 'pointer', marginLeft: 8 }}>Réessayer</button>
-                  </div>
-                )}
-                {googleAdsAuditState === 'done' && (
-                  <button onClick={() => { setGoogleAdsAuditState('idle'); setGoogleAdsAudit(null) }} style={{ width: '100%', marginTop: 4, fontSize: 10, color: '#64748b', background: 'none', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, padding: '4px 0', cursor: 'pointer' }}>
-                    ↺ Regénérer l'audit
-                  </button>
-                )}
-              </>
-            )}
+              )}
+            </>
 
           </div>
 

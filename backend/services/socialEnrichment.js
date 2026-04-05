@@ -301,6 +301,8 @@ async function enrichSocial({ name, website, placeId }) {
     if (cached) return cached
   }
 
+  const BLOG_PATH_PATTERNS = ['/blog', '/actualites', '/articles', '/news', '/magazine', '/journal', '/actu', '/publications']
+
   const result = {
     linkedin:             null,
     facebook:             null,
@@ -314,6 +316,7 @@ async function enrichSocial({ name, website, placeId }) {
     faqDetection:         null,
     contactFormDetection: null,
     newsletterDetection:  null,
+    blogDetection:        null,
   };
 
   if (website) {
@@ -333,6 +336,22 @@ async function enrichSocial({ name, website, placeId }) {
         faqDetection:         result.faqDetection,
         contactFormDetection: result.contactFormDetection,
       };
+
+      // ── Blog detection — sur le HTML déjà fetchWebsiteHTML (0€ API) ────────────
+      const $ = cheerio.load(html)
+      let blogUrl = null
+      let hasBlogByPath = false
+      $('a[href]').each((_, el) => {
+        const href = $(el).attr('href') || ''
+        if (BLOG_PATH_PATTERNS.some(p => href.toLowerCase().includes(p))) {
+          hasBlogByPath = true
+          if (!blogUrl) blogUrl = href.startsWith('http') ? href : null
+        }
+      })
+      const hasBlogByClass = /class=["'][^"']*(blog|article-?list|post-?list|news-?list)[^"']*/i.test(html)
+      const hasBlog = hasBlogByPath || hasBlogByClass
+      result.blogDetection = { hasBlog, blogUrl }
+      console.log(`[Social] blogDetection for ${website}: hasBlog=${hasBlog} blogUrl=${blogUrl ?? 'none'}`)
     } catch (err) {
       console.error(`Error fetching website ${website}:`, err.message);
     }

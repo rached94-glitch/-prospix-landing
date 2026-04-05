@@ -241,6 +241,11 @@ function buildAuditHTML({ lead, activeProfile, activeWeights, aiReport, auditDat
     ? prospectAudit.faiblesses.map(f => ({ icon: '⚠', label: f.titre, detail: f.description, severity: 'high' }))
     : buildOpportunities({ lead, auditData, profileId })
 
+  // Nouveaux champs audit enrichis
+  const comparaison  = prospectAudit?.comparaison_concurrents ?? null
+  const timeline     = prospectAudit?.timeline ?? null
+  const titreAudit   = esc(prospectAudit?.titre_audit ?? 'Audit Digital')
+
   // Recommandations — priorité : prospectAudit.recommandations > auto
   const recommendations = prospectAudit?.recommandations?.length > 0
     ? [...prospectAudit.recommandations]
@@ -378,6 +383,7 @@ function buildAuditHTML({ lead, activeProfile, activeWeights, aiReport, auditDat
   <div class="cover-main">
     <div>
       <div class="cover-title">Audit<br>Digital</div>
+      <div class="cover-subtitle" style="font-size:16px;font-weight:600;color:#edfa36;letter-spacing:0.5px;margin-top:8px">${titreAudit}</div>
       <div class="cover-business" style="margin-top:20px">${businessName}</div>
     </div>
 
@@ -498,10 +504,26 @@ function buildAuditHTML({ lead, activeProfile, activeWeights, aiReport, auditDat
     </div>
   </div>`).join('')}
 
+  ${comparaison ? `
+  <div class="section-title" style="margin-top:24px">· Positionnement concurrentiel</div>
+  <div class="card">
+    <div class="stat-row"><span class="stat-label" style="font-weight:600">Position</span><span class="stat-value" style="font-size:11px;max-width:260px;text-align:right">${esc(comparaison.position)}</span></div>
+    ${(comparaison.avantages?.length ?? 0) > 0 ? `<div style="margin-top:8px"><div class="card-title" style="color:#16a34a">Points forts</div>${comparaison.avantages.map(a => `<div class="stat-row"><span class="stat-label">✓ ${esc(a)}</span></div>`).join('')}</div>` : ''}
+    ${(comparaison.retards?.length ?? 0) > 0 ? `<div style="margin-top:8px"><div class="card-title" style="color:#dc2626">Points en retard</div>${comparaison.retards.map(r => `<div class="stat-row"><span class="stat-label">→ ${esc(r)}</span></div>`).join('')}</div>` : ''}
+  </div>` : ''}
+
+  ${timeline ? `
+  <div class="section-title" style="margin-top:24px">· Calendrier de mise en oeuvre</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+    <div class="card"><div class="card-title">Semaine 1</div><div class="rec-detail">${esc(timeline.semaine_1)}</div></div>
+    <div class="card"><div class="card-title">Semaines 2–3</div><div class="rec-detail">${esc(timeline.semaine_2_3)}</div></div>
+    <div class="card"><div class="card-title">Mois 2–3</div><div class="rec-detail">${esc(timeline.mois_2_3)}</div></div>
+  </div>` : ''}
+
   <div class="cta-block" style="margin-top:16px">
     <div class="cta-badge">Votre partenaire digital</div>
-    <div class="cta-headline">Prêt à améliorer votre présence digitale ?</div>
-    <div class="cta-sub">Cet audit est offert. La mise en oeuvre, c'est mon métier.<br>Contactez-moi pour discuter de vos priorités sans engagement.</div>
+    <div class="cta-headline">${prospectAudit?.accroche ? esc(prospectAudit.accroche) : 'Prêt à améliorer votre présence digitale ?'}</div>
+    <div class="cta-sub">Discutons de vos priorités — sans engagement.</div>
     <div class="cta-grid">
       <div class="cta-item"><div class="cta-item-icon">👤</div><div class="cta-item-text">[Votre nom]</div></div>
       <div class="cta-item"><div class="cta-item-icon">📧</div><div class="cta-item-text">[votre@email.com]</div></div>
@@ -613,6 +635,9 @@ export async function exportAuditPhotographePDF({ lead, activeProfile, photoAudi
   const opportunites   = photoAudit?.opportunites   ?? []
   const recommandations = photoAudit?.recommandations ?? []
   const accroche       = esc(photoAudit?.accroche ?? '')
+  const comparaison    = photoAudit?.comparaison_concurrents ?? null
+  const timeline       = photoAudit?.timeline ?? null
+  const titreAudit     = esc(photoAudit?.titre_audit ?? 'Audit Image & Photographie')
 
   // Réseaux sociaux visuels
   const social      = lead.social ?? {}
@@ -745,7 +770,7 @@ export async function exportAuditPhotographePDF({ lead, activeProfile, photoAudi
     <div>
       <div class="cover-eyebrow">Audit prospect</div>
       <div class="cover-title">Image &<br>Photo</div>
-      <div class="cover-subtitle">Audit Image &amp; Photographie</div>
+      <div class="cover-subtitle">${titreAudit}</div>
       <div class="cover-business">${businessName}</div>
     </div>
 
@@ -848,10 +873,26 @@ export async function exportAuditPhotographePDF({ lead, activeProfile, photoAudi
     </div>
   </div>`).join('')}
 
+  ${comparaison ? `
+  <div class="section-title" style="margin-top:28px">6 · Positionnement concurrentiel</div>
+  <div class="card">
+    <div class="stat-row"><span class="stat-label" style="font-weight:600">Position</span><span class="stat-value" style="font-size:11px;max-width:260px;text-align:right">${esc(comparaison.position)}</span></div>
+    ${(comparaison.avantages?.length ?? 0) > 0 ? `<div style="margin-top:8px"><div class="card-title" style="color:#16a34a">Points forts</div>${comparaison.avantages.map(a => `<div class="stat-row"><span class="stat-label">✓ ${esc(a)}</span></div>`).join('')}</div>` : ''}
+    ${(comparaison.retards?.length ?? 0) > 0 ? `<div style="margin-top:8px"><div class="card-title" style="color:#dc2626">Points en retard</div>${comparaison.retards.map(r => `<div class="stat-row"><span class="stat-label">→ ${esc(r)}</span></div>`).join('')}</div>` : ''}
+  </div>` : ''}
+
+  ${timeline ? `
+  <div class="section-title" style="margin-top:28px">7 · Calendrier de mise en oeuvre</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+    <div class="card"><div class="card-title">Semaine 1</div><div class="ff-desc">${esc(timeline.semaine_1)}</div></div>
+    <div class="card"><div class="card-title">Semaines 2–3</div><div class="ff-desc">${esc(timeline.semaine_2_3)}</div></div>
+    <div class="card"><div class="card-title">Mois 2–3</div><div class="ff-desc">${esc(timeline.mois_2_3)}</div></div>
+  </div>` : ''}
+
   <div class="cta-block">
     <div class="cta-badge">Passons à l'action</div>
-    <div class="cta-headline">Transformons votre image</div>
-    <div class="cta-sub">${accroche || 'Vos photos sont votre première impression — soignons-la.'}</div>
+    <div class="cta-headline">${accroche || 'Vos photos sont votre première impression — soignons-la.'}</div>
+    <div class="cta-sub">Discutons de vos priorités — sans engagement.</div>
     <div class="cta-grid">
       <div class="cta-item"><div class="cta-item-icon">📷</div><div class="cta-item-text">[Votre prénom]</div></div>
       <div class="cta-item"><div class="cta-item-icon">📍</div><div class="cta-item-text">${city ? esc(city) : '[Votre ville]'}</div></div>
@@ -944,6 +985,9 @@ export async function exportAuditChatbotPDF({ lead, activeProfile, chatbotAudit,
   const opportunites    = chatbotAudit?.opportunites    ?? []
   const recommandations = chatbotAudit?.recommandations ?? []
   const accroche        = esc(chatbotAudit?.accroche ?? '')
+  const comparaison     = chatbotAudit?.comparaison_concurrents ?? null
+  const timeline        = chatbotAudit?.timeline ?? null
+  const titreAudit      = esc(chatbotAudit?.titre_audit ?? 'Audit Chatbot & IA Conversationnelle')
 
   // KPIs chatbot
   const unanswered     = reviewsData?.unanswered ?? lead.reviewAnalysis?.negative?.unanswered ?? 0
@@ -953,7 +997,10 @@ export async function exportAuditChatbotPDF({ lead, activeProfile, chatbotAudit,
   const hasFAQ         = auditData?.pagespeed?.hasFAQ         ?? null
   const hasForm        = auditData?.pagespeed?.hasContactForm  ?? null
   const complexity     = lead.domainComplexity ?? null
-  const bookingPlatform = lead.chatbotDetection?.bookingPlatform ?? null
+  const bookingPlatform = lead.chatbotDetection?.bookingPlatform
+    ?? auditData?.pagespeed?.bookingPlatform              // getSiteSignals (flat, chatbot profile)
+    ?? auditData?.pagespeed?.siteSignals?.bookingPlatform // getPageSpeed (nested, SEO profile)
+    ?? null
   const cms            = auditData?.pagespeed?.cms?.cms ?? auditData?.pagespeed?.cms ?? null
 
   // Type RAG
@@ -1066,7 +1113,7 @@ export async function exportAuditChatbotPDF({ lead, activeProfile, chatbotAudit,
     <div>
       <div class="cover-eyebrow">Audit prospect</div>
       <div class="cover-title">Chatbot<br>&amp; IA</div>
-      <div class="cover-subtitle">Audit Chatbot &amp; IA Conversationnelle</div>
+      <div class="cover-subtitle">${titreAudit}</div>
       <div class="cover-business">${businessName}</div>
     </div>
     <div class="cover-score-row">
@@ -1126,6 +1173,7 @@ export async function exportAuditChatbotPDF({ lead, activeProfile, chatbotAudit,
       <div class="card-title">Présence sur le site</div>
       ${kpiRow('FAQ détectée', hasFAQ === null ? '—' : hasFAQ ? '✓ Oui' : '✗ Non')}
       ${kpiRow('Formulaire contact', hasForm === null ? '—' : hasForm ? '✓ Oui' : '✗ Non')}
+      ${kpiRow('Réservation en ligne', bookingPlatform ? `✓ ${esc(bookingPlatform)}` : 'Aucune détectée')}
       ${kpiRow('CMS détecté', cms ? esc(cms) : '—')}
     </div>
   </div>
@@ -1158,10 +1206,26 @@ export async function exportAuditChatbotPDF({ lead, activeProfile, chatbotAudit,
     </div>
   </div>`).join('')}
 
+  ${comparaison ? `
+  <div class="section-title" style="margin-top:28px">6 · Positionnement concurrentiel</div>
+  <div class="card">
+    <div class="stat-row"><span class="stat-label" style="font-weight:600">Position</span><span class="stat-value" style="font-size:11px;max-width:260px;text-align:right">${esc(comparaison.position)}</span></div>
+    ${(comparaison.avantages?.length ?? 0) > 0 ? `<div style="margin-top:8px"><div class="card-title" style="color:#16a34a">Points forts</div>${comparaison.avantages.map(a => `<div class="stat-row"><span class="stat-label">✓ ${esc(a)}</span></div>`).join('')}</div>` : ''}
+    ${(comparaison.retards?.length ?? 0) > 0 ? `<div style="margin-top:8px"><div class="card-title" style="color:#dc2626">Points en retard</div>${comparaison.retards.map(r => `<div class="stat-row"><span class="stat-label">→ ${esc(r)}</span></div>`).join('')}</div>` : ''}
+  </div>` : ''}
+
+  ${timeline ? `
+  <div class="section-title" style="margin-top:28px">7 · Calendrier de mise en oeuvre</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+    <div class="card"><div class="card-title">Semaine 1</div><div style="font-size:10.5px;color:#64748b;line-height:1.5">${esc(timeline.semaine_1)}</div></div>
+    <div class="card"><div class="card-title">Semaines 2–3</div><div style="font-size:10.5px;color:#64748b;line-height:1.5">${esc(timeline.semaine_2_3)}</div></div>
+    <div class="card"><div class="card-title">Mois 2–3</div><div style="font-size:10.5px;color:#64748b;line-height:1.5">${esc(timeline.mois_2_3)}</div></div>
+  </div>` : ''}
+
   <div class="cta-block">
     <div class="cta-badge">Passons à l'action</div>
-    <div class="cta-headline">Automatisons vos échanges clients</div>
-    <div class="cta-sub">${accroche || 'Chaque question sans réponse est une vente perdue — automatisons.'}</div>
+    <div class="cta-headline">${accroche || 'Chaque question sans réponse est une vente perdue — automatisons.'}</div>
+    <div class="cta-sub">Discutons de vos priorités — sans engagement.</div>
     <div class="cta-grid">
       <div class="cta-item"><div class="cta-item-icon">🤖</div><div class="cta-item-text">[Votre prénom]</div></div>
       <div class="cta-item"><div class="cta-item-icon">📍</div><div class="cta-item-text">${city ? esc(city) : '[Votre ville]'}</div></div>
@@ -1251,6 +1315,9 @@ export async function exportAuditSocialMediaPDF({ lead, activeProfile, socialAud
   const opportunites    = socialAudit?.opportunites    ?? []
   const recommandations = socialAudit?.recommandations ?? []
   const accroche        = esc(socialAudit?.accroche    ?? '')
+  const comparaison     = socialAudit?.comparaison_concurrents ?? null
+  const timeline        = socialAudit?.timeline ?? null
+  const titreAudit      = esc(socialAudit?.titre_audit ?? 'Audit Community Management & E-Réputation')
 
   const igActivity  = auditData?.instagramActivity ?? null
   const fbActivity  = auditData?.facebookActivity  ?? null
@@ -1391,7 +1458,7 @@ export async function exportAuditSocialMediaPDF({ lead, activeProfile, socialAud
     <div>
       <div class="cover-eyebrow">Audit prospect</div>
       <div class="cover-title">Community<br>Management</div>
-      <div class="cover-subtitle">Audit Community Management &amp; E-Réputation</div>
+      <div class="cover-subtitle">${titreAudit}</div>
       <div class="cover-business">${businessName}</div>
     </div>
     <div class="cover-score-row">
@@ -1492,10 +1559,26 @@ export async function exportAuditSocialMediaPDF({ lead, activeProfile, socialAud
     </div>
   </div>`).join('')}
 
+  ${comparaison ? `
+  <div class="section-title" style="margin-top:28px">6 · Positionnement concurrentiel</div>
+  <div class="card">
+    <div class="stat-row"><span class="stat-label" style="font-weight:600">Position</span><span class="stat-value" style="font-size:11px;max-width:260px;text-align:right">${esc(comparaison.position)}</span></div>
+    ${(comparaison.avantages?.length ?? 0) > 0 ? `<div style="margin-top:8px"><div class="card-title" style="color:#16a34a">Points forts</div>${comparaison.avantages.map(a => `<div class="stat-row"><span class="stat-label">✓ ${esc(a)}</span></div>`).join('')}</div>` : ''}
+    ${(comparaison.retards?.length ?? 0) > 0 ? `<div style="margin-top:8px"><div class="card-title" style="color:#dc2626">Points en retard</div>${comparaison.retards.map(r => `<div class="stat-row"><span class="stat-label">→ ${esc(r)}</span></div>`).join('')}</div>` : ''}
+  </div>` : ''}
+
+  ${timeline ? `
+  <div class="section-title" style="margin-top:28px">7 · Calendrier de mise en oeuvre</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+    <div class="card"><div class="card-title">Semaine 1</div><div style="font-size:10.5px;color:#64748b;line-height:1.5">${esc(timeline.semaine_1)}</div></div>
+    <div class="card"><div class="card-title">Semaines 2–3</div><div style="font-size:10.5px;color:#64748b;line-height:1.5">${esc(timeline.semaine_2_3)}</div></div>
+    <div class="card"><div class="card-title">Mois 2–3</div><div style="font-size:10.5px;color:#64748b;line-height:1.5">${esc(timeline.mois_2_3)}</div></div>
+  </div>` : ''}
+
   <div class="cta-block">
     <div class="cta-badge">Passons à l'action</div>
     <div class="cta-headline">${accroche || 'Chaque client satisfait est un contenu — apprenons à le montrer.'}</div>
-    <div class="cta-sub">Résultats visibles en 45 jours — sans budget publicitaire.${city ? ' · ' + city : ''}</div>
+    <div class="cta-sub">Discutons de vos priorités — sans engagement.</div>
     <div class="cta-grid">
       <div class="cta-item"><div class="cta-item-icon">📱</div><div class="cta-item-text">Ligne éditoriale sur mesure</div></div>
       <div class="cta-item"><div class="cta-item-icon">💬</div><div class="cta-item-text">Gestion des avis &amp; interactions</div></div>
@@ -1572,6 +1655,9 @@ export async function exportAuditDesignerPDF({ lead, activeProfile, designerAudi
   const opportunites    = designerAudit?.opportunites    ?? []
   const recommandations = designerAudit?.recommandations ?? []
   const accroche        = esc(designerAudit?.accroche    ?? '')
+  const comparaison     = designerAudit?.comparaison_concurrents ?? null
+  const timeline        = designerAudit?.timeline ?? null
+  const titreAudit      = esc(designerAudit?.titre_audit ?? 'Audit Identité Visuelle & Branding')
 
   const igActivity = auditData?.instagramActivity ?? null
   const igFoll     = igActivity?.followers ?? null
@@ -1695,7 +1781,7 @@ export async function exportAuditDesignerPDF({ lead, activeProfile, designerAudi
     <div>
       <div class="cover-eyebrow">Audit prospect</div>
       <div class="cover-title">Branding<br>&amp; Design</div>
-      <div class="cover-subtitle">Audit Identité Visuelle</div>
+      <div class="cover-subtitle">${titreAudit}</div>
       <div class="cover-business">${businessName}</div>
     </div>
     <div class="cover-score-row">
@@ -1792,10 +1878,26 @@ export async function exportAuditDesignerPDF({ lead, activeProfile, designerAudi
     </div>
   </div>`).join('')}
 
+  ${comparaison ? `
+  <div class="section-title" style="margin-top:28px">6 · Positionnement concurrentiel</div>
+  <div class="card">
+    <div class="stat-row"><span class="stat-label" style="font-weight:600">Position</span><span class="stat-value" style="font-size:11px;max-width:260px;text-align:right">${esc(comparaison.position)}</span></div>
+    ${(comparaison.avantages?.length ?? 0) > 0 ? `<div style="margin-top:8px"><div class="card-title" style="color:#16a34a">Points forts</div>${comparaison.avantages.map(a => `<div class="stat-row"><span class="stat-label">✓ ${esc(a)}</span></div>`).join('')}</div>` : ''}
+    ${(comparaison.retards?.length ?? 0) > 0 ? `<div style="margin-top:8px"><div class="card-title" style="color:#dc2626">Points en retard</div>${comparaison.retards.map(r => `<div class="stat-row"><span class="stat-label">→ ${esc(r)}</span></div>`).join('')}</div>` : ''}
+  </div>` : ''}
+
+  ${timeline ? `
+  <div class="section-title" style="margin-top:28px">7 · Calendrier de mise en oeuvre</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+    <div class="card"><div class="card-title">Semaine 1</div><div style="font-size:10.5px;color:#64748b;line-height:1.5">${esc(timeline.semaine_1)}</div></div>
+    <div class="card"><div class="card-title">Semaines 2–3</div><div style="font-size:10.5px;color:#64748b;line-height:1.5">${esc(timeline.semaine_2_3)}</div></div>
+    <div class="card"><div class="card-title">Mois 2–3</div><div style="font-size:10.5px;color:#64748b;line-height:1.5">${esc(timeline.mois_2_3)}</div></div>
+  </div>` : ''}
+
   <div class="cta-block">
     <div class="cta-badge">Proposition</div>
     <div class="cta-headline">${accroche || 'Votre réputation mérite une image à sa hauteur.'}</div>
-    <div class="cta-sub">Identité visuelle cohérente, supports professionnels, présence digitale renforcée.</div>
+    <div class="cta-sub">Discutons de vos priorités — sans engagement.</div>
     <div class="cta-grid">
       <div class="cta-item"><div class="cta-item-icon">🎨</div><div class="cta-item-text">Charte graphique sur mesure</div></div>
       <div class="cta-item"><div class="cta-item-icon">📸</div><div class="cta-item-text">Visuels professionnels</div></div>
@@ -1868,6 +1970,9 @@ export async function exportAuditWebDevPDF({ lead, activeProfile, webDevAudit, a
   const opportunites    = webDevAudit?.opportunites    ?? []
   const recommandations = webDevAudit?.recommandations ?? []
   const accroche        = esc(webDevAudit?.accroche    ?? '')
+  const comparaison     = webDevAudit?.comparaison_concurrents ?? null
+  const timeline        = webDevAudit?.timeline ?? null
+  const titreAudit      = esc(webDevAudit?.titre_audit ?? 'Audit Technique & Performance Web')
 
   const ps            = auditData?.pagespeed ?? null
   const rawPerf       = ps?.performance
@@ -1995,7 +2100,7 @@ export async function exportAuditWebDevPDF({ lead, activeProfile, webDevAudit, a
     <div>
       <div class="cover-eyebrow">Audit prospect</div>
       <div class="cover-title">Technique<br>Web</div>
-      <div class="cover-subtitle">Audit Performance &amp; Visibilité</div>
+      <div class="cover-subtitle">${titreAudit}</div>
       <div class="cover-business">${businessName}</div>
     </div>
     <div class="cover-score-row">
@@ -2122,10 +2227,26 @@ export async function exportAuditWebDevPDF({ lead, activeProfile, webDevAudit, a
     </div>
   </div>`).join('')}
 
+  ${comparaison ? `
+  <div class="section-title" style="margin-top:28px">6 · Positionnement concurrentiel</div>
+  <div class="card">
+    <div class="stat-row"><span class="stat-label" style="font-weight:600">Position</span><span class="stat-value" style="font-size:11px;max-width:260px;text-align:right">${esc(comparaison.position)}</span></div>
+    ${(comparaison.avantages?.length ?? 0) > 0 ? `<div style="margin-top:8px"><div class="card-title" style="color:#16a34a">Points forts</div>${comparaison.avantages.map(a => `<div class="stat-row"><span class="stat-label">✓ ${esc(a)}</span></div>`).join('')}</div>` : ''}
+    ${(comparaison.retards?.length ?? 0) > 0 ? `<div style="margin-top:8px"><div class="card-title" style="color:#dc2626">Points en retard</div>${comparaison.retards.map(r => `<div class="stat-row"><span class="stat-label">→ ${esc(r)}</span></div>`).join('')}</div>` : ''}
+  </div>` : ''}
+
+  ${timeline ? `
+  <div class="section-title" style="margin-top:28px">7 · Calendrier de mise en oeuvre</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+    <div class="card"><div class="card-title">Semaine 1</div><div style="font-size:10.5px;color:#64748b;line-height:1.5">${esc(timeline.semaine_1)}</div></div>
+    <div class="card"><div class="card-title">Semaines 2–3</div><div style="font-size:10.5px;color:#64748b;line-height:1.5">${esc(timeline.semaine_2_3)}</div></div>
+    <div class="card"><div class="card-title">Mois 2–3</div><div style="font-size:10.5px;color:#64748b;line-height:1.5">${esc(timeline.mois_2_3)}</div></div>
+  </div>` : ''}
+
   <div class="cta-block">
     <div class="cta-badge">Proposition</div>
     <div class="cta-headline">${accroche || 'Un site rapide, sécurisé et visible, c\'est plus de clients.'}</div>
-    <div class="cta-sub">Performance, sécurité, référencement — un audit complet pour transformer votre présence web.</div>
+    <div class="cta-sub">Discutons de vos priorités — sans engagement.</div>
     <div class="cta-grid">
       <div class="cta-item"><div class="cta-item-icon">⚡</div><div class="cta-item-text">Optimisation des performances</div></div>
       <div class="cta-item"><div class="cta-item-icon">🔒</div><div class="cta-item-text">Sécurisation HTTPS &amp; SSL</div></div>
@@ -2201,6 +2322,9 @@ export async function exportAuditEmailMarketingPDF({
   const opportunites    = emailAudit?.opportunites    ?? []
   const recommandations = emailAudit?.recommandations ?? []
   const accroche        = esc(emailAudit?.accroche    ?? '')
+  const comparaison     = emailAudit?.comparaison_concurrents ?? null
+  const timeline        = emailAudit?.timeline ?? null
+  const titreAudit      = esc(emailAudit?.titre_audit ?? 'Audit Email Marketing & Fidélisation')
 
   // KPIs email-marketing — données les plus complètes disponibles
   const social          = lead.social ?? {}
@@ -2350,7 +2474,7 @@ export async function exportAuditEmailMarketingPDF({
   <div class="cover-main">
     <div class="cover-eyebrow">Rapport confidentiel</div>
     <div class="cover-title">Audit Email Marketing<br>&amp; Fidélisation</div>
-    <div class="cover-subtitle">Analyse de l'opportunité email &amp; fidélisation client</div>
+    <div class="cover-subtitle">${titreAudit}</div>
     <div class="cover-business">${businessName}${city ? ` · ${city}` : ''}</div>
     <div class="cover-score-row">
       <div class="score-ring">
@@ -2444,9 +2568,25 @@ export async function exportAuditEmailMarketingPDF({
     <div class="campagne-value">${accroche || 'Séquences automatiques + fidélisation clients'}</div>
   </div>
 
+  ${comparaison ? `
+  <div class="section-title" style="margin-top:28px">6 · Positionnement concurrentiel</div>
+  <div style="background:#f8fafc;border-radius:10px;padding:16px 18px;border:1px solid #e2e8f0;margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9"><span style="font-size:11px;color:#64748b;font-weight:600">Position</span><span style="font-size:11px;font-weight:700;color:#0f172a;max-width:260px;text-align:right">${esc(comparaison.position)}</span></div>
+    ${(comparaison.avantages?.length ?? 0) > 0 ? `<div style="margin-top:8px;font-size:8.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#16a34a;margin-bottom:6px">Points forts</div>${comparaison.avantages.map(a => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9"><span style="font-size:11px;color:#64748b">✓ ${esc(a)}</span></div>`).join('')}` : ''}
+    ${(comparaison.retards?.length ?? 0) > 0 ? `<div style="margin-top:8px;font-size:8.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#dc2626;margin-bottom:6px">Points en retard</div>${comparaison.retards.map(r => `<div style="display:flex;padding:6px 0;border-bottom:1px solid #f1f5f9"><span style="font-size:11px;color:#64748b">→ ${esc(r)}</span></div>`).join('')}` : ''}
+  </div>` : ''}
+
+  ${timeline ? `
+  <div class="section-title" style="margin-top:28px">7 · Calendrier de mise en oeuvre</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
+    <div style="background:#f8fafc;border-radius:10px;padding:16px 18px;border:1px solid #e2e8f0"><div style="font-size:8.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:8px">Semaine 1</div><div style="font-size:10.5px;color:#475569;line-height:1.5">${esc(timeline.semaine_1)}</div></div>
+    <div style="background:#f8fafc;border-radius:10px;padding:16px 18px;border:1px solid #e2e8f0"><div style="font-size:8.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:8px">Semaines 2–3</div><div style="font-size:10.5px;color:#475569;line-height:1.5">${esc(timeline.semaine_2_3)}</div></div>
+    <div style="background:#f8fafc;border-radius:10px;padding:16px 18px;border:1px solid #e2e8f0"><div style="font-size:8.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:8px">Mois 2–3</div><div style="font-size:10.5px;color:#475569;line-height:1.5">${esc(timeline.mois_2_3)}</div></div>
+  </div>` : ''}
+
   <div class="cta-box">
-    <div class="cta-title">Passons à l'action</div>
-    <div class="cta-sub">Prêt à mettre en place une stratégie email qui convertit ?<br>Contactez votre consultant pour démarrer dès cette semaine.</div>
+    <div class="cta-title">${accroche || 'Passons à l\'action'}</div>
+    <div class="cta-sub">Discutons de vos priorités — sans engagement.</div>
     <div class="cta-contact">
       <div class="cta-item"><strong>Votre consultant</strong>[Prénom Nom]</div>
       <div class="cta-item"><strong>Email</strong>[email@exemple.com]</div>
@@ -2526,6 +2666,9 @@ export async function exportAuditGoogleAdsPDF({ lead, activeProfile, googleAdsAu
   const faiblesses      = googleAdsAudit?.faiblesses      ?? []
   const recommandations = googleAdsAudit?.recommandations ?? []
   const accroche        = esc(googleAdsAudit?.accroche    ?? '')
+  const comparaison     = googleAdsAudit?.comparaison_concurrents ?? null
+  const timeline        = googleAdsAudit?.timeline ?? null
+  const titreAudit      = esc(googleAdsAudit?.titre_audit ?? 'Audit Google Ads & Acquisition Locale')
 
   const ps        = auditData?.pagespeed ?? null
   const rawPerf   = ps?.performance
@@ -2637,7 +2780,7 @@ export async function exportAuditGoogleAdsPDF({ lead, activeProfile, googleAdsAu
     <div>
       <div class="cover-eyebrow">Audit prospect</div>
       <div class="cover-title">Google<br>Ads</div>
-      <div class="cover-subtitle">Audit Compatibilité &amp; Stratégie Google Ads</div>
+      <div class="cover-subtitle">${titreAudit}</div>
       <div class="cover-business">${businessName}</div>
       <div class="cover-ads-badge">Compatibilité : ${adsLabel} — ${adsScore}/100</div>
     </div>
@@ -2724,10 +2867,26 @@ export async function exportAuditGoogleAdsPDF({ lead, activeProfile, googleAdsAu
       </div>
     </div>`).join('')}
 
+  ${comparaison ? `
+  <div class="section-title" style="margin-top:28px">6 · Positionnement concurrentiel</div>
+  <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:16px 18px;border:1px solid rgba(255,255,255,0.1);margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="font-size:11px;color:#94a3b8;font-weight:600">Position</span><span style="font-size:11px;font-weight:700;color:#e2e8f0;max-width:260px;text-align:right">${esc(comparaison.position)}</span></div>
+    ${(comparaison.avantages?.length ?? 0) > 0 ? `<div style="margin-top:8px;font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#22c55e;margin-bottom:6px">Points forts</div>${comparaison.avantages.map(a => `<div style="font-size:10.5px;color:#94a3b8;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05)">✓ ${esc(a)}</div>`).join('')}` : ''}
+    ${(comparaison.retards?.length ?? 0) > 0 ? `<div style="margin-top:8px;font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#f87171;margin-bottom:6px">Points en retard</div>${comparaison.retards.map(r => `<div style="font-size:10.5px;color:#94a3b8;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05)">→ ${esc(r)}</div>`).join('')}` : ''}
+  </div>` : ''}
+
+  ${timeline ? `
+  <div class="section-title" style="margin-top:28px">7 · Calendrier de mise en oeuvre</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
+    <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:16px 18px;border:1px solid rgba(255,255,255,0.1)"><div style="font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:8px">Semaine 1</div><div style="font-size:10.5px;color:#94a3b8;line-height:1.5">${esc(timeline.semaine_1)}</div></div>
+    <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:16px 18px;border:1px solid rgba(255,255,255,0.1)"><div style="font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:8px">Semaines 2–3</div><div style="font-size:10.5px;color:#94a3b8;line-height:1.5">${esc(timeline.semaine_2_3)}</div></div>
+    <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:16px 18px;border:1px solid rgba(255,255,255,0.1)"><div style="font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:8px">Mois 2–3</div><div style="font-size:10.5px;color:#94a3b8;line-height:1.5">${esc(timeline.mois_2_3)}</div></div>
+  </div>` : ''}
+
   <div class="cta-block">
     <div class="cta-badge">Prochaine étape</div>
-    <div class="cta-headline">Passons à la mise en oeuvre</div>
-    <div class="cta-sub">Cet audit vous donne une vision claire de votre potentiel Google Ads. La prochaine étape est de définir votre stratégie de campagne adaptée à votre secteur et votre budget.</div>
+    <div class="cta-headline">${accroche || 'Passons à la mise en oeuvre'}</div>
+    <div class="cta-sub">Discutons de vos priorités — sans engagement.</div>
   </div>
 
   <div class="page-footer">LeadGenPro · ${date} · Confidentiel — Préparé pour ${businessName}</div>

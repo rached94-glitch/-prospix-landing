@@ -1,5 +1,5 @@
 # Contexte SaaS LeadGen Pro
-_Dernière sauvegarde : 2026-04-05 15:49:02 (trigger: auto)_
+_Dernière sauvegarde : 2026-04-05 18:20:42 (trigger: auto)_
 
 ## Features implémentées
 - [x] Export Google Sheets
@@ -21,6 +21,9 @@ _(À documenter quand implémenté — ex: JWT, session, OAuth)_
 _(À documenter quand définis — ex: Starter / Pro / Agency)_
 
 ## Historique des sauvegardes
+- 2026-04-05 18:20:42 — compaction auto
+- 2026-04-05 17:36:45 — compaction auto
+- 2026-04-05 16:59:36 — compaction auto
 - 2026-04-05 15:49:02 — compaction auto
 - 2026-04-05 14:07:46 — compaction auto
 - 2026-04-05 12:39:40 — compaction auto
@@ -28,6 +31,3 @@ _(À documenter quand définis — ex: Starter / Pro / Agency)_
 - 2026-04-04 23:01:49 — compaction auto
 - 2026-04-04 22:07:30 — compaction auto
 - 2026-04-04 21:26:04 — compaction auto
-- 2026-04-04 20:53:54 — compaction auto
-- 2026-04-04 18:55:19 — compaction auto
-- 2026-04-04 17:46:36 — compaction auto

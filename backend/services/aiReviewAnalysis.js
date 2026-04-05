@@ -1,6 +1,61 @@
 const Anthropic = require('@anthropic-ai/sdk')
 const { countQuestionsInReviews, detectLanguages, detectLoyaltyMentions, detectEmailThemes } = require('./reviewAnalysis')
 
+// ── Bloc de règles commun injecté dans TOUS les generateAudit* ─────────────────
+const AUDIT_RULES_BLOCK = `
+RÈGLES OBLIGATOIRES POUR CET AUDIT :
+
+A) CHIFFRES D'IMPACT — Utilise UNIQUEMENT ces statistiques vérifiées et sourcées. INTERDICTION ABSOLUE d'inventer des chiffres. Cite TOUJOURS la source entre parenthèses. Choisis uniquement les stats pertinentes pour cet audit :
+- Fiches avec photos : +42% demandes d'itinéraire, +35% clics site (Birdeye 2025)
+- Fiches avec 15+ photos : engagement renforcé sur tous les indicateurs (Birdeye 2025)
+- Profils complets : 7x plus de clics (WebFX 2026)
+- 75% des fiches en top 3 ont une description complète (Localo 2025)
+- Répondre aux avis : +17% de clics vers le site (SQ Magazine 2025)
+- 83% des consommateurs lisent les avis sur Google (BrightLocal 2025)
+- 72% des consommateurs préfèrent un profil complet (SQ Magazine 2025)
+- Chaque nouvel avis : ~80 visites supplémentaires (Birdeye 2025)
+- 48% des recherches locales mènent à une interaction dans les 24h (SQ Magazine 2025)
+- Chaque seconde de chargement en plus : -7% de conversions (Google/Deloitte 2020)
+- Réservation en ligne : 6.3% conversion vs 3.9% sans (SQ Magazine 2025)
+- Posts récents : +21% d'interactions (SQ Magazine 2025)
+- Section FAQ : +13% d'engagement (SQ Magazine 2025)
+Si aucune statistique ne correspond au point abordé, ne mets PAS de chiffre. Mieux vaut pas de chiffre qu'un chiffre inventé.
+
+B) COMPARAISON CONCURRENTS — Ajoute un champ comparaison_concurrents dans le JSON retourné :
+{"position": "Position factuelle vs concurrents locaux du même secteur (ex: Au-dessus de la moyenne sur la note, en dessous sur la présence digitale)", "avantages": ["max 2 points forts vs moyenne du secteur"], "retards": ["max 2 points en retard vs concurrents"]}
+Utilise les données disponibles pour estimer la position. Ton factuel, pas de jugement.
+
+C) TIMELINE — Ajoute un champ timeline dans le JSON :
+{"semaine_1": "Action prioritaire immédiate concrète", "semaine_2_3": "Actions de fond à lancer", "mois_2_3": "Consolidation et premiers indicateurs mesurables"}
+Décris les actions, pas les résultats attendus. Pas de promesses.
+
+D) ACCROCHE CTA — Le champ accroche doit être factuel et professionnel. INTERDICTION ABSOLUE : "résultats garantis", "en X jours", "multipliez vos revenus", "résultats visibles en 30 jours". Ton de consultant, pas de commercial.
+
+E) TITRE DYNAMIQUE — Ajoute un champ titre_audit dans le JSON avec le titre approprié au type d'audit (ex: "Audit SEO & Visibilité Locale", "Audit Image & Photographie", "Audit Chatbot & IA Conversationnelle", "Audit Community Management & E-Réputation", "Audit Identité Visuelle & Branding", "Audit Technique & Performance Web", "Audit Email Marketing & Fidélisation", "Audit Google Ads & Acquisition Locale", "Audit Contenu & SEO Rédactionnel").`
+
+// ── Note stats à injecter dans TOUS les generateEmail* ────────────────────────
+const EMAIL_STATS_NOTE = `
+NOTE STATISTIQUES OBLIGATOIRE : L'email DOIT contenir au moins une statistique vérifiée et sourcée pour crédibiliser le message. Utilise UNIQUEMENT ces chiffres. Cite la source entre parenthèses. Personnalise avec les données réelles du lead. INTERDICTION d'inventer des chiffres :
+- Fiches avec photos : +42% demandes d'itinéraire, +35% clics site (Birdeye 2025)
+- Profils complets : 7x plus de clics (WebFX 2026)
+- Répondre aux avis : +17% de clics vers le site (SQ Magazine 2025)
+- 83% des consommateurs lisent les avis sur Google (BrightLocal 2025)
+- 48% des recherches locales → interaction dans les 24h (SQ Magazine 2025)
+- Chaque seconde de chargement en plus : -7% de conversions (Google/Deloitte 2020)
+- Posts récents : +21% d'interactions (SQ Magazine 2025)
+Ton professionnel de consultant, pas de commercial.`
+
+// ── Helper : enrichit le résultat parsé avec les nouveaux champs (fallback null/défaut) ──
+function enrichAuditResult(parsed) {
+  if (!parsed || typeof parsed !== 'object') return parsed
+  return {
+    ...parsed,
+    comparaison_concurrents: parsed.comparaison_concurrents || null,
+    timeline:                parsed.timeline                || null,
+    titre_audit:             parsed.titre_audit             || 'Audit Digital',
+  }
+}
+
 function selectRepresentativeReviews(reviews) {
   if (reviews.length <= 30) return { selected: reviews, total: reviews.length }
 
@@ -742,6 +797,8 @@ Un appel de 15 minutes suffit pour voir si on peut faire quelque chose ensemble.
 SIGNATURE (recopier exactement) :
 Photographe commerce local — ${city || 'Paris'}
 
+${EMAIL_STATS_NOTE}
+
 RÈGLES ABSOLUES :
 - Jamais de liste à puces dans le corps de l'email
 - Jamais "j'ai analysé votre présence"
@@ -914,6 +971,8 @@ Auriez-vous 15 minutes cette semaine pour en discuter ?
 
 Consultant SEO local — ${city || 'France'}"
 
+${EMAIL_STATS_NOTE}
+
 RÈGLES ABSOLUES :
 - Jamais de liste à puces dans le corps de l'email
 - Jamais "Bonjour [nom]" — uniquement "Bonjour,"
@@ -970,7 +1029,8 @@ async function generateEmailChatbot({ leadData, pagespeedData, reviewsData }) {
   const rating      = leadData.rating      ?? null
   const reviewCount = leadData.reviewCount ?? null
 
-  const siteSignals     = pagespeedData?.siteSignals     ?? null
+  // pagespeedData peut être flat (getSiteSignals, profil chatbot) ou imbriqué (getPageSpeed, profil SEO)
+  const siteSignals     = pagespeedData?.siteSignals     ?? pagespeedData ?? null
   const chatbotDetected = siteSignals?.chatbotDetected   ?? false
   const bookingPlatform = siteSignals?.bookingPlatform   ?? null
   const hasFAQ          = siteSignals?.hasFAQ            ?? false
@@ -1050,6 +1110,8 @@ P5 — CTA (recopier exactement) :
 "Une démonstration de 15 minutes sur votre commerce suffit pour voir ce que ça donne concrètement.
 
 Développeur IA local — ${city || 'France'}"
+
+${EMAIL_STATS_NOTE}
 
 RÈGLES ABSOLUES :
 - Jamais de liste à puces dans le corps
@@ -1219,7 +1281,8 @@ LIMITES STRICTES DE LONGUEUR — OBLIGATOIRE :
 - Chaque titre : maximum 10 mots
 - Chaque description : maximum 2 phrases
 - accroche : 1 seule phrase
-- Sois CONCIS. Chaque description fait maximum 2 phrases. Le JSON total doit faire moins de 3000 caractères.
+- Sois CONCIS. Chaque description fait maximum 2 phrases. Le JSON total doit faire moins de 4000 caractères.
+${AUDIT_RULES_BLOCK}
 
 IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide. Pas de texte avant, pas de texte après, pas de markdown, pas de \`\`\`json.
 
@@ -1230,7 +1293,10 @@ Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
   "faiblesses": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
   "opportunites": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
   "recommandations": [{"titre": "max 10 mots", "description": "max 2 phrases", "priorite": 1}],
-  "accroche": "1 seule phrase"
+  "accroche": "1 seule phrase factuelle — jamais de promesses marketing",
+  "comparaison_concurrents": {"position": "...", "avantages": ["..."], "retards": ["..."]},
+  "timeline": {"semaine_1": "...", "semaine_2_3": "...", "mois_2_3": "..."},
+  "titre_audit": "Audit SEO & Visibilité Locale"
 }`
 
   console.log(`[generateAuditSEO] ${name} | city:${city} | seo:${seoScore ?? 'n/a'} | rank:${rankLabel} | prompt:${prompt.length} chars`)
@@ -1239,7 +1305,7 @@ Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
   try {
     message = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
-      max_tokens: 2500,
+      max_tokens: 3500,
       messages:   [{ role: 'user', content: prompt }],
     })
   } catch (err) {
@@ -1305,15 +1371,15 @@ Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
 
   if (!parsed) {
     console.error('[generateAuditSEO] Parse échoué après toutes les tentatives. JSON extrait:', jsonStr)
-    return {
+    return enrichAuditResult({
       resume_executif: 'Audit généré avec des données partielles — veuillez relancer.',
       forces: [], faiblesses: [], opportunites: [],
       recommandations: [{ titre: 'Optimiser la fiche Google Business Profile', description: 'Photos, description, horaires à jour.', priorite: 1 }],
       accroche: 'Votre présence digitale mérite une attention particulière.',
-    }
+    })
   }
 
-  return parsed
+  return enrichAuditResult(parsed)
 }
 
 // ─── generateAuditPhotographe ─────────────────────────────────────────────────
@@ -1410,7 +1476,8 @@ LIMITES STRICTES DE LONGUEUR — OBLIGATOIRE :
 - Chaque titre : maximum 10 mots
 - Chaque description : maximum 2 phrases
 - accroche : 1 seule phrase
-- Sois CONCIS. Le JSON total doit faire moins de 3000 caractères.
+- Sois CONCIS. Le JSON total doit faire moins de 4000 caractères.
+${AUDIT_RULES_BLOCK}
 
 IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide. Pas de texte avant, pas de texte après, pas de markdown, pas de \`\`\`json.
 
@@ -1421,7 +1488,10 @@ Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
   "faiblesses": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
   "opportunites": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
   "recommandations": [{"titre": "max 10 mots", "description": "max 2 phrases", "priorite": 1}],
-  "accroche": "1 seule phrase"
+  "accroche": "1 seule phrase factuelle — jamais de promesses marketing",
+  "comparaison_concurrents": {"position": "...", "avantages": ["..."], "retards": ["..."]},
+  "timeline": {"semaine_1": "...", "semaine_2_3": "...", "mois_2_3": "..."},
+  "titre_audit": "Audit Image & Photographie"
 }`
 
   console.log(`[generateAuditPhotographe] ${name} | photos:${photos} | ig:${hasInstagram} | tt:${hasTiktok} | prompt:${prompt.length} chars`)
@@ -1430,7 +1500,7 @@ Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
   try {
     message = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
-      max_tokens: 2500,
+      max_tokens: 3500,
       messages:   [{ role: 'user', content: prompt }],
     })
   } catch (err) {
@@ -1491,15 +1561,15 @@ Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
 
   if (!parsed) {
     console.error('[generateAuditPhotographe] Parse échoué. JSON extrait:', jsonStr)
-    return {
+    return enrichAuditResult({
       resume_executif: 'Audit généré avec des données partielles — veuillez relancer.',
       forces: [], faiblesses: [], opportunites: [],
       recommandations: [{ titre: 'Enrichir les photos de la fiche Google', description: 'Des photos professionnelles augmentent le taux de clic de 25% en moyenne.', priorite: 1 }],
       accroche: 'Vos photos sont votre première impression — soignons-la.',
-    }
+    })
   }
 
-  return parsed
+  return enrichAuditResult(parsed)
 }
 
 // ── Email generator — SOCIAL-MEDIA profile ────────────────────────────────────
@@ -1586,6 +1656,8 @@ P5 — CTA (recopier exactement) :
 
 Community Manager — ${city || 'France'}"
 
+${EMAIL_STATS_NOTE}
+
 RÈGLES ABSOLUES :
 - Jamais de liste à puces dans le corps
 - Jamais "Bonjour [nom]" — uniquement "Bonjour,"
@@ -1632,7 +1704,10 @@ async function generateAuditChatbot({ businessName, websiteUrl, chatbotDetection
   // Chatbot detection signals
   const hasChatbot      = chatbotDetection?.hasChatbot       ?? false
   const chatbotTool     = chatbotDetection?.chatbotsDetected?.[0] ?? null
-  const bookingPlatform = chatbotDetection?.bookingPlatform  ?? null
+  const bookingPlatform = chatbotDetection?.bookingPlatform
+    ?? pagespeedData?.bookingPlatform              // getSiteSignals (flat, chatbot profile)
+    ?? pagespeedData?.siteSignals?.bookingPlatform // getPageSpeed (nested, SEO profile)
+    ?? null
 
   // Reviews
   const unanswered   = reviewsData?.unanswered ?? 0
@@ -1730,7 +1805,8 @@ LIMITES STRICTES DE LONGUEUR — OBLIGATOIRE :
 - Chaque titre : maximum 10 mots
 - Chaque description : maximum 2 phrases
 - accroche : 1 seule phrase
-- Sois CONCIS. Le JSON total doit faire moins de 3000 caractères.
+- Sois CONCIS. Le JSON total doit faire moins de 4000 caractères.
+${AUDIT_RULES_BLOCK}
 
 IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide. Pas de texte avant, pas de texte après, pas de markdown, pas de \`\`\`json.
 
@@ -1741,7 +1817,10 @@ Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
   "faiblesses": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
   "opportunites": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
   "recommandations": [{"titre": "max 10 mots", "description": "max 2 phrases", "priorite": 1}],
-  "accroche": "1 seule phrase"
+  "accroche": "1 seule phrase factuelle — jamais de promesses marketing",
+  "comparaison_concurrents": {"position": "...", "avantages": ["..."], "retards": ["..."]},
+  "timeline": {"semaine_1": "...", "semaine_2_3": "...", "mois_2_3": "..."},
+  "titre_audit": "Audit Chatbot & IA Conversationnelle"
 }`
 
   console.log(`[generateAuditChatbot] ${name} | hasChatbot:${hasChatbot} | unanswered:${unanswered} | questions:${questionCount} | complexity:${complexity} | prompt:${prompt.length} chars`)
@@ -1750,7 +1829,7 @@ Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
   try {
     message = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
-      max_tokens: 2500,
+      max_tokens: 3500,
       messages:   [{ role: 'user', content: prompt }],
     })
   } catch (err) {
@@ -1811,15 +1890,15 @@ Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
 
   if (!parsed) {
     console.error('[generateAuditChatbot] Parse échoué. JSON extrait:', jsonStr)
-    return {
+    return enrichAuditResult({
       resume_executif: 'Audit généré avec des données partielles — veuillez relancer.',
       forces: [], faiblesses: [], opportunites: [],
       recommandations: [{ titre: 'Déployer un assistant IA sur le site', description: 'Un chatbot répond aux questions fréquentes 24h/24 et réduit la charge manuelle de 40%.', priorite: 1 }],
       accroche: 'Chaque question sans réponse est une vente perdue — automatisons.',
-    }
+    })
   }
 
-  return parsed
+  return enrichAuditResult(parsed)
 }
 
 // ─── generateAuditSocialMedia ─────────────────────────────────────────────────
@@ -1890,7 +1969,8 @@ RÈGLES :
 - Ton expert, orienté résultats concrets et chiffres
 - Les forces/faiblesses intègrent OBLIGATOIREMENT la dimension e-réputation (réponses aux avis)
 - Chaque recommandation doit préciser une action concrète et un résultat attendu
-- Maximum 2800 caractères total pour le JSON
+- Maximum 4000 caractères total pour le JSON
+${AUDIT_RULES_BLOCK}
 
 Retourne UNIQUEMENT ce JSON valide :
 {
@@ -1914,7 +1994,10 @@ Retourne UNIQUEMENT ce JSON valide :
     {"titre": "...", "description": "...", "priorite": 2},
     {"titre": "...", "description": "...", "priorite": 3}
   ],
-  "accroche": "Phrase percutante pour le prospect — max 120 caractères"
+  "accroche": "Phrase factuelle — jamais de promesses marketing",
+  "comparaison_concurrents": {"position": "...", "avantages": ["..."], "retards": ["..."]},
+  "timeline": {"semaine_1": "...", "semaine_2_3": "...", "mois_2_3": "..."},
+  "titre_audit": "Audit Community Management & E-Réputation"
 }`
 
   console.log(`[generateAuditSocialMedia] ${name} | present:${presentNets.join(',')} | missing:${missingNets.join(',')} | prompt:${prompt.length} chars`)
@@ -1922,7 +2005,7 @@ Retourne UNIQUEMENT ce JSON valide :
   let message
   try {
     message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6', max_tokens: 1200,
+      model: 'claude-sonnet-4-6', max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }],
     })
   } catch (err) {
@@ -1943,7 +2026,7 @@ Retourne UNIQUEMENT ce JSON valide :
   const end   = raw.lastIndexOf('}')
   if (start === -1 || end === -1 || end <= start) {
     console.error('[generateAuditSocialMedia] Aucun JSON trouvé')
-    return { resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Créer une présence sociale cohérente', description: 'Définir une ligne éditoriale et publier régulièrement sur les réseaux adaptés au secteur.', priorite: 1 }], accroche: 'Chaque client satisfait est un contenu potentiel — apprenons à le montrer.' }
+    return enrichAuditResult({ resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Créer une présence sociale cohérente', description: 'Définir une ligne éditoriale et publier régulièrement sur les réseaux adaptés au secteur.', priorite: 1 }], accroche: 'Chaque client satisfait est un contenu potentiel — apprenons à le montrer.' })
   }
 
   const jsonStr = raw.slice(start, end + 1)
@@ -1951,10 +2034,10 @@ Retourne UNIQUEMENT ce JSON valide :
 
   if (!parsed) {
     console.error('[generateAuditSocialMedia] Parse échoué. JSON extrait:', jsonStr)
-    return { resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Créer une présence sociale cohérente', description: 'Définir une ligne éditoriale et publier régulièrement.', priorite: 1 }], accroche: 'Chaque client satisfait est un contenu potentiel — apprenons à le montrer.' }
+    return enrichAuditResult({ resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Créer une présence sociale cohérente', description: 'Définir une ligne éditoriale et publier régulièrement.', priorite: 1 }], accroche: 'Chaque client satisfait est un contenu potentiel — apprenons à le montrer.' })
   }
 
-  return parsed
+  return enrichAuditResult(parsed)
 }
 
 // ── Email generator — DESIGNER profile ───────────────────────────────────────
@@ -2021,6 +2104,8 @@ P2 — Ce que les clients perçoivent vs ce que la fiche montre (lien réputatio
 P3 — Ta valeur ajoutée concrète en tant que designer local (sans mention de tarif)
 P4 — Ce que tu peux améliorer précisément pour eux (photos Google, charte, réseaux)
 P5 — Appel à l'action simple et concret (1-2 phrases)
+
+${EMAIL_STATS_NOTE}
 
 RÈGLES :
 - Ne jamais inventer de chiffres, noms ou faits non fournis ci-dessus
@@ -2100,6 +2185,8 @@ ${topQuotes.length > 0 ? `- Citations clients (verbatim) :\n${topQuotes.map(q =>
 ${isRestaurant ? '- Contexte : Restauration — les visuels sont le premier facteur de décision client.' : ''}
 ${isBeauty ? '- Contexte : Beauté — l\'identité visuelle crée la confiance avant le premier contact.' : ''}
 
+${AUDIT_RULES_BLOCK}
+
 Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
 {
   "resume_executif": "Synthèse en 3-4 phrases sur l'état actuel de l'identité visuelle et le potentiel de progression",
@@ -2120,7 +2207,10 @@ Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
     { "titre": "Action prioritaire 2", "description": "Description actionnable", "priorite": 2 },
     { "titre": "Action prioritaire 3", "description": "Description actionnable", "priorite": 3 }
   ],
-  "accroche": "Phrase d'accroche percutante pour le prospect — max 120 caractères"
+  "accroche": "Phrase factuelle — jamais de promesses marketing",
+  "comparaison_concurrents": {"position": "...", "avantages": ["..."], "retards": ["..."]},
+  "timeline": {"semaine_1": "...", "semaine_2_3": "...", "mois_2_3": "..."},
+  "titre_audit": "Audit Identité Visuelle & Branding"
 }`
 
   console.log(`[generateAuditDesigner] ${name} | photos:${photos} | visualNets:${visualNets.join(',')} | missing:${missingVisual.join(',')} | prompt:${prompt.length} chars`)
@@ -2129,7 +2219,7 @@ Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
   try {
     message = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
-      max_tokens: 1800,
+      max_tokens: 2500,
       messages:   [{ role: 'user', content: prompt }],
     })
   } catch (err) {
@@ -2150,7 +2240,7 @@ Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
   const end   = raw.lastIndexOf('}')
   if (start === -1 || end === -1 || end <= start) {
     console.error('[generateAuditDesigner] Aucun JSON trouvé')
-    return { resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Créer une identité visuelle cohérente', description: 'Définir une charte graphique et déployer des visuels professionnels sur tous les supports.', priorite: 1 }], accroche: 'Votre réputation mérite une image à sa hauteur.' }
+    return enrichAuditResult({ resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Créer une identité visuelle cohérente', description: 'Définir une charte graphique et déployer des visuels professionnels sur tous les supports.', priorite: 1 }], accroche: 'Votre réputation mérite une image à sa hauteur.' })
   }
 
   const jsonStr = raw.slice(start, end + 1)
@@ -2158,10 +2248,10 @@ Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
 
   if (!parsed) {
     console.error('[generateAuditDesigner] Parse échoué. JSON extrait:', jsonStr)
-    return { resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Créer une identité visuelle cohérente', description: 'Définir une charte graphique et déployer des visuels professionnels.', priorite: 1 }], accroche: 'Votre réputation mérite une image à sa hauteur.' }
+    return enrichAuditResult({ resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Créer une identité visuelle cohérente', description: 'Définir une charte graphique et déployer des visuels professionnels.', priorite: 1 }], accroche: 'Votre réputation mérite une image à sa hauteur.' })
   }
 
-  return parsed
+  return enrichAuditResult(parsed)
 }
 
 // ── Email generator — DEV-WEB profile ────────────────────────────────────────
@@ -2232,6 +2322,8 @@ P2 — Impact concret de ce problème sur les clients et le business
 P3 — Ta valeur ajoutée concrète en tant que développeur local (sans mention de tarif)
 P4 — Ce que tu peux améliorer précisément (HTTPS, vitesse, mobile, sitemap)
 P5 — Appel à l'action simple et concret (1-2 phrases)
+
+${EMAIL_STATS_NOTE}
 
 RÈGLES :
 - Ne jamais inventer de chiffres ou faits non fournis
@@ -2322,6 +2414,8 @@ DONNÉES TECHNIQUES :
 - Âge du domaine : ${daLabel ?? '—'}
 - Secteur : ${domain ?? '—'}
 
+${AUDIT_RULES_BLOCK}
+
 Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
 {
   "resume_executif": "Synthèse en 3-4 phrases sur l'état technique du site et les leviers d'amélioration prioritaires",
@@ -2342,7 +2436,10 @@ Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
     { "titre": "Action prioritaire 2", "description": "Description actionnable et précise", "priorite": 2 },
     { "titre": "Action prioritaire 3", "description": "Description actionnable et précise", "priorite": 3 }
   ],
-  "accroche": "Phrase d'accroche percutante pour le prospect — max 120 caractères"
+  "accroche": "Phrase factuelle — jamais de promesses marketing",
+  "comparaison_concurrents": {"position": "...", "avantages": ["..."], "retards": ["..."]},
+  "timeline": {"semaine_1": "...", "semaine_2_3": "...", "mois_2_3": "..."},
+  "titre_audit": "Audit Technique & Performance Web"
 }`
 
   console.log(`[generateAuditWebDev] ${name} | hasSite:${hasSite} | perf:${perf ?? '—'} | https:${https} | cms:${cmsLabel} | prompt:${prompt.length} chars`)
@@ -2351,7 +2448,7 @@ Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
   try {
     message = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
-      max_tokens: 1800,
+      max_tokens: 2500,
       messages:   [{ role: 'user', content: prompt }],
     })
   } catch (err) {
@@ -2372,7 +2469,7 @@ Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
   const end   = raw.lastIndexOf('}')
   if (start === -1 || end === -1 || end <= start) {
     console.error('[generateAuditWebDev] Aucun JSON trouvé')
-    return { resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Corriger les fondamentaux techniques', description: 'HTTPS, sitemap, robots.txt et performance mobile à traiter en priorité.', priorite: 1 }], accroche: 'Un site rapide et sécurisé, c\'est plus de clients et moins de clients perdus.' }
+    return enrichAuditResult({ resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Corriger les fondamentaux techniques', description: 'HTTPS, sitemap, robots.txt et performance mobile à traiter en priorité.', priorite: 1 }], accroche: 'Un site rapide et sécurisé, c\'est plus de clients et moins de clients perdus.' })
   }
 
   const jsonStr = raw.slice(start, end + 1)
@@ -2380,10 +2477,10 @@ Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
 
   if (!parsed) {
     console.error('[generateAuditWebDev] Parse échoué. JSON extrait:', jsonStr)
-    return { resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Optimiser les performances techniques', description: 'Vitesse, sécurité et indexation à corriger.', priorite: 1 }], accroche: 'Un site rapide et sécurisé, c\'est plus de clients et moins de clients perdus.' }
+    return enrichAuditResult({ resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Optimiser les performances techniques', description: 'Vitesse, sécurité et indexation à corriger.', priorite: 1 }], accroche: 'Un site rapide et sécurisé, c\'est plus de clients et moins de clients perdus.' })
   }
 
-  return parsed
+  return enrichAuditResult(parsed)
 }
 
 // ── Audit generator — EMAIL MARKETING profile ─────────────────────────���──────
@@ -2454,6 +2551,8 @@ PRÉSENCE DIGITALE :
 - Réseaux sociaux actifs : ${nets} réseau${nets !== 1 ? 'x' : ''}${fbFollowers ? ` · Facebook ${fbFollowers} abonnés` : ''}${igFollowers ? ` · Instagram ${igFollowers} abonnés` : ''}
 - Performance site (PageSpeed) : ${pagespeedData?.performance != null ? `${Math.round(pagespeedData.performance <= 1 ? pagespeedData.performance * 100 : pagespeedData.performance)}/100` : '—'}
 ${aiReport ? `\nANALYSE IA DES AVIS :\n${aiReport.slice(0, 600)}\n` : ''}
+${AUDIT_RULES_BLOCK}
+
 Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
 {
   "resume_executif": "Synthèse en 3-4 phrases sur le potentiel email marketing de ce commerce",
@@ -2465,13 +2564,16 @@ Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
     { "titre": "...", "description": "...", "priorite": 2 },
     { "titre": "...", "description": "...", "priorite": 3 }
   ],
-  "accroche": "Phrase d'accroche percutante orientée ROI pour conclure l'audit (1 phrase)"
+  "accroche": "Phrase factuelle — jamais de promesses marketing",
+  "comparaison_concurrents": {"position": "...", "avantages": ["..."], "retards": ["..."]},
+  "timeline": {"semaine_1": "...", "semaine_2_3": "...", "mois_2_3": "..."},
+  "titre_audit": "Audit Email Marketing & Fidélisation"
 }
 
 Règles :
 - Ton neutre, professionnel, orienté résultats et ROI
 - Aucune marque d'outil email marketing
-- Maximum 3000 chars au total
+- Maximum 4000 chars au total
 - Signature de contexte : "Consultant Email Marketing — ${domain ?? 'commerce local'}"`
 
   console.log(`[generateAuditEmailMarketing] ${name} | reviews:${reviews}${totalReviewsFull ? `(complets:${totalReviewsFull})` : ''} | newsletter:${hasNewsletter} | loyalty:${loyaltyMentions} | stability:${businessStability ?? '?'} | aiReport:${aiReport ? 'oui' : 'non'} | prompt:${prompt.length} chars`)
@@ -2480,7 +2582,7 @@ Règles :
   try {
     message = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
-      max_tokens: 1200,
+      max_tokens: 2000,
       messages:   [{ role: 'user', content: prompt }],
     })
   } catch (err) {
@@ -2501,7 +2603,7 @@ Règles :
   const end   = raw.lastIndexOf('}')
   if (start === -1 || end === -1 || end <= start) {
     console.error('[generateAuditEmailMarketing] Aucun JSON trouvé')
-    return { resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Mettre en place une stratégie email', description: 'Capturer les emails des clients et créer des campagnes de fidélisation adaptées au secteur.', priorite: 1 }], accroche: 'Vos clients satisfaits sont votre meilleure audience — apprenons à les fidéliser.' }
+    return enrichAuditResult({ resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Mettre en place une stratégie email', description: 'Capturer les emails des clients et créer des campagnes de fidélisation adaptées au secteur.', priorite: 1 }], accroche: 'Vos clients satisfaits sont votre meilleure audience — apprenons à les fidéliser.' })
   }
 
   const jsonStr = raw.slice(start, end + 1)
@@ -2509,10 +2611,10 @@ Règles :
 
   if (!parsed) {
     console.error('[generateAuditEmailMarketing] Parse échoué. JSON extrait:', jsonStr)
-    return { resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Capturer les emails clients', description: 'Ajouter un formulaire de capture email sur le site et les réseaux sociaux.', priorite: 1 }], accroche: 'Vos clients satisfaits sont votre meilleure audience — apprenons à les fidéliser.' }
+    return enrichAuditResult({ resume_executif: 'Audit généré avec des données partielles — veuillez relancer.', forces: [], faiblesses: [], opportunites: [], recommandations: [{ titre: 'Capturer les emails clients', description: 'Ajouter un formulaire de capture email sur le site et les réseaux sociaux.', priorite: 1 }], accroche: 'Vos clients satisfaits sont votre meilleure audience — apprenons à les fidéliser.' })
   }
 
-  return parsed
+  return enrichAuditResult(parsed)
 }
 
 // ── Email personnalisé — EMAIL MARKETING profile ─────────────────────��────────
@@ -2563,6 +2665,8 @@ P2 — Impact concret : clients acquis mais jamais réengagés, perte de revenu 
 P3 — Ta valeur ajoutée : mise en place d'une stratégie email adaptée au commerce local
 P4 — Ce que tu peux faire précisément (capture email, séquences automatiques, campagnes saisonnières)
 P5 — Appel à l'action simple et concret (1-2 phrases)
+
+${EMAIL_STATS_NOTE}
 
 RÈGLES :
 - Ne jamais inventer de chiffres ou faits non fournis
@@ -2649,6 +2753,8 @@ ${siteBlock}
 
 📱 RÉSEAUX SOCIAUX PRÉSENTS : ${nets}
 
+${AUDIT_RULES_BLOCK}
+
 PRODUIS UNIQUEMENT un JSON valide (sans texte avant ou après) avec cette structure :
 {
   "resume_executif": "2-3 phrases sur le potentiel Google Ads de ce business",
@@ -2669,28 +2775,31 @@ PRODUIS UNIQUEMENT un JSON valide (sans texte avant ou après) avec cette struct
     {"priorite": 2, "titre": "...", "description": "..."},
     {"priorite": 3, "titre": "...", "description": "..."}
   ],
-  "accroche": "phrase d'accroche commerciale pour présenter cet audit au prospect"
+  "accroche": "phrase factuelle — jamais de promesses marketing",
+  "comparaison_concurrents": {"position": "...", "avantages": ["..."], "retards": ["..."]},
+  "timeline": {"semaine_1": "...", "semaine_2_3": "...", "mois_2_3": "..."},
+  "titre_audit": "Audit Google Ads & Acquisition Locale"
 }
 
 RÈGLES :
 - Forces et faiblesses : 2 à 4 items chacun, basés strictement sur les données
 - Recommandations : 3 items ordonnés par priorité, focalisés sur les prérequis ads puis la stratégie
-- Prose uniquement, pas de bullet points, max 3000 chars total
+- Prose uniquement, pas de bullet points, max 4000 chars total
 - Pas de marques d'outils de gestion ads
 - Signature implicite : "Consultant Google Ads${sigCity}"`
 
   const anthropic = new Anthropic({ apiKey })
   const message = await anthropic.messages.create({
     model:      'claude-sonnet-4-6',
-    max_tokens: 1200,
+    max_tokens: 2000,
     messages:   [{ role: 'user', content: prompt }],
   })
   console.log(`[generateAuditGoogleAds] ✓ réponse (tokens: ${message.usage?.output_tokens ?? '?'})`)
   const raw = message.content[0].text
   const jsonMatch = raw.match(/\{[\s\S]*\}/)
   if (!jsonMatch) throw new Error('Réponse JSON invalide du modèle')
-  try { return JSON.parse(jsonMatch[0]) }
-  catch { return JSON.parse(jsonMatch[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')) }
+  try { return enrichAuditResult(JSON.parse(jsonMatch[0])) }
+  catch { return enrichAuditResult(JSON.parse(jsonMatch[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, ' '))) }
 }
 
 // ── Email Google Ads ──────────────────────────────────────────────────────────
@@ -2745,6 +2854,8 @@ STRUCTURE :
 [PREUVE] — 1 phrase avec les données concrètes (note ${rating}/5, ${reviews} avis = potentiel de conversion élevé${perf !== null ? `, site à ${perf}/100 perf mobile` : ''})
 [SOLUTION] — 1-2 phrases : ce que tu proposes concrètement (audit gratuit, ROI cible, budget)
 [CTA] — 1 phrase courte, appel à action
+
+${EMAIL_STATS_NOTE}
 
 CONTRAINTES :
 - 150 à 220 mots maximum
