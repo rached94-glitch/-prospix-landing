@@ -47,15 +47,10 @@ E) TITRE DYNAMIQUE — Ajoute un champ titre_audit dans le JSON avec le titre ap
 
 // ── Note stats à injecter dans TOUS les generateEmail* ────────────────────────
 const EMAIL_STATS_NOTE = `
-NOTE STATISTIQUES OBLIGATOIRE : L'email DOIT contenir au moins une statistique vérifiée et sourcée pour crédibiliser le message. Utilise UNIQUEMENT ces chiffres. Cite la source entre parenthèses. Personnalise avec les données réelles du lead. INTERDICTION d'inventer des chiffres :
-- Fiches avec photos : +42% demandes d'itinéraire, +35% clics site (Birdeye 2025)
-- Profils complets : 7x plus de clics (WebFX 2026)
-- Répondre aux avis : +17% de clics vers le site (SQ Magazine 2025)
-- 83% des consommateurs lisent les avis sur Google (BrightLocal 2025)
-- 48% des recherches locales → interaction dans les 24h (SQ Magazine 2025)
-- Chaque seconde de chargement en plus : -7% de conversions (Google/Deloitte 2020)
-- Posts récents : +21% d'interactions (SQ Magazine 2025)
-Ton professionnel de consultant, pas de commercial.`
+RÈGLE STATS DANS LES EMAILS :
+- Ne JAMAIS citer de statistique externe (SQ Magazine, Bain, Google, etc.) dans un email de prospection.
+- Utiliser UNIQUEMENT les données réelles du prospect : son nombre d'avis, sa note, ses avis sans réponse, ses thèmes d'avis, ses KPIs détectés.
+- Un chiffre qui vient du prospect est 10x plus convaincant qu'une stat générique.`
 
 // ── Helper : enrichit le résultat parsé avec les nouveaux champs (fallback null/défaut) ──
 function enrichAuditResult(parsed) {
