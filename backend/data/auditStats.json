@@ -5,43 +5,162 @@
     "brightlocal_2025": "Local Consumer Review Survey 2025, BrightLocal",
     "webfx_2026": "Google Business Profile Benchmarks 2026, WebFX",
     "sqmagazine_2025": "Google My Business Statistics 2025, SQ Magazine",
-    "google_deloitte": "Milliseconds Make Millions, Google/Deloitte 2020"
+    "google_deloitte_2020": "Milliseconds Make Millions, Google/Deloitte 2020",
+    "google_thinkwithgoogle": "Think with Google — Local Search Behavior"
   },
   "photos": {
-    "direction_boost": "+42% de demandes d'itinéraire pour les fiches avec photos (Birdeye 2025)",
-    "website_clicks_boost": "+35% de clics vers le site web (Birdeye 2025)",
-    "engagement_15plus": "Les fiches avec 15+ photos reçoivent plus d'interactions sur tous les indicateurs (Birdeye 2025)",
-    "views_boost": "+30 à 50% de vues pour les fiches avec photos, x2 engagement avec 10+ photos (WebFX 2026)"
+    "direction_boost": {
+      "stat": "+42% de demandes d'itinéraire pour les fiches Google avec photos (Birdeye 2025)",
+      "context": ["seo", "photographe", "community-manager", "google-ads"],
+      "forbidden_context": ["chatbot", "email-marketing", "designer"],
+      "note": "Concerne l'optimisation de la fiche GBP, pas le contenu éditorial"
+    },
+    "website_clicks_boost": {
+      "stat": "+35% de clics vers le site web pour les fiches avec photos (Birdeye 2025)",
+      "context": ["seo", "photographe", "google-ads", "web-dev"],
+      "forbidden_context": ["chatbot", "email-marketing"],
+      "note": "Impact direct sur le trafic entrant — argument fort pour la qualité visuelle"
+    },
+    "engagement_15plus": {
+      "stat": "Les fiches avec 15+ photos reçoivent plus d'interactions sur tous les indicateurs (Birdeye 2025)",
+      "context": ["seo", "photographe", "community-manager"],
+      "forbidden_context": ["chatbot", "email-marketing", "web-dev"],
+      "note": "Seuil de 15 photos recommandé pour un effet mesurable"
+    },
+    "views_boost": {
+      "stat": "+30 à 50% de vues pour les fiches avec photos, x2 engagement avec 10+ photos (WebFX 2026)",
+      "context": ["seo", "photographe", "community-manager"],
+      "forbidden_context": ["chatbot", "email-marketing"],
+      "note": "Corrélation vues/photos, pas nécessairement causalité — à utiliser avec prudence"
+    }
   },
   "description": {
-    "top3_with_description": "75% des fiches en position 1-3 ont une description complète vs moins de 40% en position 11-20 (Localo 2025)",
-    "complete_profile_clicks": "Les profils complets reçoivent 7x plus de clics que les profils incomplets (WebFX 2026)"
+    "top3_with_description": {
+      "stat": "75% des fiches en position 1-3 sur Google Maps ont une description complète, contre moins de 40% en position 11-20 (Localo 2025)",
+      "context": ["seo", "copywriter", "community-manager"],
+      "forbidden_context": ["chatbot", "designer", "email-marketing"],
+      "note": "Corrélation position/description — pertinent pour argumenter l'importance du contenu"
+    },
+    "complete_profile_clicks": {
+      "stat": "Les profils Google Business complets reçoivent 7x plus de clics que les profils incomplets (WebFX 2026)",
+      "context": ["seo", "community-manager", "google-ads", "photographe"],
+      "forbidden_context": ["chatbot", "designer", "email-marketing"],
+      "note": "Stat forte pour convaincre d'optimiser la fiche GBP en priorité"
+    }
   },
   "reviews": {
-    "top3_average": "Les fiches en position 1-3 ont en moyenne 240 avis (Localo 2025)",
-    "consumers_read_google": "83% des consommateurs lisent les avis principalement sur Google (BrightLocal 2025)",
-    "response_clicks": "+17% de clics vers le site pour les commerces qui répondent aux avis (SQ Magazine 2025)",
-    "low_rating_impact": "Seulement 13% des consommateurs envisageraient un commerce noté 1-2 étoiles (BrightLocal 2025)",
-    "new_review_visits": "Chaque nouvel avis génère environ 80 visites supplémentaires sur le site (Birdeye 2025)"
+    "top3_average": {
+      "stat": "Les fiches Google en position 1-3 ont en moyenne 240 avis (Localo 2025)",
+      "context": ["seo", "community-manager", "google-ads"],
+      "forbidden_context": ["designer", "web-dev", "email-marketing"],
+      "note": "Benchmark utile pour situer le prospect par rapport aux leaders locaux"
+    },
+    "consumers_read_google": {
+      "stat": "83% des consommateurs lisent les avis principalement sur Google (BrightLocal 2025)",
+      "context": ["seo", "community-manager", "google-ads", "email-marketing"],
+      "forbidden_context": ["designer", "web-dev", "chatbot"],
+      "note": "Argument central pour l'importance de la e-réputation Google"
+    },
+    "response_clicks": {
+      "stat": "Les commerces qui répondent aux avis Google obtiennent 17% de clics supplémentaires vers leur site (SQ Magazine 2025)",
+      "context": ["seo", "community-manager", "email-marketing"],
+      "forbidden_context": ["chatbot", "web-dev", "designer"],
+      "note": "Concerne la gestion d'avis GBP, pas l'automatisation conversationnelle"
+    },
+    "low_rating_impact": {
+      "stat": "Seulement 13% des consommateurs envisageraient de visiter un commerce noté 1 ou 2 étoiles (BrightLocal 2025)",
+      "context": ["seo", "community-manager", "google-ads"],
+      "forbidden_context": ["designer", "web-dev", "chatbot", "email-marketing"],
+      "note": "Argument clé pour la gestion de la réputation en ligne"
+    },
+    "new_review_visits": {
+      "stat": "Chaque nouvel avis génère environ 80 visites supplémentaires sur le site (Birdeye 2025)",
+      "context": ["seo", "community-manager"],
+      "forbidden_context": ["chatbot", "designer", "web-dev", "email-marketing"],
+      "confidence": "low",
+      "note": "Chiffre très spécifique difficile à vérifier indépendamment — à utiliser avec prudence"
+    }
   },
   "engagement": {
-    "monthly_actions": "81 actions mensuelles moyennes par fiche Google (SQ Magazine 2025)",
-    "website_clicks_share": "48% des interactions sont des clics vers le site (Birdeye 2025)",
-    "direction_share": "34% sont des demandes d'itinéraire (Birdeye 2025)",
-    "calls_share": "17% sont des appels téléphoniques (Birdeye 2025)",
-    "local_intent_24h": "48% des recherches locales mènent à une interaction dans les 24h (SQ Magazine 2025)",
-    "trusted_complete": "72% des consommateurs sont plus susceptibles de visiter un commerce avec un profil complet (SQ Magazine 2025)",
-    "mobile_share": "71% des interactions proviennent du mobile (SQ Magazine 2025)"
+    "monthly_actions": {
+      "stat": "Une fiche Google Business génère en moyenne 81 actions mensuelles (clics, appels, itinéraires) (SQ Magazine 2025)",
+      "context": ["seo", "community-manager", "google-ads"],
+      "forbidden_context": ["designer", "chatbot", "email-marketing"],
+      "confidence": "medium",
+      "note": "Moyenne globale tous secteurs — peut varier fortement selon le secteur et la zone"
+    },
+    "website_clicks_share": {
+      "stat": "48% des interactions sur une fiche Google sont des clics vers le site web (Birdeye 2025)",
+      "context": ["seo", "web-dev", "google-ads"],
+      "forbidden_context": ["chatbot", "email-marketing"],
+      "note": "Répartition des actions sur la fiche GBP — utile pour prioriser l'optimisation site"
+    },
+    "direction_share": {
+      "stat": "34% des interactions sur une fiche Google sont des demandes d'itinéraire (Birdeye 2025)",
+      "context": ["seo", "google-ads", "community-manager"],
+      "forbidden_context": ["chatbot", "email-marketing", "designer"],
+      "note": "Part des actions liées à la navigation physique — pertinent pour les commerces locaux avec point de vente"
+    },
+    "calls_share": {
+      "stat": "17% des interactions sur une fiche Google sont des appels téléphoniques (Birdeye 2025)",
+      "context": ["seo", "chatbot", "google-ads"],
+      "forbidden_context": ["designer", "email-marketing"],
+      "note": "Pertinent pour le chatbot : chaque appel évitable par un assistant conversationnel représente du temps libéré"
+    },
+    "local_intent_24h": {
+      "stat": "76% des recherches locales 'near me' aboutissent à une visite en magasin dans les 24 heures (Google / Think with Google)",
+      "context": ["seo", "google-ads", "community-manager", "web-dev"],
+      "forbidden_context": [],
+      "note": "Stat générale sur le comportement de recherche locale — forte pour justifier la visibilité en ligne"
+    },
+    "trusted_complete": {
+      "stat": "72% des consommateurs sont plus susceptibles de visiter un commerce avec un profil Google complet (SQ Magazine 2025)",
+      "context": ["seo", "community-manager", "google-ads"],
+      "forbidden_context": ["chatbot", "designer", "email-marketing"],
+      "note": "Argument pour l'optimisation complète du profil GBP"
+    },
+    "mobile_share": {
+      "stat": "71% des interactions sur Google Business proviennent du mobile (SQ Magazine 2025)",
+      "context": ["seo", "web-dev", "google-ads"],
+      "forbidden_context": ["email-marketing", "designer"],
+      "note": "Argument pour la priorité mobile dans l'optimisation web et Ads"
+    }
   },
   "website": {
-    "speed_conversion": "Chaque seconde de chargement supplémentaire réduit les conversions de 7% (Google/Deloitte 2020)",
-    "mobile_conversion": "+34% de taux de conversion mobile vs desktop pour les actions locales (SQ Magazine 2025)"
+    "speed_conversion": {
+      "stat": "Chaque seconde de chargement supplémentaire réduit les conversions de 7% (Google / Deloitte 2020)",
+      "context": ["web-dev", "seo", "google-ads"],
+      "forbidden_context": ["email-marketing", "community-manager", "photographe"],
+      "note": "Étude 'Milliseconds Make Millions' — référence incontestable pour la performance web"
+    },
+    "mobile_conversion": {
+      "stat": "+34% de taux de conversion mobile vs desktop pour les actions locales (SQ Magazine 2025)",
+      "context": ["web-dev", "google-ads"],
+      "forbidden_context": ["email-marketing", "community-manager", "photographe"],
+      "confidence": "low",
+      "note": "Source peu documentée indépendamment — à utiliser avec prudence"
+    }
   },
   "booking": {
-    "conversion_with": "6.3% de taux de conversion avec réservation en ligne vs 3.9% sans (SQ Magazine 2025)"
+    "conversion_with": {
+      "stat": "Les fiches Google avec bouton de réservation intégrée convertissent à 6.3% contre 3.9% sans (SQ Magazine 2025)",
+      "context": ["chatbot", "seo", "community-manager"],
+      "forbidden_context": ["designer", "web-dev", "google-ads"],
+      "note": "Concerne le bouton Réserver sur la fiche GBP, PAS les chatbots — à utiliser pour argumenter l'importance de la réservation en ligne"
+    }
   },
   "posts": {
-    "recent_posts": "+21% d'interactions pour les fiches avec des posts récents (SQ Magazine 2025)",
-    "faq_boost": "+13% d'engagement pour les fiches avec section FAQ (SQ Magazine 2025)"
+    "recent_posts": {
+      "stat": "+21% d'interactions pour les fiches Google avec des posts récents (SQ Magazine 2025)",
+      "context": ["community-manager", "seo", "copywriter"],
+      "forbidden_context": ["chatbot", "web-dev", "designer"],
+      "note": "Posts Google Business Profile — ne pas confondre avec posts réseaux sociaux"
+    },
+    "faq_boost": {
+      "stat": "Les fiches Google avec une section FAQ génèrent 13% d'engagement supplémentaire (SQ Magazine 2025)",
+      "context": ["chatbot", "seo", "web-dev", "copywriter"],
+      "forbidden_context": [],
+      "note": "Pertinent pour le chatbot : lié à l'automatisation des réponses aux questions fréquentes"
+    }
   }
 }
