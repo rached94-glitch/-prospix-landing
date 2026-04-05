@@ -22,8 +22,8 @@ A) CHIFFRES D'IMPACT — Utilise UNIQUEMENT ces statistiques vérifiées et sour
 Si aucune statistique ne correspond au point abordé, ne mets PAS de chiffre. Mieux vaut pas de chiffre qu'un chiffre inventé.
 
 B) COMPARAISON CONCURRENTS — Ajoute un champ comparaison_concurrents dans le JSON retourné :
-{"position": "Position factuelle vs concurrents locaux du même secteur (ex: Au-dessus de la moyenne sur la note, en dessous sur la présence digitale)", "avantages": ["max 2 points forts vs moyenne du secteur"], "retards": ["max 2 points en retard vs concurrents"]}
-Utilise les données disponibles pour estimer la position. Ton factuel, pas de jugement.
+{"position": "Position du prospect vs la moyenne du secteur, basée uniquement sur ses propres données (note, présence digitale, performance) — jamais une affirmation sur ce que les concurrents font ou ne font pas", "avantages": ["max 2 points forts du prospect vs moyenne sectorielle"], "retards": ["max 2 points en retard du prospect vs moyenne sectorielle"]}
+RÈGLE STRICTE : Ne JAMAIS affirmer ce que les concurrents locaux font ou ne font pas (ex: "vos concurrents n'ont pas de chatbot", "aucun concurrent n'est sur Instagram"). Ces données ne sont pas vérifiées. Baser la comparaison sur les données du prospect et les tendances générales du secteur. Si incertain, utiliser : "L'adoption de [service] reste limitée dans ce secteur localement, ce qui représente une opportunité de différenciation."
 
 C) TIMELINE — Ajoute un champ timeline dans le JSON :
 {"semaine_1": "Action prioritaire immédiate concrète", "semaine_2_3": "Actions de fond à lancer", "mois_2_3": "Consolidation et premiers indicateurs mesurables"}
@@ -1748,8 +1748,8 @@ async function generateAuditChatbot({ businessName, websiteUrl, chatbotDetection
   if (reviewCount !== null && reviewCount > 50) forcesHints.push(`Volume d'avis significatif (${reviewCount}) — corpus de données pour l'entraînement`)
   if (website)                                  forcesHints.push('Site web présent — déploiement widget chatbot immédiatement possible')
   if (cms === 'wordpress' || cms === 'wix')     forcesHints.push(`CMS ${cms} détecté — intégration chatbot simplifiée via plugin natif`)
-  if (bookingPlatform)                          forcesHints.push(`Plateforme ${bookingPlatform} détectée — connexion API pour automatiser les réservations`)
-  if (!hasChatbot && website)                   forcesHints.push('Aucun chatbot concurrent détecté — marché local disponible')
+  if (bookingPlatform)                          forcesHints.push('Plateforme de réservation en ligne détectée — connexion possible pour automatiser les réservations')
+  if (!hasChatbot && website)                   forcesHints.push("L'adoption des assistants conversationnels reste limitée dans le secteur localement — opportunité de différenciation")
   if (forcesHints.length === 0)                 forcesHints.push('Fiche Google Maps existante et indexée')
 
   // Faiblesses
