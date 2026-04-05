@@ -135,14 +135,39 @@ function detectCMSFromHTML(html) {
   return { cms: 'inconnu', confidence: 'medium', editable: null }
 }
 
-// ── Known booking platform domains → skip HTML fetch entirely ─────────────────
+// ── Known booking platform domains ────────────────────────────────────────────
+// label = for logging only. bookingPlatform stored value is always 'Détectée' (no brand names).
 const BOOKING_DOMAIN_MAP = [
-  { pattern: /planity\.com/i,                   name: 'Planity'   },
-  { pattern: /doctolib\.fr/i,                   name: 'Doctolib'  },
-  { pattern: /thefork\.com|lafourchette\.com/i, name: 'TheFork'   },
-  { pattern: /reservio\.com/i,                  name: 'Reservio'  },
-  { pattern: /koifaire\.com/i,                  name: 'Koifaire'  },
+  { pattern: /planity\.com/i,                   label: 'Planity'           },
+  { pattern: /doctolib\.fr/i,                   label: 'Doctolib'          },
+  { pattern: /thefork\.com|lafourchette\.com/i, label: 'TheFork'           },
+  { pattern: /reservio\.com/i,                  label: 'Reservio'          },
+  { pattern: /koifaire\.com/i,                  label: 'Koifaire'          },
+  { pattern: /kalendes\.com/i,                  label: 'Kalendes'          },
+  { pattern: /treatwell\.(fr|com)/i,            label: 'Treatwell'         },
+  { pattern: /simplybook\.me/i,                 label: 'SimplyBook'        },
+  { pattern: /fresha\.com/i,                    label: 'Fresha'            },
+  { pattern: /booksy\.com/i,                    label: 'Booksy'            },
+  { pattern: /setmore\.com/i,                   label: 'Setmore'           },
+  { pattern: /calendly\.com/i,                  label: 'Calendly'          },
+  { pattern: /square\.site|squareup\.com/i,     label: 'Square'            },
+  { pattern: /yclients\.com/i,                  label: 'YClients'          },
+  { pattern: /salonkee\.com/i,                  label: 'Salonkee'          },
+  { pattern: /kiute\.com/i,                     label: 'Kiute'             },
+  { pattern: /balinea\.com/i,                   label: 'Balinea'           },
+  { pattern: /beauty-coiffure\.com/i,           label: 'BeautyCoiffure'    },
+  { pattern: /rdv360\.com/i,                    label: 'RDV360'            },
+  { pattern: /medoucine\.com/i,                 label: 'Medoucine'         },
+  { pattern: /crenolibre\.fr/i,                 label: 'CrenoLibre'        },
+  { pattern: /timify\.com/i,                    label: 'Timify'            },
+  { pattern: /agendize\.com/i,                  label: 'Agendize'          },
+  { pattern: /google\.com\/maps\/reserve/i,     label: 'Google Reserve'    },
+  { pattern: /hubspot\.com\/meetings/i,         label: 'HubSpot Meetings'  },
+  { pattern: /acuityscheduling\.com/i,          label: 'Acuity Scheduling' },
 ]
+
+// ── Regex for booking button/link text scan (Couche 2) ─────────────────────────
+const BOOKING_KEYWORDS_RE = /r[eé]server|prendre\s+(?:un\s+)?r(?:endez-vous|dv)|book\s+(?:now|online)|r[eé]servation\s+en\s+ligne|prendre\s+un\s+cr[eé]neau|rendez-vous\s+en\s+ligne|rdv\s+en\s+ligne/i
 
 // ── Site signals detection (pure — operates on HTML string) ───────────────────
 function detectSiteSignalsFromHTML(html, siteUrl) {
@@ -162,14 +187,30 @@ function detectSiteSignalsFromHTML(html, siteUrl) {
   else if (/tawk\.to/i.test(html))                { chatbotDetected = true; chatbotTool = 'Tawk'     }
   else if (/hubspot.*chat|hs-chat/i.test(html))   { chatbotDetected = true; chatbotTool = 'HubSpot'  }
 
-  // Booking platforms — check URL first, then HTML
+  // Booking detection — Couche 1 : domaines connus dans URL ou HTML
   let bookingPlatform = null
   const urlLow = (siteUrl || '').toLowerCase()
-  if      (urlLow.includes('planity.com')    || html.includes('planity.com'))    bookingPlatform = 'Planity'
-  else if (urlLow.includes('doctolib.fr')    || html.includes('doctolib.fr'))    bookingPlatform = 'Doctolib'
-  else if (/thefork\.com|lafourchette\.com/i.test(html))                         bookingPlatform = 'TheFork'
-  else if (/reservio\.com/i.test(html))                                           bookingPlatform = 'Reservio'
-  else if (/koifaire\.com/i.test(html))                                           bookingPlatform = 'Koifaire'
+  for (const { pattern } of BOOKING_DOMAIN_MAP) {
+    if (pattern.test(urlLow) || pattern.test(html)) {
+      bookingPlatform = 'Détectée'
+      break
+    }
+  }
+  // Couche 2 : boutons/liens "réserver" si aucun domaine trouvé
+  if (!bookingPlatform) {
+    const anchorText = (html.match(/<a\b[^>]*>[\s\S]*?<\/a>/gi) ?? []).join(' ')
+    const buttonText = (html.match(/<button\b[^>]*>[\s\S]*?<\/button>/gi) ?? []).join(' ')
+    const hrefValues = (html.match(/href=["'][^"']*["']/gi) ?? []).join(' ')
+    const ariaValues = (html.match(/aria-label=["'][^"']*["']/gi) ?? []).join(' ')
+    if (
+      BOOKING_KEYWORDS_RE.test(anchorText) ||
+      BOOKING_KEYWORDS_RE.test(buttonText) ||
+      BOOKING_KEYWORDS_RE.test(hrefValues) ||
+      BOOKING_KEYWORDS_RE.test(ariaValues)
+    ) {
+      bookingPlatform = 'Détectée'
+    }
+  }
 
   // FAQ section
   const hasFAQ = /<section[^>]*id=["']faq/i.test(html) ||
@@ -262,11 +303,11 @@ async function getSiteSignals(websiteUrl, category) {
   // If the website URL is itself a booking platform — skip HTML fetch entirely
   const bookingMatch = BOOKING_DOMAIN_MAP.find(b => b.pattern.test(websiteUrl))
   if (bookingMatch) {
-    console.log(`[SiteSignals] Booking platform URL: ${bookingMatch.name} — HTML fetch skipped`)
+    console.log(`[SiteSignals] Booking platform URL detected (${bookingMatch.label}) — HTML fetch skipped`)
     return {
       ...base,
       chatbotDetected: false, chatbotTool: null,
-      bookingPlatform: bookingMatch.name, isBookingUrl: true,
+      bookingPlatform: 'Détectée', isBookingUrl: true,
       hasFAQ: false, hasContactForm: false, hasNewsletter: false, hasPDFContent: false, hasMenuContent: false,
       hasProminentPhone: false, pageCount: 'unknown', hasBlog: false,
     }
