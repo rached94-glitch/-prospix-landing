@@ -1005,7 +1005,7 @@ export async function exportAuditChatbotPDF({ lead, activeProfile, chatbotAudit,
 
   // Type RAG
   let ragType = 'FAQ bot simple'
-  if (bookingPlatform)               ragType = `Assistant réservation (${bookingPlatform})`
+  if (bookingPlatform)               ragType = 'Assistant connecté à la réservation en ligne'
   else if (complexity === 'complex') ragType = 'Assistant IA avancé (RAG multi-source)'
   else if (complexity === 'medium')  ragType = 'Assistant réservation & FAQ'
 
@@ -1173,7 +1173,7 @@ export async function exportAuditChatbotPDF({ lead, activeProfile, chatbotAudit,
       <div class="card-title">Présence sur le site</div>
       ${kpiRow('FAQ détectée', hasFAQ === null ? '—' : hasFAQ ? '✓ Oui' : '✗ Non')}
       ${kpiRow('Formulaire contact', hasForm === null ? '—' : hasForm ? '✓ Oui' : '✗ Non')}
-      ${kpiRow('Réservation en ligne', bookingPlatform ? `✓ ${esc(bookingPlatform)}` : 'Aucune détectée')}
+      ${kpiRow('Réservation en ligne', bookingPlatform ? '✓ Détectée' : 'Non')}
       ${kpiRow('CMS détecté', cms ? esc(cms) : '—')}
     </div>
   </div>
