@@ -3,8 +3,11 @@ import { playClick, playSuccess, playError } from '../utils/sounds'
 import ReactMarkdown from 'react-markdown'
 import { ScoreBadge } from './LeadCard'
 import { exportLeadPDF } from '../utils/exportPDF'
-import { exportAuditPDF, exportAuditPhotographePDF, exportAuditChatbotPDF, exportAuditSocialMediaPDF, exportAuditDesignerPDF, exportAuditWebDevPDF, exportAuditEmailMarketingPDF, exportAuditGoogleAdsPDF } from '../utils/exportAuditPDF'
 import { FaFacebookF, FaLinkedinIn, FaYoutube, FaTiktok, FaInstagram } from 'react-icons/fa'
+import { aiCache, auditCache } from '../utils/caches'
+import ReviewsSection from './ReviewsSection'
+import AIEmailGenerator from './AIEmailGenerator'
+import AuditPanel from './AuditPanel'
 
 const SOCIAL_CONFIG = [
   { key: 'linkedin',  label: 'LinkedIn',  icon: '💼' },
@@ -12,35 +15,6 @@ const SOCIAL_CONFIG = [
   { key: 'instagram', label: 'Instagram', icon: '📸' },
   { key: 'tiktok',    label: 'TikTok',    icon: '🎵' },
 ]
-
-// LRU cache helper — max 30 entrées, évite la croissance illimitée en mémoire
-function createLRUCache(maxSize = 30) {
-  const cache = new Map()
-  return {
-    get(key) {
-      if (!cache.has(key)) return undefined
-      const value = cache.get(key)
-      cache.delete(key)
-      cache.set(key, value)
-      return value
-    },
-    set(key, value) {
-      if (cache.has(key)) {
-        cache.delete(key)
-      } else if (cache.size >= maxSize) {
-        const firstKey = cache.keys().next().value
-        cache.delete(firstKey)
-      }
-      cache.set(key, value)
-    },
-    has(key) { return cache.has(key) },
-    clear()  { cache.clear() },
-  }
-}
-
-// Module-level cache: avoids re-calling Anthropic API on every click
-const aiCache    = createLRUCache(30) // { [placeId::profileId]: analysisResult }
-const auditCache = createLRUCache(30) // { [website]: auditData } — évite les appels PageSpeed répétés
 
 const SCORE_BREAKDOWN = [
   { key: 'googleRating',      label: 'Note Google',        color: '#f59e0b' },
@@ -130,8 +104,7 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
   const [aiError,      setAiError]        = useState(null)
 
   // AI-generated email state
-  const [aiEmailState, setAiEmailState]   = useState('idle') // idle | loading | done | error
-  const [aiEmail,      setAiEmail]        = useState(null)   // { subject, body }
+  const [aiEmail, setAiEmail] = useState(null) // { subject, body } — géré dans AIEmailGenerator via onEmailGenerated
 
   // Pappers financial data state
   const [pappersData,  setPappersData]    = useState(null)
@@ -140,10 +113,6 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
   // Digital audit state (PageSpeed + social activity) — loaded on lead select
   const [auditData,  setAuditData]  = useState(null)  // { pagespeed, socialActivity }
   const [auditState, setAuditState] = useState('idle') // idle | loading | done | error
-
-  // AI prospect audit state — generated on demand via /api/leads/audit-prospect
-  const [prospectAudit,      setProspectAudit]      = useState(null)  // JSON from generateAuditSEO
-  const [prospectAuditState, setProspectAuditState] = useState('idle') // idle | loading | done | error
 
   // Instagram deep analysis — profil photographe uniquement
   const [igDeep,        setIgDeep]        = useState(null)
@@ -200,7 +169,6 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
     setReviewsData(null)
     setWide(false)
     setCopiedReport(false)
-    setAiEmailState('idle')
     setAiEmail(null)
     // Restore from cache if already analysed for this lead+profile combo
     const placeKey    = (lead?._id ?? lead?.id ?? '').replace(/^ChIJ/, '')
@@ -249,9 +217,6 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
       setAuditData(null)
       setAuditState('idle')
     }
-    // Reset prospect audit on lead change
-    setProspectAudit(null)
-    setProspectAuditState('idle')
     // Reset SEMrush on lead change
     setSemrushData(null); setSemrushLoading(false); setSemrushError(null)
   }, [lead?.id, lead?._id])
@@ -547,26 +512,6 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
     }
   }
 
-  const handleLoadReviews = async () => {
-    if (reviewsState === 'loading') return
-    // TODO: Supabase — déduire 2 crédits avant l'appel (300 avis + analyse IA)
-    setReviewsState('loading')
-    setReviewsData(null)
-    try {
-      const placeId = lead._id ?? lead.id
-      const res  = await fetch(`${API}/api/leads/reviews/${placeId}`, { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erreur serveur')
-      setReviewsData(data)
-      setReviewsState('done')
-      // Chaîne automatiquement l'analyse IA avec les données fraîches (pas depuis le state)
-      await handleAnalyzeAI(data)
-    } catch (e) {
-      console.error('Load reviews error:', e)
-      setReviewsState('idle')
-    }
-  }
-
   const handleAnalyzeAI = async (freshReviewsData) => {
     const reviews = freshReviewsData ?? reviewsData
     if (aiState === 'loading' || !reviews) return
@@ -618,54 +563,6 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
       setAiError(e.message || 'Erreur lors de l\'analyse IA')
       setAiState('error')
       try { playError() } catch (_) {}
-    }
-  }
-
-  const handleGenerateAIEmail = async () => {
-    if (aiEmailState === 'loading' || !aiReport) return
-    // TODO: Supabase — déduire 1 crédit avant l'appel
-    setAiEmailState('loading')
-    try {
-      const res  = await fetch(`${API}/api/leads/generate-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          businessName:   lead.name,
-          profileId:      activeProfile?.id   ?? 'chatbot',
-          profileName:    activeProfile?.name ?? 'Défaut',
-          aiAnalysis:     aiReport,
-          leadData: {
-            rating:       lead.google?.rating,
-            totalReviews: lead.google?.totalReviews,
-            reviewCount:  lead.google?.totalReviews,
-            website:      lead.website,
-            social:       lead.social,
-            address:      lead.address,
-          },
-          visualAnalysis:    visualAnalysis ?? null,
-          googleData: {
-            photoCount:   lead.googleAudit?.photoCount ?? 0,
-            hasInstagram: !!(lead.social?.instagram),
-          },
-          siteAnalysis:      auditData?.siteAnalysis      ?? null,
-          reviewsData:       reviewsData                  ?? null,
-          facebookActivity:  auditData?.facebookActivity  ?? null,
-          instagramActivity: auditData?.instagramActivity ?? null,
-          photoQuality:      photoQuality                  ?? null,
-          socialPresence:    lead.social                  ?? null,
-          decisionMaker:     lead.decisionMaker            ?? null,
-          city:              lead.city ?? lead.vicinity    ?? null,
-          category:          lead.types?.[0]               ?? null,
-          napData:           auditData?.napData            ?? null,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erreur serveur')
-      setAiEmail(data)
-      setAiEmailState('done')
-    } catch (e) {
-      console.error('Generate email error:', e)
-      setAiEmailState('error')
     }
   }
 
@@ -997,9 +894,6 @@ Bien cordialement,
   }
 
   const [pdfLoading, setPdfLoading] = useState(false)
-  const [auditPdfLoading, setAuditPdfLoading] = useState(false)
-  const [auditPdfError,   setAuditPdfError]   = useState(null)
-
 
   const handleExportPDF = async () => {
     setPdfLoading(true)
@@ -1009,179 +903,6 @@ Bien cordialement,
       console.error('[PDF]', err)
     } finally {
       setPdfLoading(false)
-    }
-  }
-
-  const AUDIT_LABEL = {
-    'seo':             "Générer l'audit SEO — 2 crédits",
-    'consultant-seo':  "Générer l'audit SEO — 2 crédits",
-    'photographe':     "Générer l'audit photo — 2 crédits",
-    'chatbot':         "Générer l'audit chatbot — 2 crédits",
-    'dev-chatbot':     "Générer l'audit chatbot — 2 crédits",
-    'social-media':    "Générer l'audit Community Manager — 2 crédits",
-    'designer':        "Générer l'audit branding — 2 crédits",
-    'dev-web':         "Générer l'audit technique — 2 crédits",
-    'email-marketing': "Générer l'audit email marketing — 2 crédits",
-    'pub-google':      "Générer l'audit Google Ads — 2 crédits",
-    'copywriter':      "Générer l'audit contenu — 2 crédits",
-  }
-
-  const handleExportAuditPDF = async () => {
-    if (auditPdfLoading || prospectAuditState === 'loading') return
-    // TODO: Supabase — déduire 2 crédits avant l'appel
-    setAuditPdfLoading(true)
-    setAuditPdfError(null)
-    setProspectAuditState('loading')
-    try {
-      const placeId   = lead.id || lead._id || 'unknown'
-      const profileId = activeProfile?.id ?? 'seo'
-      const leadCity  = lead.address?.split(',').pop()?.trim() || ''
-      const social    = lead.social ?? null
-      const pappersData = lead.pappers ?? null
-
-      // ── Signaux enrichis (email-marketing + autres profils) ─────────────────
-      const loyaltyAnalysis    = reviewsData?.loyaltyAnalysis ?? lead.loyaltyAnalysis ?? null
-      const loyaltyMentions    = loyaltyAnalysis?.loyaltyMentions ?? 0
-      const loyaltyTopics      = loyaltyAnalysis?.loyaltyTopics   ?? []
-      const totalReviewsFull   = reviewsData?.total      ?? null
-      const unansweredCount    = reviewsData?.unanswered ?? null
-      const ownerReplyRatioFull = (totalReviewsFull != null && totalReviewsFull > 0 && unansweredCount != null)
-        ? (totalReviewsFull - unansweredCount) / totalReviewsFull
-        : null
-      const catRaw = [(lead.keyword || lead.domain || ''), ...(lead.types || [])].join(' ')
-        .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      const _FREQ_HIGH = ['restaurant', 'cafe', 'boulangerie', 'bakery', 'pharmacie', 'supermarche', 'epicerie', 'tabac', 'pressing', 'gym', 'sport', 'fitness', 'brasserie', 'pizz', 'burger', 'traiteur', 'bistrot']
-      const _FREQ_LOW  = ['avocat', 'notaire', 'comptable', 'assurance', 'immo', 'architecte', 'dentiste', 'orthodontiste', 'psy', 'psychiatre', 'psychologue']
-      const visitFrequency = _FREQ_HIGH.some(k => catRaw.includes(k)) ? 'Haute'
-                           : _FREQ_LOW.some(k  => catRaw.includes(k)) ? 'Faible'
-                           : 'Modérée'
-      let stabScore = !!(lead.googleAudit?.hasHours) ? 2 : 0
-      if (pappersData) {
-        const ca  = pappersData.chiffreAffaires ?? null
-        const dc  = pappersData.dateCreation    ?? null
-        const eff = pappersData.effectifs       ?? null
-        if (dc) { const y = (Date.now() - new Date(dc).getTime()) / (365.25 * 24 * 3600 * 1000); stabScore += y >= 5 ? 3 : y >= 2 ? 2 : y >= 1 ? 1 : 0 }
-        if (ca !== null) stabScore += ca >= 200000 ? 3 : ca >= 50000 ? 2 : 1
-        if (eff !== null && eff >= 1) stabScore += 1
-      }
-      const businessStability = stabScore >= 6 ? 'haute' : stabScore >= 3 ? 'moyenne' : 'faible'
-      const canInvest         = stabScore >= 5 && (pappersData?.chiffreAffaires ?? 0) >= 50000
-      const _aiReportStr      = typeof aiReport === 'string' ? aiReport : (aiReport?.report ?? '')
-      const aiReportSummary   = _aiReportStr ? _aiReportStr.slice(0, 600) : null
-
-      // Step 1 — generate AI audit via backend (fat payload)
-      const r = await fetch(`${API}/api/leads/audit-prospect/${placeId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          profileId,
-          // SEO / générique
-          leadData: {
-            name:        lead.name        ?? '',
-            address:     lead.address     ?? '',
-            city:        leadCity,
-            category:    lead.keyword     ?? lead.domain ?? '',
-            website:     lead.website     ?? null,
-            rating:      lead.google?.rating       ?? null,
-            reviewCount: lead.google?.totalReviews  ?? null,
-            googleAudit: lead.googleAudit ?? null,
-          },
-          pagespeedData:    auditData?.pagespeed         ?? null,
-          localRank:        auditData?.localRank         ?? null,
-          reviewsData:      reviewsData                  ?? null,
-          napData:          auditData?.napData           ?? null,
-          facebookActivity: auditData?.facebookActivity  ?? null,
-          instagramActivity:auditData?.instagramActivity ?? null,
-          // Champs communs
-          businessName:  lead.name    ?? '',
-          websiteUrl:    lead.website ?? null,
-          googleRating:  lead.google?.rating        ?? null,
-          totalReviews:  lead.google?.totalReviews  ?? 0,
-          domain:        lead.domain ?? lead.keyword ?? null,
-          city:          leadCity,
-          photoCount:    lead.googleAudit?.photoCount ?? 0,
-          socialPresence: social,
-          // Photographe
-          googlePhotos:  [],
-          social:        social ?? {},
-          // Chatbot
-          chatbotDetection:     lead.chatbotDetection ?? null,
-          questionsAnalysis:    reviewsData?.questionAnalysis ?? lead.reviewAnalysis?.questionAnalysis ?? null,
-          domainComplexity:     lead.domainComplexity ?? null,
-          faqDetection:         auditData?.pagespeed?.hasFAQ         ?? null,
-          contactFormDetection: auditData?.pagespeed?.hasContactForm  ?? null,
-          // Social / Community Manager
-          socialMediaActivity: {
-            instagramActivity: auditData?.instagramActivity ?? null,
-            facebookActivity:  auditData?.facebookActivity  ?? null,
-          },
-          instagramDeep: auditData?.instagramDeep ?? null,
-          // Designer
-          googleAudit:   lead.googleAudit ?? null,
-          // Web Dev
-          cms:           auditData?.pagespeed?.cms?.cms ?? null,
-          hasHttps:      auditData?.pagespeed?.https    ?? null,
-          hasSitemap:    auditData?.pagespeed?.sitemap  ?? null,
-          hasRobots:     auditData?.pagespeed?.robots   ?? null,
-          domainAge:     auditData?.pagespeed?.domainAge    ?? null,
-          indexedPages:  auditData?.pagespeed?.indexedPages ?? null,
-          // Email Marketing
-          ownerReplyRatio:     lead.ownerReplyRatio ?? null,
-          hasNewsletter:       social?.newsletterDetection?.hasNewsletter ?? auditData?.pagespeed?.siteSignals?.hasNewsletter ?? null,
-          hasContactForm:      auditData?.pagespeed?.siteSignals?.hasContactForm ?? social?.contactFormDetection?.hasContactForm ?? null,
-          loyaltyMentions, loyaltyTopics,
-          unansweredCount, totalReviewsFull,
-          ownerReplyRatioFull: ownerReplyRatioFull ?? lead.ownerReplyRatio ?? null,
-          visitFrequency, businessStability, canInvest,
-          aiReport: aiReportSummary,
-          // Google Ads
-          hasDescription: lead.googleAudit?.hasDescription ?? false,
-          hasHours:       lead.googleAudit?.hasHours       ?? false,
-          semrushData:    semrushData ?? null,
-        }),
-      })
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}))
-        throw new Error(err.error ?? `Erreur serveur ${r.status}`)
-      }
-      const prospectAuditResult = await r.json()
-      setProspectAudit(prospectAuditResult)
-      setProspectAuditState('done')
-
-      // Step 2 — generate PDF with AI content, dispatch by profile
-      switch (profileId) {
-        case 'photographe':
-          await exportAuditPhotographePDF({ lead, activeProfile, photoAudit: prospectAuditResult, auditData })
-          break
-        case 'chatbot':
-        case 'dev-chatbot':
-          await exportAuditChatbotPDF({ lead, activeProfile, chatbotAudit: prospectAuditResult, reviewsData, auditData })
-          break
-        case 'social-media':
-          await exportAuditSocialMediaPDF({ lead, activeProfile, socialAudit: prospectAuditResult, auditData, city: leadCity })
-          break
-        case 'designer':
-          await exportAuditDesignerPDF({ lead, activeProfile, designerAudit: prospectAuditResult, auditData })
-          break
-        case 'dev-web':
-          await exportAuditWebDevPDF({ lead, activeProfile, webDevAudit: prospectAuditResult, auditData, visualAnalysis })
-          break
-        case 'email-marketing':
-          await exportAuditEmailMarketingPDF({ lead, activeProfile, emailAudit: prospectAuditResult, auditData, reviewsData, visitFrequency, businessStability, canInvest, loyaltyTopics, aiReportSummary })
-          break
-        case 'pub-google':
-          await exportAuditGoogleAdsPDF({ lead, activeProfile, googleAdsAudit: prospectAuditResult, auditData })
-          break
-        default:
-          await exportAuditPDF({ lead, activeProfile, activeWeights, aiReport, auditData, prospectAudit: prospectAuditResult })
-          break
-      }
-    } catch (err) {
-      console.error('[AuditPDF]', err)
-      setProspectAuditState('error')
-      setAuditPdfError(err.message ?? 'Erreur inconnue')
-    } finally {
-      setAuditPdfLoading(false)
     }
   }
 
@@ -3999,70 +3720,18 @@ Bien cordialement,
             </div>
           )}
 
-          {/* ── ANALYSE DES AVIS ── */}
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#1D6E55', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(29,110,85,0.12)' }}>
-              Analyse des Avis
-            </div>
-
-            {/* AI results */}
-            {aiState === 'done' && aiReport && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ background: 'rgba(29,110,85,0.12)', border: '1px solid rgba(29,110,85,0.35)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#1d6e55', fontFamily: 'var(--font-body)' }}>
-                    ✅ Analyse terminée — consultez le rapport PDF pour voir les résultats détaillés.
-                  </span>
-                </div>
-                <button
-                  className="ld-btn"
-                  onClick={handleExportPDF}
-                  disabled={pdfLoading}
-                  style={{ width: '100%', height: 32, borderRadius: 9, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: pdfLoading ? '#475569' : 'rgba(255,255,255,0.48)', fontSize: 12, fontWeight: 500, cursor: pdfLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
-                  onMouseEnter={e => { if (!pdfLoading) { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' } }}
-                  onMouseLeave={e => { e.currentTarget.style.color = pdfLoading ? '#475569' : 'rgba(255,255,255,0.48)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}>
-                  {pdfLoading ? '⏳ Génération en cours…' : '↓ Télécharger le rapport PDF'}
-                </button>
-              </div>
-            )}
-
-            {/* Error message */}
-            {aiState === 'error' && aiError && (
-              <div style={{ fontSize: 11, color: '#ef4444', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 7, padding: '8px 10px', marginBottom: 8 }}>
-                ⚠ {aiError}
-                <button onClick={() => setAiState('idle')} style={{ marginLeft: 8, fontSize: 10, color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Réessayer</button>
-              </div>
-            )}
-
-            {/* Load / analyze button */}
-            {aiState !== 'done' && (
-              <button
-                className="ld-btn"
-                onClick={reviewsState === 'done' ? handleAnalyzeAI : handleLoadReviews}
-                disabled={reviewsState === 'loading' || aiState === 'loading'}
-                style={{ width: '100%', height: 40, borderRadius: 10, border: '1px solid rgba(29,110,85,0.25)', background: 'rgba(29,110,85,0.12)', color: reviewsState === 'loading' || aiState === 'loading' ? '#64748b' : '#1d6e55', fontSize: 12, fontWeight: 500, cursor: reviewsState === 'loading' || aiState === 'loading' ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 10 }}>
-                {reviewsState === 'loading' && '⏳ Chargement des avis…'}
-                {aiState === 'loading' && '✨ Analyse IA en cours…'}
-                {reviewsState !== 'loading' && aiState !== 'loading' && (reviewsState === 'done' ? "Analyser avec l'IA — 1 crédit" : 'Charger et analyser 300 avis — 2 crédits')}
-              </button>
-            )}
-
-            {/* Basic reviews preview (no AI yet) */}
-            {aiState !== 'done' && lead.google?.reviews?.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {lead.google.reviews.slice(0, 2).map((review, i) => (
-                  <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 7, padding: '8px 10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                      <Stars rating={review.rating} size={10} />
-                      <span style={{ fontSize: 10.5, color: '#475569' }}>{review.author}</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5 }}>
-                      {review.text?.substring(0, 100)}{(review.text?.length || 0) > 100 ? '…' : ''}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <ReviewsSection
+            lead={lead}
+            reviewsState={reviewsState}   setReviewsState={setReviewsState}
+            reviewsData={reviewsData}     setReviewsData={setReviewsData}
+            aiState={aiState}             setAiState={setAiState}
+            aiError={aiError}
+            aiReport={aiReport}
+            pdfLoading={pdfLoading}
+            onExportPDF={handleExportPDF}
+            onReviewsLoaded={handleAnalyzeAI}
+            onAnalyzeAI={handleAnalyzeAI}
+          />
 
           {/* ── DONNÉES FINANCIÈRES ── */}
           <div style={{ marginBottom: 20 }}>
@@ -4109,65 +3778,23 @@ Bien cordialement,
             <div style={{ marginBottom: 20, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#64748b' }}>Audit en cours…</div>
           )}
 
-          {/* ── EMAIL IA ── */}
+          {/* ── EMAIL IA + AUDIT PDF ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
 
-            {/* Generate email button */}
-            {(() => {
-              const VISUAL_PROFILES = ['photographe', 'designer', 'copywriter']
-              const AUDIT_PROFILES  = ['seo', 'consultant-seo', 'dev-web', 'pub-google']
-              const pid = activeProfile?.id
-              const visualBlocked = VISUAL_PROFILES.includes(pid) && !!visualError && (visualError.includes('bloque') || visualError.includes('indisponible') || visualError.includes('ne permet pas'))
-              const step2Done = VISUAL_PROFILES.includes(pid)
-                ? visualAnalysis !== null || visualBlocked
-                : AUDIT_PROFILES.includes(pid) ? auditState === 'done' : null
-              const hasStep2 = step2Done !== null
-              const emailReady = aiReport && (!hasStep2 || step2Done)
-              const emailDisabled = aiEmailState === 'loading' || !emailReady
-              let emailLabel = '✦ Générer email IA — 1 crédit'
-              if (aiEmailState === 'loading') emailLabel = '✨ Génération en cours…'
-              else if (!aiReport) emailLabel = '✦ Générer l\'email — analysez d\'abord les avis'
-              else if (hasStep2 && !step2Done) emailLabel = '✦ Générer l\'email — analysez d\'abord le site'
-              return (
-                <>
-                  <button
-                    className="ld-btn"
-                    onClick={emailReady ? handleGenerateAIEmail : undefined}
-                    disabled={emailDisabled}
-                    style={{ width: '100%', height: 48, borderRadius: 14, border: emailDisabled ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(255,255,255,0.28)', background: emailDisabled ? 'rgba(255,255,255,0.03)' : 'linear-gradient(to bottom, rgba(29,110,85,0.92), rgba(29,110,85,0.72))', color: emailDisabled ? '#475569' : '#edfa36', fontSize: 13, fontWeight: 700, cursor: emailDisabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: !emailDisabled ? '0px 6px 20px rgba(29,110,85,0.55)' : 'none', position: 'relative', overflow: 'hidden', transition: 'all 0.15s' }}>
-                    {!emailDisabled && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 20, background: 'linear-gradient(to bottom, rgba(255,255,255,0.2), transparent)', borderRadius: '14px 14px 0 0', pointerEvents: 'none' }} />}
-                    {emailLabel}
-                  </button>
-                  {visualBlocked && (
-                    <div style={{ fontSize: 10, color: '#475569', textAlign: 'center', marginTop: 5, lineHeight: 1.4 }}>
-                      Analyse visuelle indisponible — email généré sans données visuelles du site
-                    </div>
-                  )}
-                </>
-              )
-            })()}
-
-            {/* Generated email display — shown below the button after generation */}
-            {aiEmailState === 'done' && aiEmail && (
-              <div style={{ background: 'rgba(29,110,85,0.06)', border: '1px solid rgba(29,110,85,0.20)', borderRadius: 10, padding: '13px 14px' }}>
-                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: '#1D6E55', marginBottom: 9 }}>Email généré</div>
-                {aiEmail.subject && (
-                  <div style={{ fontSize: 11.5, fontWeight: 600, color: '#f1f5f9', marginBottom: 7, lineHeight: 1.4 }}>Objet : {aiEmail.subject}</div>
-                )}
-                <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.65, maxHeight: 180, overflowY: 'auto', whiteSpace: 'pre-wrap', marginBottom: 9, scrollbarWidth: 'thin', scrollbarColor: '#2d3748 transparent' }}>
-                  {aiEmail.body}
-                </div>
-                <button className="ld-btn" onClick={() => { navigator.clipboard.writeText(`${aiEmail.subject}\n\n${aiEmail.body}`); setCopiedEmail(true); setTimeout(() => setCopiedEmail(false), 2000) }} style={{ width: '100%', height: 30, borderRadius: 6, border: '1px solid rgba(29,110,85,0.25)', background: 'transparent', color: copiedEmail ? '#22c55e' : '#EDFA36', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
-                  {copiedEmail ? '✓ Copié !' : '📋 Copier'}
-                </button>
-              </div>
-            )}
-            {aiEmailState === 'error' && (
-              <div style={{ fontSize: 11, color: '#f87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, padding: '8px 10px' }}>
-                ✗ Erreur lors de la génération — vérifiez la console ou réessayez.
-                <button onClick={() => setAiEmailState('idle')} style={{ marginLeft: 8, fontSize: 10, color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Réessayer</button>
-              </div>
-            )}
+            <AIEmailGenerator
+              key={leadId}
+              lead={lead}
+              activeProfile={activeProfile}
+              aiReport={aiReport}
+              aiEmail={aiEmail}
+              onEmailGenerated={setAiEmail}
+              visualAnalysis={visualAnalysis}
+              visualError={visualError}
+              auditState={auditState}
+              auditData={auditData}
+              reviewsData={reviewsData}
+              photoQuality={photoQuality}
+            />
 
             {/* Export PDF */}
             <button
@@ -4181,28 +3808,17 @@ Bien cordialement,
             </button>
 
             {/* Audit PDF — bouton universel pour tous les profils */}
-            <>
-              <button
-                className="ld-btn"
-                onClick={handleExportAuditPDF}
-                disabled={auditPdfLoading || prospectAuditState === 'loading'}
-                style={{ width: '100%', height: 32, borderRadius: 10, border: '1px solid rgba(237,250,54,0.3)', background: 'rgba(237,250,54,0.15)', color: (auditPdfLoading || prospectAuditState === 'loading') ? '#475569' : '#edfa36', fontSize: 12, fontWeight: 600, cursor: (auditPdfLoading || prospectAuditState === 'loading') ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
-                onMouseEnter={e => { if (!auditPdfLoading && prospectAuditState !== 'loading') { e.currentTarget.style.background = 'rgba(237,250,54,0.22)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.5)' } }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(237,250,54,0.15)'; e.currentTarget.style.borderColor = 'rgba(237,250,54,0.3)' }}>
-                {prospectAuditState === 'loading' ? '⏳ Génération de l\'audit…' : auditPdfLoading ? '⏳ Mise en page PDF…' : prospectAuditState === 'done' ? '✅ Audit téléchargé' : (AUDIT_LABEL[activeProfile?.id] ?? "Générer l'audit prospect — 2 crédits")}
-              </button>
-              {auditPdfError && (
-                <div style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 5, lineHeight: 1.4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span>✗ {auditPdfError}</span>
-                  <button onClick={() => { setProspectAuditState('idle'); setAuditPdfError(null) }} style={{ fontSize: 10, color: '#EDFA36', background: 'none', border: '1px solid rgba(29,110,85,0.25)', borderRadius: 5, padding: '2px 8px', cursor: 'pointer', marginLeft: 8 }}>Réessayer</button>
-                </div>
-              )}
-              {prospectAuditState === 'done' && (
-                <button onClick={() => { setProspectAuditState('idle'); setProspectAudit(null) }} style={{ width: '100%', marginTop: 4, fontSize: 10, color: '#64748b', background: 'none', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, padding: '4px 0', cursor: 'pointer' }}>
-                  ↺ Regénérer l'audit
-                </button>
-              )}
-            </>
+            <AuditPanel
+              key={leadId}
+              lead={lead}
+              activeProfile={activeProfile}
+              activeWeights={activeWeights}
+              aiReport={aiReport}
+              auditData={auditData}
+              reviewsData={reviewsData}
+              semrushData={semrushData}
+              visualAnalysis={visualAnalysis}
+            />
 
           </div>
 
