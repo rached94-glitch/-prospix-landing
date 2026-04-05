@@ -43,6 +43,7 @@ function reviewScore(total) {
 
 // ── Présence digitale → score /100 ───────────────────────────────────────────
 function presenceScore(website, social) {
+  if (!social || typeof social !== 'object') social = {}
   let pts = 0
   if (sitePresent(website))    pts += 40
   if (social.facebook)         pts += 20
@@ -54,6 +55,7 @@ function presenceScore(website, social) {
 
 // ── Opportunité → score /100 ─────────────────────────────────────────────────
 function opportunityScore(website, social) {
+  if (!social || typeof social !== 'object') social = {}
   const hasWebsite = sitePresent(website)
   if (!hasWebsite) return 100
 
