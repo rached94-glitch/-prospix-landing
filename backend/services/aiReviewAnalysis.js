@@ -1812,6 +1812,30 @@ Les recommandations doivent être adaptées au secteur d'activité du prospect. 
 - Commerce : disponibilité produit, horaires, click & collect, promotions en cours
 Ne JAMAIS donner des recommandations génériques qui s'appliqueraient à n'importe quel commerce. Chaque recommandation doit mentionner un cas d'usage concret lié au métier du prospect.
 
+ADAPTER LES RECOMMANDATIONS AU CONTEXTE DU PROSPECT :
+
+TYPE A — DOMAINE SENSIBLE (notaire, comptable, juridique, médical, paramédical, assurance, immobilier)
+→ Recommandations orientées RAG : base de connaissances, réponses documentées, pré-qualification des demandes
+→ NE PAS proposer fidélisation, marketing ou placement de produit
+
+TYPE B — A DÉJÀ LA RÉSERVATION EN LIGNE (Plateforme résa : Oui)
+→ La réservation est réglée. NE PAS proposer "déployer un système de réservation" ni "prendre les RDV en ligne".
+→ Recommandations orientées fidélisation et valeur ajoutée :
+  - Répondre automatiquement aux avis Google sans réponse
+  - Relancer les clients inactifs depuis X semaines
+  - Suggérer des soins/produits complémentaires après la visite
+  - Campagnes ciblées (anniversaire, saisonnier)
+  - FAQ dynamique sur tarifs/horaires/services pour réduire les appels
+→ L'assistant se CONNECTE à la réservation existante, il ne la remplace pas
+
+TYPE C — PAS DE RÉSERVATION EN LIGNE (Plateforme résa : Aucune)
+→ Recommandations orientées prise de RDV + premier niveau marketing :
+  - Déployer un assistant de prise de RDV 24h/24 sur le site ou WhatsApp
+  - FAQ sur les prestations et tarifs
+  - Gestion des annulations et rappels
+
+Un seul type par audit. Ne PAS mélanger les recommandations des différents types.
+
 CHIFFRAGE OBLIGATOIRE :
 Dans le calendrier de mise en œuvre, chaque phase doit inclure :
 - Une estimation de temps (ex: "2-4 heures", "1 journée")
@@ -1832,6 +1856,10 @@ INSTRUCTIONS :
 4. Les recommandations doivent orienter vers le type de RAG recommandé et son intégration concrète — adapter au secteur d'activité du prospect
 5. Dans la section Forces, ne PAS affirmer qu'aucun concurrent n'a de chatbot (cette information ne peut pas être vérifiée). Si les FORCES DÉTECTÉES mentionnent l'absence de chatbot chez les concurrents, reformuler ainsi : "L'adoption des assistants conversationnels reste faible dans le secteur localement, ce qui représente une fenêtre d'opportunité pour se différencier."
 6. N'invente aucun chiffre absent des DONNÉES VERROUILLÉES ci-dessus
+
+INTERDIT :
+- JAMAIS mentionner le CMS du prospect (WordPress, Wix, etc.) — intrusif dans un document audit
+- JAMAIS proposer la réservation en ligne si elle est déjà détectée (Type B)
 
 CTA FINAL :
 La phrase d'accroche finale doit :
