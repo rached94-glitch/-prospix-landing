@@ -13,9 +13,34 @@ const SOCIAL_CONFIG = [
   { key: 'tiktok',    label: 'TikTok',    icon: '🎵' },
 ]
 
+// LRU cache helper — max 30 entrées, évite la croissance illimitée en mémoire
+function createLRUCache(maxSize = 30) {
+  const cache = new Map()
+  return {
+    get(key) {
+      if (!cache.has(key)) return undefined
+      const value = cache.get(key)
+      cache.delete(key)
+      cache.set(key, value)
+      return value
+    },
+    set(key, value) {
+      if (cache.has(key)) {
+        cache.delete(key)
+      } else if (cache.size >= maxSize) {
+        const firstKey = cache.keys().next().value
+        cache.delete(firstKey)
+      }
+      cache.set(key, value)
+    },
+    has(key) { return cache.has(key) },
+    clear()  { cache.clear() },
+  }
+}
+
 // Module-level cache: avoids re-calling Anthropic API on every click
-const aiCache   = {} // { [placeId]: analysisResult }
-const auditCache = {} // { [website]: auditData } — évite les appels PageSpeed répétés
+const aiCache    = createLRUCache(30) // { [placeId::profileId]: analysisResult }
+const auditCache = createLRUCache(30) // { [website]: auditData } — évite les appels PageSpeed répétés
 
 const SCORE_BREAKDOWN = [
   { key: 'googleRating',      label: 'Note Google',        color: '#f59e0b' },
@@ -181,9 +206,9 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
     const placeKey    = (lead?._id ?? lead?.id ?? '').replace(/^ChIJ/, '')
     const profileKey  = activeProfile?.id ?? 'default'
     const cacheKey    = `${placeKey}::${profileKey}`
-    if (placeKey && aiCache[cacheKey]) {
+    if (placeKey && aiCache.has(cacheKey)) {
       setAiState('done')
-      setAiReport(aiCache[cacheKey])
+      setAiReport(aiCache.get(cacheKey))
       setWide(true)
     } else {
       setAiState('idle')
@@ -217,8 +242,8 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
     setPhotoQualityLoading(false)
     // Audit digital (PageSpeed + social) — chargé à la demande, sauf si cache dispo
     const auditKey = lead?.website || lead?.social?.facebook || lead?.social?.instagram || null
-    if (auditKey && auditCache[auditKey]) {
-      setAuditData(auditCache[auditKey])
+    if (auditKey && auditCache.has(auditKey)) {
+      setAuditData(auditCache.get(auditKey))
       setAuditState('done')
     } else {
       setAuditData(null)
@@ -296,7 +321,7 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
       console.log('[Audit] facebookActivity:', d?.facebookActivity)
       console.log('[Audit] instagramActivity:', d?.instagramActivity)
       const auditKey = lead.website || lead.social?.facebook || lead.social?.instagram
-      if (auditKey) auditCache[auditKey] = d
+      if (auditKey) auditCache.set(auditKey, d)
       setAuditData(d)
       setAuditState('done')
 
@@ -548,8 +573,8 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
     const placeId = (lead._id ?? lead.id).replace(/^ChIJ/, '')
 
     // Serve from cache if available
-    if (aiCache[placeId]) {
-      setAiReport(aiCache[placeId])
+    if (aiCache.has(placeId)) {
+      setAiReport(aiCache.get(placeId))
       setAiState('done')
       return
     }
@@ -583,7 +608,7 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erreur serveur')
-      aiCache[cacheFullKey] = data // cache per lead + profile
+      aiCache.set(cacheFullKey, data) // cache per lead + profile
       setAiReport(data)
       setAiState('done')
       try { playSuccess() } catch (_) {}
