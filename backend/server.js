@@ -16,7 +16,18 @@ const cacheRoutes  = require('./routes/cache');
 
 const app = express();
 
-app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'] }));
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'];
+
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('CORS non autorisé pour cette origine: ' + origin));
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 app.use('/api/leads', leadsRoutes);
