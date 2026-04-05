@@ -1764,7 +1764,14 @@ async function generateAuditChatbot({ businessName, websiteUrl, chatbotDetection
   const prompt = `Tu es un développeur IA spécialisé dans les assistants conversationnels pour commerces locaux. Rédige un audit chatbot pour "${name}".
 Ton : expert technique, factuel, bienveillant — jamais alarmiste, jamais vendeur.
 
-RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
+RÈGLE ANTI-MARQUES ABSOLUE :
+- Ne JAMAIS citer de nom de marque dans l'audit : ni Planity, ni Doctolib, ni TheFork, ni Crisp, ni Tidio, ni Intercom, ni aucune autre.
+- Interdit également : Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Semrush, Ahrefs, etc.
+- Si une plateforme de réservation est détectée, dire "plateforme de réservation en ligne existante" ou "solution de prise de rendez-vous déjà active".
+- Dans le type de RAG recommandé, écrire "Assistant connecté à la réservation en ligne" au lieu de tout nom de plateforme spécifique.
+- Dans les KPIs : remplacer tout nom de plateforme par "✓ Détectée" pour la ligne "Réservation en ligne".
+- Si les FORCES DÉTECTÉES ci-dessous contiennent un nom de plateforme ou de marque, réécrire la force avec des termes génériques uniquement.
+- Cette règle s'applique à TOUT le document sans exception.
 
 DONNÉES VERROUILLÉES — N'UTILISE QUE CES CHIFFRES :
 - Nom               : ${name}
@@ -1773,14 +1780,14 @@ DONNÉES VERROUILLÉES — N'UTILISE QUE CES CHIFFRES :
 - Note Google       : ${rating ?? '—'}/5 (${reviewCount ?? '—'} avis)
 - Avis sans réponse : ${unanswered}
 - Mots-clés avis    : ${keywordsText}
-- Chatbot existant  : ${hasChatbot ? `Oui (${chatbotTool ?? 'outil non identifié'})` : 'Non'}
-- Plateforme résa   : ${bookingPlatform ?? 'Aucune détectée'}
+- Chatbot existant  : ${hasChatbot ? 'Oui (outil non identifié)' : 'Non'}
+- Plateforme résa   : ${bookingPlatform ? 'Oui (plateforme de réservation en ligne détectée)' : 'Aucune détectée'}
 - Questions dans avis : ${questionCount} (${questionRatio}% des avis contiennent une question)
 - Sujets récurrents : ${topicsText}
 - FAQ sur site      : ${hasFAQ ? 'Oui' : 'Non'}
 - Formulaire contact : ${hasContactForm ? 'Oui' : 'Non'}
 - Complexité domaine : ${complexity}
-- Type RAG recommandé : ${ragType}
+- Type RAG recommandé : ${bookingPlatform ? 'Assistant connecté à la réservation en ligne' : ragType}
 
 FORCES DÉTECTÉES (base de départ obligatoire) :
 ${forcesHints.map(f => `- ${f}`).join('\n')}
@@ -1788,16 +1795,46 @@ ${forcesHints.map(f => `- ${f}`).join('\n')}
 FAIBLESSES IDENTIFIÉES (points à traiter) :
 ${weaknessHints.map(w => `- ${w}`).join('\n') || '- Aucune faiblesse majeure identifiée'}
 
+PERSONNALISATION SECTORIELLE OBLIGATOIRE :
+Les recommandations doivent être adaptées au secteur d'activité du prospect. Exemples :
+- Institut de beauté / coiffeur : prise de RDV par type de soin, gestion des annulations, rappels automatiques, vente de produits/cartes cadeaux, suggestion de soins complémentaires
+- Restaurant : réservation de table, commande à emporter, menu du jour, gestion des allergies, événements privés
+- Médical/paramédical : pré-qualification des motifs de consultation, rappels de rendez-vous, documents à préparer
+- Artisan/BTP : qualification du besoin (type de travaux, budget, délai), prise de rendez-vous pour devis, suivi de chantier
+- Commerce : disponibilité produit, horaires, click & collect, promotions en cours
+Ne JAMAIS donner des recommandations génériques qui s'appliqueraient à n'importe quel commerce. Chaque recommandation doit mentionner un cas d'usage concret lié au métier du prospect.
+
+CHIFFRAGE OBLIGATOIRE :
+Dans le calendrier de mise en œuvre, chaque phase doit inclure :
+- Une estimation de temps (ex: "2-4 heures", "1 journée")
+- Un niveau d'effort (ex: "configuration simple", "nécessite un prestataire technique")
+- Un indicateur de résultat attendu mesurable (ex: "réduction de 30-50% des appels pour prise de RDV")
+Dans la section recommandations, ajouter pour chaque recommandation un niveau de priorité (Haute/Moyenne/Basse) et un impact estimé.
+
+EXPLICATION DU SCORE :
+Dans le champ "comprendre_votre_score", expliquer en 2-3 phrases :
+- Le score est calculé sur 100 points répartis entre : volume et qualité des avis (10%), signaux d'automatisation existants (10%), complexité du domaine (10%), potentiel d'impact d'un chatbot (70%)
+- Un score bas signifie un fort potentiel d'amélioration, pas une mauvaise performance
+- Rappeler les 2-3 facteurs principaux qui ont influencé le score du prospect
+
 INSTRUCTIONS :
 1. Commence toujours par les forces — ne jamais ouvrir sur les problèmes
 2. Les faiblesses doivent être factuelles et directement tirées des données ci-dessus
 3. Les opportunités = bénéfices concrets d'un assistant IA (réduction charge manuelle, disponibilité 24h/24, qualification automatique des leads)
-4. Les recommandations doivent orienter vers le type de RAG recommandé (${ragType}) et son intégration concrète
-5. L'accroche est une phrase courte et percutante pour l'email — jamais "j'ai analysé", jamais de liste
+4. Les recommandations doivent orienter vers le type de RAG recommandé et son intégration concrète — adapter au secteur d'activité du prospect
+5. Dans la section Forces, ne PAS affirmer qu'aucun concurrent n'a de chatbot (cette information ne peut pas être vérifiée). Si les FORCES DÉTECTÉES mentionnent l'absence de chatbot chez les concurrents, reformuler ainsi : "L'adoption des assistants conversationnels reste faible dans le secteur localement, ce qui représente une fenêtre d'opportunité pour se différencier."
 6. N'invente aucun chiffre absent des DONNÉES VERROUILLÉES ci-dessus
+
+CTA FINAL :
+La phrase d'accroche finale doit :
+- Reprendre LE problème concret principal identifié (ex: "Chaque semaine, votre équipe traite manuellement des dizaines de demandes d'horaires et de disponibilités")
+- Quantifier l'impact quand c'est possible (ex: "15 avis sans réponse représentent autant d'occasions manquées de fidéliser")
+- Terminer par : "Échangeons 15 minutes sur vos priorités — sans engagement."
+(pas "Discutons de vos priorités" qui est trop vague)
 
 LIMITES STRICTES DE LONGUEUR — OBLIGATOIRE :
 - resume_executif : maximum 4 phrases courtes
+- comprendre_votre_score : maximum 3 phrases
 - forces : exactement 3 entrées maximum
 - faiblesses : exactement 3 entrées maximum
 - opportunites : exactement 3 entrées maximum
@@ -1805,7 +1842,7 @@ LIMITES STRICTES DE LONGUEUR — OBLIGATOIRE :
 - Chaque titre : maximum 10 mots
 - Chaque description : maximum 2 phrases
 - accroche : 1 seule phrase
-- Sois CONCIS. Le JSON total doit faire moins de 4000 caractères.
+- Sois CONCIS. Le JSON total doit faire moins de 4500 caractères.
 ${AUDIT_RULES_BLOCK}
 
 IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide. Pas de texte avant, pas de texte après, pas de markdown, pas de \`\`\`json.
@@ -1813,13 +1850,14 @@ IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide. Pas de texte avant, pa
 Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
 {
   "resume_executif": "3-4 phrases courtes max",
+  "comprendre_votre_score": "2-3 phrases expliquant le score et ses facteurs principaux",
   "forces": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
   "faiblesses": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
   "opportunites": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
-  "recommandations": [{"titre": "max 10 mots", "description": "max 2 phrases", "priorite": 1}],
-  "accroche": "1 seule phrase factuelle — jamais de promesses marketing",
+  "recommandations": [{"titre": "max 10 mots", "description": "max 2 phrases", "priorite": "Haute|Moyenne|Basse", "impact": "indicateur mesurable"}],
+  "accroche": "phrase factuelle reprenant le problème principal — se termine par 'Échangeons 15 minutes sur vos priorités — sans engagement.'",
   "comparaison_concurrents": {"position": "...", "avantages": ["..."], "retards": ["..."]},
-  "timeline": {"semaine_1": "...", "semaine_2_3": "...", "mois_2_3": "..."},
+  "timeline": {"semaine_1": "action + durée estimée + effort + résultat attendu", "semaine_2_3": "...", "mois_2_3": "..."},
   "titre_audit": "Audit Chatbot & IA Conversationnelle"
 }`
 
