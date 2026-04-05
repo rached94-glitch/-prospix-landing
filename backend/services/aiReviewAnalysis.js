@@ -1068,6 +1068,36 @@ DONNÉES DU PROSPECT :
 - Réservation en ligne : ${bookingPlatform ? 'détectée' : 'absente'}
 - Secteur : ${category}
 
+CHOIX DE L'ANGLE — Adapter l'offre au contexte du prospect.
+
+ÉTAPE 1 — Identifier le type de prospect :
+
+TYPE A — DOMAINE SENSIBLE (notaire, comptable, juridique, médical, paramédical, assurance, immobilier)
+→ L'offre est un assistant RAG / base de connaissances
+→ Angle : les clients posent des questions complexes (tarifs, procédures, documents nécessaires, délais) → un assistant formé sur les données du cabinet répond avec fiabilité 24h/24
+→ Ne PAS parler de chatbot commercial, fidélisation ou marketing — c'est hors sujet pour ces métiers
+→ Vocabulaire : "assistant", "base de connaissances", "réponses documentées"
+
+TYPE B — A DÉJÀ LA RÉSERVATION EN LIGNE (Réservation en ligne = détectée)
+→ La réservation est réglée. L'offre est l'étape d'après :
+  - Fidélisation : relance des clients qui ne sont pas revenus depuis X mois
+  - Email marketing : campagnes ciblées (anniversaire, nouvelle prestation, promotion saisonnière)
+  - Placement de produit : suggestion de soins complémentaires ou produits après la visite
+  - Réponse automatique aux avis Google
+→ Angle : "Vous avez la réservation, mais que faites-vous pour que vos clientes reviennent ?"
+→ Utiliser unansweredReviews et reviewThemes comme preuve que la relation post-visite n'est pas gérée
+
+TYPE C — PAS DE RÉSERVATION EN LIGNE (Réservation en ligne = absente)
+→ L'offre est une infrastructure complète : chatbot + prise de RDV + premier niveau de marketing
+→ Angle : chaque client hors horaires est un RDV perdu
+→ Vocabulaire : "prendre les RDV depuis votre site ou WhatsApp", "disponible 24h/24"
+
+ÉTAPE 2 — Rédiger l'email selon le type identifié.
+
+Un seul angle. Pas de mélange entre les types.
+Si le prospect est Type B, NE PAS parler de prise de RDV.
+Si le prospect est Type A, NE PAS parler de fidélisation ou marketing.
+
 FORMAT :
 
 OBJET : [Nom du commerce] + un fait concret des données. JAMAIS vague.
@@ -1078,10 +1108,7 @@ Ligne 1 — Fait concret tiré des données. JAMAIS dire "j'ai lu vos X avis". D
 
 Lignes 2-3 — Problème concret pour CE commerce avec SES chiffres.
 
-Lignes 4-5 — Solution adaptée :
-- Si réservation détectée : "Un assistant connecté à votre outil de réservation existant..."
-- Si réservation absente : "Un assistant qui prend les RDV depuis votre site ou WhatsApp..."
-- 2-3 cas d'usage spécifiques au secteur (beauté : type de soin, durée, tarif / restaurant : table, menu, allergies / médical : motif, documents)
+Lignes 4-5 — Solution adaptée au type de prospect identifié à l'Étape 1.
 
 Ligne 6 — CTA question directe. "Ça vous dirait que je vous montre en 10 minutes ?"
 
@@ -1095,6 +1122,8 @@ INTERDIT :
 - Paragraphe technique sur l'IA
 - Plus de 8 lignes
 - Inventer une donnée qui n'est pas dans les paramètres
+- Mentionner le CMS du prospect (WordPress, Wix, etc.) — intrusif en premier contact
+- Dire "vos clients posent les mêmes questions" si les données viennent des thèmes récurrents — les thèmes (tarif, horaires, services) sont des MENTIONS dans les avis, pas des questions. Utiliser "vos avis reviennent régulièrement sur [thèmes]". Réserver le mot "questions" uniquement si questionsInReviews contient des données réelles.
 
 Retourne UNIQUEMENT un JSON valide :
 {"subject":"...","body":"Corps complet de l'email avec sauts de ligne \\n"}`
