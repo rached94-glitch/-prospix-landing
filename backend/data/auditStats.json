@@ -149,6 +149,44 @@
       "note": "Concerne le bouton Réserver sur la fiche GBP, PAS les chatbots — à utiliser pour argumenter l'importance de la réservation en ligne"
     }
   },
+  "chatbot": {
+    "questions_handled": {
+      "stat": "Les chatbots peuvent gérer jusqu'à 80% des questions courantes des clients (Chatbot.com / industry analysts 2025)",
+      "context": ["chatbot"],
+      "forbidden_context": [],
+      "note": "Stat générale sur la capacité des chatbots à décharger le support humain"
+    },
+    "conversion_lift": {
+      "stat": "Les funnels de conversion intégrant un chatbot affichent un taux de conversion 13% supérieur (SQ Magazine 2025, Digital Marketing Statistics)",
+      "context": ["chatbot"],
+      "forbidden_context": [],
+      "note": "Source : SQ Magazine Digital Marketing Statistics 2025"
+    },
+    "support_automation": {
+      "stat": "65% des demandes de support sont résolues sans intervention humaine grâce à l'automatisation IA (SQ Magazine 2025, Live Chat Statistics)",
+      "context": ["chatbot"],
+      "forbidden_context": [],
+      "note": "Source : SQ Magazine Live Chat Statistics 2025"
+    },
+    "market_size": {
+      "stat": "Le marché mondial des chatbots atteint 9.3 milliards de dollars en 2025, avec une croissance annuelle de 23% (Grand View Research / SQ Magazine 2025)",
+      "context": ["chatbot"],
+      "forbidden_context": [],
+      "note": "Chiffre de marché global — utile pour contextualiser l'adoption, pas pour argumenter un bénéfice direct"
+    },
+    "cart_recovery": {
+      "stat": "Les chatbots récupèrent jusqu'à 35% des paniers abandonnés en e-commerce (Amra and Elma 2025)",
+      "context": ["chatbot", "email-marketing"],
+      "forbidden_context": [],
+      "note": "Pertinent pour les prospects e-commerce uniquement — ne pas utiliser pour des commerces physiques"
+    },
+    "mobile_local_24h": {
+      "stat": "88% des recherches locales sur mobile aboutissent à un appel ou une visite dans les 24h (Google / Think with Google)",
+      "context": ["chatbot", "seo", "google-ads", "community-manager", "web-dev"],
+      "forbidden_context": [],
+      "note": "Justifie la disponibilité 24/7 d'un assistant conversationnel pour capter ces prospects"
+    }
+  },
   "posts": {
     "recent_posts": {
       "stat": "+21% d'interactions pour les fiches Google avec des posts récents (SQ Magazine 2025)",
