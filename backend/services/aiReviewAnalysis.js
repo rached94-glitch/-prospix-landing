@@ -1,25 +1,36 @@
 const Anthropic = require('@anthropic-ai/sdk')
 const { countQuestionsInReviews, detectLanguages, detectLoyaltyMentions, detectEmailThemes } = require('./reviewAnalysis')
+const auditStatsData = require('../data/auditStats.json')
+
+// ── Filtrage des stats par type d'audit ───────────────────────────────────────
+function getFilteredStats(auditType) {
+  const filtered = []
+  for (const [category, entries] of Object.entries(auditStatsData)) {
+    if (category === 'sources') continue
+    for (const [, item] of Object.entries(entries)) {
+      if (!item || !Array.isArray(item.context)) continue
+      if (item.context.includes(auditType) && !(item.forbidden_context ?? []).includes(auditType)) {
+        filtered.push(item.stat)
+      }
+    }
+  }
+  if (filtered.length === 0) return '— Aucune statistique sectorielle spécifique disponible pour cet audit'
+  return filtered.map(s => `- ${s}`).join('\n')
+}
 
 // ── Bloc de règles commun injecté dans TOUS les generateAudit* ─────────────────
-const AUDIT_RULES_BLOCK = `
+function buildAuditRulesBlock(auditType) {
+  return `
 RÈGLES OBLIGATOIRES POUR CET AUDIT :
 
-A) CHIFFRES D'IMPACT — Utilise UNIQUEMENT ces statistiques vérifiées et sourcées. INTERDICTION ABSOLUE d'inventer des chiffres. Cite TOUJOURS la source entre parenthèses. Choisis uniquement les stats pertinentes pour cet audit :
-- Fiches avec photos : +42% demandes d'itinéraire, +35% clics site (Birdeye 2025)
-- Fiches avec 15+ photos : engagement renforcé sur tous les indicateurs (Birdeye 2025)
-- Profils complets : 7x plus de clics (WebFX 2026)
-- 75% des fiches en top 3 ont une description complète (Localo 2025)
-- Répondre aux avis : +17% de clics vers le site (SQ Magazine 2025)
-- 83% des consommateurs lisent les avis sur Google (BrightLocal 2025)
-- 72% des consommateurs préfèrent un profil complet (SQ Magazine 2025)
-- Chaque nouvel avis : ~80 visites supplémentaires (Birdeye 2025)
-- 48% des recherches locales mènent à une interaction dans les 24h (SQ Magazine 2025)
-- Chaque seconde de chargement en plus : -7% de conversions (Google/Deloitte 2020)
-- Réservation en ligne : 6.3% conversion vs 3.9% sans (SQ Magazine 2025)
-- Posts récents : +21% d'interactions (SQ Magazine 2025)
-- Section FAQ : +13% d'engagement (SQ Magazine 2025)
-Si aucune statistique ne correspond au point abordé, ne mets PAS de chiffre. Mieux vaut pas de chiffre qu'un chiffre inventé.
+A) STATS — RÈGLE STRICTE :
+- Utilise UNIQUEMENT les statistiques fournies ci-dessous. Ne JAMAIS inventer de chiffre.
+- Si aucune stat fournie ne correspond au point que tu veux illustrer, formule l'argument sans chiffre plutôt que d'inventer.
+- Chaque stat utilisée doit être citée avec sa source entre parenthèses.
+- Ne JAMAIS réutiliser une stat dans un contexte différent de celui pour lequel elle a été mesurée (ex: une stat sur les fiches Google ne peut pas servir d'argument pour un chatbot).
+
+STATISTIQUES AUTORISÉES POUR CET AUDIT :
+${getFilteredStats(auditType)}
 
 B) COMPARAISON CONCURRENTS — Ajoute un champ comparaison_concurrents dans le JSON retourné :
 {"position": "Position du prospect vs la moyenne du secteur, basée uniquement sur ses propres données (note, présence digitale, performance) — jamais une affirmation sur ce que les concurrents font ou ne font pas", "avantages": ["max 2 points forts du prospect vs moyenne sectorielle"], "retards": ["max 2 points en retard du prospect vs moyenne sectorielle"]}
@@ -32,6 +43,7 @@ Décris les actions, pas les résultats attendus. Pas de promesses.
 D) ACCROCHE CTA — Le champ accroche doit être factuel et professionnel. INTERDICTION ABSOLUE : "résultats garantis", "en X jours", "multipliez vos revenus", "résultats visibles en 30 jours". Ton de consultant, pas de commercial.
 
 E) TITRE DYNAMIQUE — Ajoute un champ titre_audit dans le JSON avec le titre approprié au type d'audit (ex: "Audit SEO & Visibilité Locale", "Audit Image & Photographie", "Audit Chatbot & IA Conversationnelle", "Audit Community Management & E-Réputation", "Audit Identité Visuelle & Branding", "Audit Technique & Performance Web", "Audit Email Marketing & Fidélisation", "Audit Google Ads & Acquisition Locale", "Audit Contenu & SEO Rédactionnel").`
+}
 
 // ── Note stats à injecter dans TOUS les generateEmail* ────────────────────────
 const EMAIL_STATS_NOTE = `
@@ -1282,7 +1294,7 @@ LIMITES STRICTES DE LONGUEUR — OBLIGATOIRE :
 - Chaque description : maximum 2 phrases
 - accroche : 1 seule phrase
 - Sois CONCIS. Chaque description fait maximum 2 phrases. Le JSON total doit faire moins de 4000 caractères.
-${AUDIT_RULES_BLOCK}
+${buildAuditRulesBlock('seo')}
 
 IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide. Pas de texte avant, pas de texte après, pas de markdown, pas de \`\`\`json.
 
@@ -1477,7 +1489,7 @@ LIMITES STRICTES DE LONGUEUR — OBLIGATOIRE :
 - Chaque description : maximum 2 phrases
 - accroche : 1 seule phrase
 - Sois CONCIS. Le JSON total doit faire moins de 4000 caractères.
-${AUDIT_RULES_BLOCK}
+${buildAuditRulesBlock('photographe')}
 
 IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide. Pas de texte avant, pas de texte après, pas de markdown, pas de \`\`\`json.
 
@@ -1843,7 +1855,7 @@ LIMITES STRICTES DE LONGUEUR — OBLIGATOIRE :
 - Chaque description : maximum 2 phrases
 - accroche : 1 seule phrase
 - Sois CONCIS. Le JSON total doit faire moins de 4500 caractères.
-${AUDIT_RULES_BLOCK}
+${buildAuditRulesBlock('chatbot')}
 
 IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide. Pas de texte avant, pas de texte après, pas de markdown, pas de \`\`\`json.
 
@@ -2008,7 +2020,7 @@ RÈGLES :
 - Les forces/faiblesses intègrent OBLIGATOIREMENT la dimension e-réputation (réponses aux avis)
 - Chaque recommandation doit préciser une action concrète et un résultat attendu
 - Maximum 4000 caractères total pour le JSON
-${AUDIT_RULES_BLOCK}
+${buildAuditRulesBlock('community-manager')}
 
 Retourne UNIQUEMENT ce JSON valide :
 {
@@ -2223,7 +2235,7 @@ ${topQuotes.length > 0 ? `- Citations clients (verbatim) :\n${topQuotes.map(q =>
 ${isRestaurant ? '- Contexte : Restauration — les visuels sont le premier facteur de décision client.' : ''}
 ${isBeauty ? '- Contexte : Beauté — l\'identité visuelle crée la confiance avant le premier contact.' : ''}
 
-${AUDIT_RULES_BLOCK}
+${buildAuditRulesBlock('designer')}
 
 Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
 {
@@ -2452,7 +2464,7 @@ DONNÉES TECHNIQUES :
 - Âge du domaine : ${daLabel ?? '—'}
 - Secteur : ${domain ?? '—'}
 
-${AUDIT_RULES_BLOCK}
+${buildAuditRulesBlock('web-dev')}
 
 Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
 {
@@ -2589,7 +2601,7 @@ PRÉSENCE DIGITALE :
 - Réseaux sociaux actifs : ${nets} réseau${nets !== 1 ? 'x' : ''}${fbFollowers ? ` · Facebook ${fbFollowers} abonnés` : ''}${igFollowers ? ` · Instagram ${igFollowers} abonnés` : ''}
 - Performance site (PageSpeed) : ${pagespeedData?.performance != null ? `${Math.round(pagespeedData.performance <= 1 ? pagespeedData.performance * 100 : pagespeedData.performance)}/100` : '—'}
 ${aiReport ? `\nANALYSE IA DES AVIS :\n${aiReport.slice(0, 600)}\n` : ''}
-${AUDIT_RULES_BLOCK}
+${buildAuditRulesBlock('email-marketing')}
 
 Retourne UNIQUEMENT ce JSON valide (pas de texte avant ou après) :
 {
@@ -2791,7 +2803,7 @@ ${siteBlock}
 
 📱 RÉSEAUX SOCIAUX PRÉSENTS : ${nets}
 
-${AUDIT_RULES_BLOCK}
+${buildAuditRulesBlock('google-ads')}
 
 PRODUIS UNIQUEMENT un JSON valide (sans texte avant ou après) avec cette structure :
 {
