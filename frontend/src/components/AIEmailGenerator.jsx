@@ -65,6 +65,8 @@ export default function AIEmailGenerator({
             photoCount:   lead.googleAudit?.photoCount ?? 0,
             hasInstagram: !!(lead.social?.instagram),
           },
+          // pagespeedData contient siteSignals.bookingPlatform, hasFAQ, cms, etc.
+          pagespeedData:     auditData?.pagespeed         ?? null,
           siteAnalysis:      auditData?.siteAnalysis      ?? null,
           reviewsData:       reviewsData                  ?? null,
           facebookActivity:  auditData?.facebookActivity  ?? null,
@@ -73,7 +75,7 @@ export default function AIEmailGenerator({
           socialPresence:    lead.social                  ?? null,
           decisionMaker:     lead.decisionMaker            ?? null,
           city:              lead.city ?? lead.vicinity    ?? null,
-          category:          lead.types?.[0]               ?? null,
+          category:          lead.keyword ?? lead.domain ?? lead.types?.[0] ?? null,
           napData:           auditData?.napData            ?? null,
         }),
       })

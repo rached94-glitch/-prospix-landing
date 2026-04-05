@@ -1124,6 +1124,10 @@ INTERDIT :
 - Inventer une donnée qui n'est pas dans les paramètres
 - Mentionner le CMS du prospect (WordPress, Wix, etc.) — intrusif en premier contact
 - Dire "vos clients posent les mêmes questions" si les données viennent des thèmes récurrents — les thèmes (tarif, horaires, services) sont des MENTIONS dans les avis, pas des questions. Utiliser "vos avis reviennent régulièrement sur [thèmes]". Réserver le mot "questions" uniquement si questionsInReviews contient des données réelles.
+- Commencer par un compliment ("réputation solide", "beau score", "c'est rare"). Commencer par le problème.
+- Écrire "Ce que je mets en place :" ou "Voici ce que je propose :". C'est une feature list déguisée.
+- Écrire "Résultat :" — intégrer le bénéfice dans la phrase solution.
+- Pour le Type B (réservation existante), ne PAS utiliser unansweredReviews comme preuve — OBLIGATION d'utiliser unansweredReviews : c'est la donnée la plus concrète pour montrer que la relation post-visite n'est pas gérée.
 
 Retourne UNIQUEMENT un JSON valide :
 {"subject":"...","body":"Corps complet de l'email avec sauts de ligne \\n"}`
