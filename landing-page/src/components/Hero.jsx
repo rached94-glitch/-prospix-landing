@@ -65,7 +65,7 @@ export default function Hero() {
             lineHeight: 1.08,
             letterSpacing: '-0.04em',
             color: '#F5F5F0',
-            marginBottom: 12,
+            marginBottom: 16,
           }}
         >
           Trouvez les commerces qui ont{' '}
@@ -89,7 +89,7 @@ export default function Hero() {
             fontStyle: 'italic',
             fontFamily: 'Georgia, serif',
             color: '#EDFA36',
-            marginBottom: 14,
+            marginBottom: 24,
             letterSpacing: '-0.01em',
             opacity: 0.88,
           }}
@@ -104,7 +104,7 @@ export default function Hero() {
             fontSize: 15,
             color: 'rgba(245,245,240,0.54)',
             lineHeight: 1.7,
-            maxWidth: 600, margin: '0 auto 28px',
+            maxWidth: 600, margin: '0 auto 24px',
           }}
         >
           Votre prochain client a un site cassé, pas de SEO, et n'a rien publié depuis 3 mois.
@@ -114,7 +114,7 @@ export default function Hero() {
         {/* Boutons */}
         <motion.div
           variants={item}
-          style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 36 }}
+          style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 16, marginBottom: 48 }}
         >
           <motion.button
             onClick={scrollToWaitlist}
@@ -154,7 +154,7 @@ export default function Hero() {
         {/* Stats rapides */}
         <motion.div
           variants={item}
-          style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '10px 40px', marginBottom: 0 }}
+          style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '10px 40px', marginBottom: 32 }}
         >
           {[
             { val: '10',   lab: 'profils métier' },
@@ -162,8 +162,8 @@ export default function Hero() {
             { val: '120',  lab: 'leads / recherche' },
           ].map((s, i) => (
             <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-              <span style={{ fontSize: 'clamp(24px, 3.5vw, 36px)', fontWeight: 800, color: '#EDFA36', letterSpacing: '-0.03em', lineHeight: 1, textShadow: '0 0 24px rgba(237,250,54,0.35)' }}>{s.val}</span>
-              <span style={{ fontSize: 11, color: 'rgba(245,245,240,0.38)', fontWeight: 500, letterSpacing: '0.02em' }}>{s.lab}</span>
+              <span style={{ fontSize: 'clamp(24px, 3.5vw, 36px)', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.03em', lineHeight: 1 }}>{s.val}</span>
+              <span style={{ fontSize: 11, color: 'rgba(245,245,240,0.5)', fontWeight: 500, letterSpacing: '0.02em' }}>{s.lab}</span>
             </div>
           ))}
         </motion.div>
