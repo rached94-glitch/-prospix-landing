@@ -142,6 +142,17 @@ input, textarea {
   background-clip: text;
 }
 
+/* ── Placeholder color ────────────────────────────── */
+::placeholder {
+  color: rgba(245, 245, 240, 0.3);
+}
+
+/* ── Select option background ─────────────────────── */
+select option {
+  background: #1C2020;
+  color: #F5F5F0;
+}
+
 /* ── Mobile adjustments ───────────────────────────── */
 @media (max-width: 640px) {
   html { font-size: 15px; }

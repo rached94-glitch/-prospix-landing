@@ -1,23 +1,74 @@
 import { useState } from 'react'
-import { useClickSound } from '../hooks/useClickSound'
 
-export default function WaitlistForm({ size = 'normal' }) {
-  const [email,    setEmail]    = useState('')
-  const [referral, setReferral] = useState('')
-  const [status,   setStatus]   = useState('idle') // 'idle' | 'loading' | 'success' | 'error'
-  const playClick = useClickSound()
+const METIERS = [
+  'Consultant SEO',
+  'Développeur Web',
+  'Dev Chatbot & IA',
+  'Photographe',
+  'Community Manager',
+  'Rédacteur SEO',
+  'Vidéaste',
+  'Designer / Branding',
+  'Email Marketing',
+  'Consultant Google Ads',
+  'Autre',
+]
 
-  const isCompact = size === 'compact'
+const STATUTS = ['Freelance', 'Agence / Entreprise', 'Étudiant', 'En reconversion', 'Autre']
+
+const inputStyle = {
+  width: '100%',
+  padding: '12px 16px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.1)',
+  borderRadius: 8,
+  color: '#F5F5F0',
+  fontSize: 14,
+  outline: 'none',
+  transition: 'border-color 0.2s, box-shadow 0.2s',
+  fontFamily: 'DM Sans, system-ui, sans-serif',
+  boxSizing: 'border-box',
+  appearance: 'none',
+  WebkitAppearance: 'none',
+}
+
+function Field({ children }) {
+  return <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>{children}</div>
+}
+
+function Row({ children }) {
+  return (
+    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+      {children}
+    </div>
+  )
+}
+
+export default function WaitlistForm() {
+  const [form, setForm] = useState({
+    email: '', prenom: '', nom: '', metier: '', ville: '', statut: '', referral: '',
+  })
+  const [status, setStatus] = useState('idle') // idle | loading | success | error
+
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+
+  const focusStyle = (e) => {
+    e.target.style.borderColor = 'rgba(29,110,85,0.5)'
+    e.target.style.boxShadow = '0 0 12px rgba(29,110,85,0.2)'
+  }
+  const blurStyle = (e) => {
+    e.target.style.borderColor = 'rgba(255,255,255,0.1)'
+    e.target.style.boxShadow = 'none'
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!email.trim() || status === 'loading') return
-    playClick()
+    if (!form.email.trim() || !form.prenom.trim() || !form.metier) return
     setStatus('loading')
     try {
       // TODO: envoyer vers Google Sheets API
       const entries = JSON.parse(localStorage.getItem('prospix_waitlist') || '[]')
-      entries.push({ email: email.trim(), referral: referral.trim(), date: new Date().toISOString() })
+      entries.push({ ...form, date: new Date().toISOString() })
       localStorage.setItem('prospix_waitlist', JSON.stringify(entries))
       await new Promise(r => setTimeout(r, 600))
       setStatus('success')
@@ -29,17 +80,20 @@ export default function WaitlistForm({ size = 'normal' }) {
   if (status === 'success') {
     return (
       <div style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
-        padding: '22px 28px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+        padding: '28px 32px',
         background: 'rgba(29,110,85,0.12)',
         border: '1px solid rgba(29,110,85,0.3)',
         borderRadius: 14,
         backdropFilter: 'blur(12px)',
         animation: 'fadeSlideUp 0.4s ease forwards',
+        textAlign: 'center',
       }}>
-        <div style={{ fontSize: 30 }}>✅</div>
-        <div style={{ fontSize: 17, fontWeight: 700, color: '#F5F5F0' }}>Merci ! Vous êtes sur la liste.</div>
-        <div style={{ fontSize: 13, color: 'rgba(245,245,240,0.55)', textAlign: 'center', lineHeight: 1.5 }}>
+        <div style={{ fontSize: 32 }}>✅</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: '#F5F5F0' }}>
+          Merci {form.prenom} ! Vous êtes sur la liste.
+        </div>
+        <div style={{ fontSize: 14, color: 'rgba(245,245,240,0.55)', lineHeight: 1.6 }}>
           On vous contacte en priorité au lancement de Prospix.
         </div>
       </div>
@@ -47,113 +101,125 @@ export default function WaitlistForm({ size = 'normal' }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{
-      display: 'flex',
-      flexDirection: isCompact ? 'row' : 'column',
-      gap: isCompact ? 8 : 10,
-      width: '100%',
-    }}>
-      <div style={{
-        display: 'flex',
-        flexDirection: isCompact ? 'row' : 'column',
-        gap: 8,
-        flex: 1,
-      }}>
-        {/* Email input */}
-        <input
-          type="email"
-          required
-          placeholder="votre@email.com"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          style={{
-            flex: 1,
-            padding: isCompact ? '11px 14px' : '13px 16px',
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 10,
-            color: '#F5F5F0',
-            fontSize: 14,
-            outline: 'none',
-            transition: 'border-color 0.2s, box-shadow 0.2s',
-            fontFamily: 'Instrument Sans, sans-serif',
-            backdropFilter: 'blur(8px)',
-          }}
-          onFocus={e => {
-            e.target.style.borderColor = 'rgba(29,110,85,0.7)'
-            e.target.style.boxShadow = '0 0 20px rgba(29,110,85,0.25), inset 0 0 12px rgba(29,110,85,0.05)'
-          }}
-          onBlur={e => {
-            e.target.style.borderColor = 'rgba(255,255,255,0.12)'
-            e.target.style.boxShadow = 'none'
-          }}
-        />
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
 
-        {/* Referral input */}
-        {!isCompact && (
+      {/* Email — pleine largeur */}
+      <input
+        type="email" required
+        placeholder="votre@email.com"
+        value={form.email}
+        onChange={set('email')}
+        style={{ ...inputStyle }}
+        onFocus={focusStyle} onBlur={blurStyle}
+      />
+
+      {/* Prénom + Nom */}
+      <Row>
+        <Field>
+          <input
+            type="text" required
+            placeholder="Prénom"
+            value={form.prenom}
+            onChange={set('prenom')}
+            style={{ ...inputStyle }}
+            onFocus={focusStyle} onBlur={blurStyle}
+          />
+        </Field>
+        <Field>
           <input
             type="text"
-            placeholder="Code parrainage (optionnel) — Ex: TIKTOK50"
-            value={referral}
-            onChange={e => setReferral(e.target.value)}
-            style={{
-              padding: '13px 16px',
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 10,
-              color: 'rgba(245,245,240,0.7)',
-              fontSize: 13,
-              outline: 'none',
-              transition: 'border-color 0.2s, box-shadow 0.2s',
-              fontFamily: 'Instrument Sans, sans-serif',
-            }}
-            onFocus={e => {
-              e.target.style.borderColor = 'rgba(29,110,85,0.4)'
-              e.target.style.boxShadow = '0 0 14px rgba(29,110,85,0.15)'
-            }}
-            onBlur={e => {
-              e.target.style.borderColor = 'rgba(255,255,255,0.08)'
-              e.target.style.boxShadow = 'none'
-            }}
+            placeholder="Nom"
+            value={form.nom}
+            onChange={set('nom')}
+            style={{ ...inputStyle }}
+            onFocus={focusStyle} onBlur={blurStyle}
           />
-        )}
-      </div>
+        </Field>
+      </Row>
 
-      {/* Shimmer CTA button */}
+      {/* Métier + Ville */}
+      <Row>
+        <Field>
+          <select
+            required
+            value={form.metier}
+            onChange={set('metier')}
+            style={{
+              ...inputStyle,
+              color: form.metier ? '#F5F5F0' : 'rgba(245,245,240,0.3)',
+              cursor: 'pointer',
+            }}
+            onFocus={focusStyle} onBlur={blurStyle}
+          >
+            <option value="" disabled style={{ color: '#666', background: '#1C2020' }}>Choisir votre métier...</option>
+            {METIERS.map(m => (
+              <option key={m} value={m} style={{ color: '#F5F5F0', background: '#1C2020' }}>{m}</option>
+            ))}
+          </select>
+        </Field>
+        <Field>
+          <input
+            type="text"
+            placeholder="Votre ville"
+            value={form.ville}
+            onChange={set('ville')}
+            style={{ ...inputStyle }}
+            onFocus={focusStyle} onBlur={blurStyle}
+          />
+        </Field>
+      </Row>
+
+      {/* Statut + Code parrainage */}
+      <Row>
+        <Field>
+          <select
+            required
+            value={form.statut}
+            onChange={set('statut')}
+            style={{
+              ...inputStyle,
+              color: form.statut ? '#F5F5F0' : 'rgba(245,245,240,0.3)',
+              cursor: 'pointer',
+            }}
+            onFocus={focusStyle} onBlur={blurStyle}
+          >
+            <option value="" disabled style={{ color: '#666', background: '#1C2020' }}>Vous êtes...</option>
+            {STATUTS.map(s => (
+              <option key={s} value={s} style={{ color: '#F5F5F0', background: '#1C2020' }}>{s}</option>
+            ))}
+          </select>
+        </Field>
+        <Field>
+          <input
+            type="text"
+            placeholder="Code parrainage (optionnel)"
+            value={form.referral}
+            onChange={set('referral')}
+            style={{ ...inputStyle }}
+            onFocus={focusStyle} onBlur={blurStyle}
+          />
+        </Field>
+      </Row>
+
+      {/* Bouton submit */}
       <button
         type="submit"
         disabled={status === 'loading'}
-        onClick={playClick}
         style={{
-          position: 'relative',
-          overflow: 'hidden',
-          padding: isCompact ? '11px 20px' : '14px 28px',
-          background: status === 'loading'
-            ? 'rgba(237,250,54,0.5)'
-            : 'linear-gradient(90deg, #EDFA36 0%, #c8f000 40%, #EDFA36 60%, #fff880 80%, #EDFA36 100%)',
-          backgroundSize: '300% auto',
-          animation: status === 'loading' ? 'none' : 'btnShimmer 3s linear infinite',
-          color: '#0A0F0D',
+          width: '100%',
+          padding: '14px',
+          background: status === 'loading' ? 'rgba(29,110,85,0.5)' : '#1D6E55',
+          color: '#FFFFFF',
           border: 'none',
-          borderRadius: 10,
-          fontSize: isCompact ? 13 : 15,
-          fontWeight: 700,
+          borderRadius: 8,
+          fontSize: 15, fontWeight: 600,
           cursor: status === 'loading' ? 'default' : 'pointer',
-          fontFamily: 'Instrument Sans, sans-serif',
-          whiteSpace: 'nowrap',
-          transition: 'transform 0.15s, box-shadow 0.15s',
-          boxShadow: '0 4px 24px rgba(237,250,54,0.3)',
+          fontFamily: 'DM Sans, system-ui, sans-serif',
+          transition: 'background 0.2s, transform 0.15s',
+          marginTop: 4,
         }}
-        onMouseEnter={e => {
-          if (status !== 'loading') {
-            e.currentTarget.style.transform = 'scale(1.03) translateY(-1px)'
-            e.currentTarget.style.boxShadow = '0 8px 32px rgba(237,250,54,0.45)'
-          }
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.transform = 'scale(1) translateY(0)'
-          e.currentTarget.style.boxShadow = '0 4px 24px rgba(237,250,54,0.3)'
-        }}
+        onMouseEnter={e => { if (status !== 'loading') e.currentTarget.style.background = '#2A9D74' }}
+        onMouseLeave={e => { if (status !== 'loading') e.currentTarget.style.background = '#1D6E55' }}
       >
         {status === 'loading' ? '...' : 'Rejoindre la waitlist'}
       </button>
@@ -163,6 +229,7 @@ export default function WaitlistForm({ size = 'normal' }) {
           Une erreur est survenue — réessayez.
         </div>
       )}
+
     </form>
   )
 }

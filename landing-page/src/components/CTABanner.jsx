@@ -16,7 +16,7 @@ export default function CTABanner() {
       <div
         ref={ref}
         style={{
-          maxWidth: 760, margin: '0 auto',
+          maxWidth: 860, margin: '0 auto',
           background: 'rgba(29,110,85,0.06)',
           border: '1px solid rgba(29,110,85,0.2)',
           borderRadius: 24,
@@ -50,7 +50,7 @@ export default function CTABanner() {
             Gratuit. Pas de carte bancaire. Accès anticipé.
           </p>
 
-          <div style={{ maxWidth: 520, margin: '0 auto' }}>
+          <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'left' }}>
             <WaitlistForm />
           </div>
         </div>
