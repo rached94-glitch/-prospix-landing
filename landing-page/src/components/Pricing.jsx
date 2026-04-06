@@ -168,20 +168,11 @@ export default function Pricing() {
           transition={{ duration: 0.55 }}
           style={{ textAlign: 'center', marginBottom: 64 }}
         >
-          <div style={{
-            display: 'inline-block', marginBottom: 16,
-            padding: '5px 14px',
-            background: 'rgba(29,110,85,0.12)', border: '1px solid rgba(29,110,85,0.25)',
-            borderRadius: 20, fontSize: 11, fontWeight: 600, color: '#4ade80',
-            letterSpacing: '0.07em', textTransform: 'uppercase',
-          }}>
-            Tarifs
-          </div>
           <h2 style={{ fontSize: 'clamp(30px, 4vw, 48px)', fontWeight: 700, color: '#F5F5F0', letterSpacing: '-0.02em', margin: '0 0 14px' }}>
             Simple. Tout en crédits.
           </h2>
-          <p style={{ fontSize: 16, color: 'rgba(245,245,240,0.45)', maxWidth: 440, margin: '0 auto' }}>
-            Chaque action coûte 1 crédit. Analysez, générez, exportez — payez ce que vous utilisez.
+          <p style={{ fontSize: 16, color: 'rgba(245,245,240,0.45)', maxWidth: 520, margin: '0 auto' }}>
+            Recherche, audit, email, export — chaque action consomme des crédits. Choisissez le plan adapté à votre volume de prospection.
           </p>
         </motion.div>
 
