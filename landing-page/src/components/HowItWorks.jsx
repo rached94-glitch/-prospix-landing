@@ -228,7 +228,7 @@ export default function HowItWorks() {
           }}
         >
           <h2 style={{ fontSize: 32, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em', margin: 0 }}>
-            3 étapes
+            Comment ça marche
           </h2>
         </div>
 

@@ -110,7 +110,7 @@ export default function Features() {
           }}
         >
           <h2 style={{ fontSize: 32, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em', margin: 0 }}>
-            Fonctionnalités
+            Tout ce qu'il faut pour closer
           </h2>
         </div>
 

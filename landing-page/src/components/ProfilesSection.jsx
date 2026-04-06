@@ -265,7 +265,7 @@ export default function ProfilesSection() {
         style={{ textAlign: 'center', marginBottom: 48 }}
       >
         <h2 style={{ fontSize: 32, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em', margin: 0 }}>
-          10 profils métier
+          Conçu pour chaque profil freelance
         </h2>
       </motion.div>
 
