@@ -991,31 +991,35 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
         const fbActivity   = auditData?.facebookActivity  ?? null
         const igFollowers  = igActivity?.followers ?? null
         const igDaysAgo    = igActivity?.daysAgo   ?? null
-        const fbFollowers  = fbActivity?.followers ?? null
-        const fbDaysAgo    = fbActivity?.daysAgo   ?? null
+        // fbStats = données chargées via le bouton dédié (photographe section) ou audit
+        const fbFollowers  = fbStats?.followers ?? fbActivity?.followers ?? null
+        const fbDaysAgo    = fbStats?.daysAgo   ?? fbActivity?.daysAgo   ?? null
         const igDeep       = auditData?.instagramDeep ?? null
         const igAvgLikes   = igDeep?.avgLikes ?? null
         const tkFollowers  = tkStats?.followers ?? null
 
         // ── KPIs de base (toujours visibles) ────────────────────────────────────
         const baseKpis = [
-          kpi('YouTube',            hasYoutube  ? 'Présent' : 'Absent',                             hasYoutube  ? 'good' : 'danger'),
-          kpi('TikTok',             hasTiktok   ? 'Présent' : 'Absent',                             hasTiktok   ? 'good' : 'danger'),
-          kpi('Instagram',          hasInstagram ? 'Présent' : 'Absent',                            hasInstagram ? 'good' : 'neutral'),
-          kpi('Vidéo sur le site',  videoLabel,                                                     videoStatus),
+          kpi('YouTube',            hasYoutube   ? 'Présent' : 'Absent', hasYoutube   ? 'good' : 'danger'),
+          kpi('TikTok',             hasTiktok    ? 'Présent' : 'Absent', hasTiktok    ? 'good' : 'danger'),
+          kpi('Instagram',          hasInstagram ? 'Présent' : 'Absent', hasInstagram ? 'good' : 'neutral'),
+          kpi('Facebook',           hasFacebook  ? 'Présent' : 'Absent', hasFacebook  ? 'good' : 'neutral'),
+          kpi('Vidéo sur le site',  videoLabel,                          videoStatus),
           kpi('Portfolio / galerie',hasPortfolio === null ? '—' : hasPortfolio ? 'Détecté' : 'Non', hasPortfolio === null ? 'muted' : hasPortfolio ? 'good' : 'neutral'),
-          kpi('Chaîne YT liée',     ytChannel ? 'Liée' : 'Non détectée',                           ytChannel ? 'good' : 'neutral'),
+          kpi('Chaîne YT liée',     ytChannel ? 'Liée' : 'Non détectée', ytChannel ? 'good' : 'neutral'),
         ]
 
-        // ── KPIs enrichis Apify (visibles après analyse) ─────────────────────────
-        const enrichedKpis = auditDoneVid ? [
-          ...(igFollowers !== null ? [kpi('Instagram — abonnés', igFollowers.toLocaleString('fr-FR'), igFollowers >= 1000 ? 'good' : igFollowers >= 200 ? 'warn' : 'danger')] : []),
-          ...(igDaysAgo !== null   ? [kpi('Dernier post IG',     igDaysAgo === 0 ? "Aujourd'hui" : `Il y a ${igDaysAgo}j`, igDaysAgo <= 7 ? 'good' : igDaysAgo <= 30 ? 'warn' : 'danger')] : []),
-          ...(igAvgLikes !== null  ? [kpi('Likes moy. / post',   igAvgLikes.toLocaleString('fr-FR'), igAvgLikes >= 50 ? 'good' : igAvgLikes >= 10 ? 'warn' : 'neutral')] : []),
-          ...(fbFollowers !== null ? [kpi('Facebook — abonnés',  fbFollowers.toLocaleString('fr-FR'), fbFollowers >= 500 ? 'good' : fbFollowers >= 100 ? 'warn' : 'danger')] : []),
-          ...(fbDaysAgo !== null   ? [kpi('Dernier post FB',     fbDaysAgo === 0 ? "Aujourd'hui" : `Il y a ${fbDaysAgo}j`, fbDaysAgo <= 7 ? 'good' : fbDaysAgo <= 30 ? 'warn' : 'danger')] : []),
+        // ── KPIs enrichis (visibles dès que les données sont disponibles) ────────
+        // fbFollowers/fbDaysAgo disponibles via fbStats (bouton dédié) OU audit (après "Analyser")
+        const hasEnrichedFb = fbFollowers !== null || fbDaysAgo !== null
+        const enrichedKpis = [
+          ...(auditDoneVid && igFollowers !== null ? [kpi('Instagram — abonnés', igFollowers.toLocaleString('fr-FR'), igFollowers >= 1000 ? 'good' : igFollowers >= 200 ? 'warn' : 'danger')] : []),
+          ...(auditDoneVid && igDaysAgo !== null   ? [kpi('Dernier post IG',     igDaysAgo === 0 ? "Aujourd'hui" : `Il y a ${igDaysAgo}j`, igDaysAgo <= 7 ? 'good' : igDaysAgo <= 30 ? 'warn' : 'danger')] : []),
+          ...(auditDoneVid && igAvgLikes !== null  ? [kpi('Likes moy. / post',   igAvgLikes.toLocaleString('fr-FR'), igAvgLikes >= 50 ? 'good' : igAvgLikes >= 10 ? 'warn' : 'neutral')] : []),
+          ...(hasEnrichedFb && fbFollowers !== null ? [kpi('Facebook — abonnés',  fbFollowers.toLocaleString('fr-FR'), fbFollowers >= 500 ? 'good' : fbFollowers >= 100 ? 'warn' : 'danger')] : []),
+          ...(hasEnrichedFb && fbDaysAgo !== null   ? [kpi('Dernier post FB',     fbDaysAgo === 0 ? "Aujourd'hui" : `Il y a ${fbDaysAgo}j`, fbDaysAgo <= 7 ? 'good' : fbDaysAgo <= 30 ? 'warn' : 'danger')] : []),
           ...(tkFollowers !== null ? [kpi('TikTok — abonnés',    tkFollowers.toLocaleString('fr-FR'), tkFollowers >= 1000 ? 'good' : tkFollowers >= 200 ? 'warn' : 'danger')] : []),
-        ] : []
+        ]
 
         return {
           kpis: [...baseKpis, ...enrichedKpis],
