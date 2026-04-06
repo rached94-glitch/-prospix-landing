@@ -143,16 +143,16 @@ function IconMegaphone({ hovered }) {
 /* ── Data ─────────────────────────────────────────────── */
 
 const PROFILES = [
-  { IconComp: IconSEO,       title: 'Consultant SEO',       subtitle: 'Positionnement local',   description: 'Classement Maps, pages indexées, balises manquantes, temps de chargement. Arrivez avec les données.' },
-  { IconComp: IconCode,      title: 'Développeur Web',       subtitle: 'Performance & Sécurité',  description: 'Sites lents, non sécurisés, pas optimisés mobile. Le pitch refonte se fait tout seul.' },
-  { IconComp: IconBot,       title: 'Dev Chatbot & IA',      subtitle: 'Automatisation',          description: "Pas de chatbot, pas de FAQ, pas d'automatisation. Score pondéré à 70% sur le potentiel." },
-  { IconComp: IconCamera,    title: 'Photographe',           subtitle: 'Présence visuelle',       description: "Fiches Google sans photos, pas d'Instagram. Score basé sur l'absence visuelle." },
-  { IconComp: IconUsers,     title: 'Community Manager',     subtitle: 'E-réputation & Réseaux',  description: "Audite tous les réseaux sociaux. Score l'e-réputation et l'activité pour cibler les bons commerces." },
-  { IconComp: IconPen,       title: 'Rédacteur SEO',         subtitle: 'Contenu & Mots-clés',     description: 'Descriptions absentes, meta vides, pas de blog. Score les lacunes de contenu.' },
-  { IconComp: IconVideo,     title: 'Vidéaste',              subtitle: 'Vidéo & YouTube',          description: 'Pas de YouTube, pas de TikTok, pas de vidéo sur le site. Score le potentiel vidéo.' },
-  { IconComp: IconPalette,   title: 'Designer / Branding',   subtitle: 'Identité visuelle',       description: "Photos de mauvaise qualité, pas de cohérence visuelle, description absente. Score l'identité de marque." },
-  { IconComp: IconMail,      title: 'Email Marketing',       subtitle: 'Rétention client',        description: 'Pas de newsletter, pas de fidélisation, avis sans réponse. Score le potentiel de rétention client.' },
-  { IconComp: IconMegaphone, title: 'Consultant Google Ads', subtitle: 'Visibilité & ROI',        description: 'Invisible sur Maps malgré de bons avis, site lent, concurrence locale. Score la rentabilité pub.' },
+  { IconComp: IconSEO,       glowColor: 'rgba(42,157,116,0.6)',    title: 'Consultant SEO',       description: 'Classement Maps, pages indexées, balises manquantes, temps de chargement. Arrivez avec les données.' },
+  { IconComp: IconCode,      glowColor: 'rgba(59,130,246,0.6)',    title: 'Développeur Web',       description: 'Sites lents, non sécurisés, pas optimisés mobile. Le pitch refonte se fait tout seul.' },
+  { IconComp: IconBot,       glowColor: 'rgba(139,92,246,0.6)',    title: 'Dev Chatbot & IA',      description: "Pas de chatbot, pas de FAQ, pas d'automatisation. Score pondéré à 70% sur le potentiel." },
+  { IconComp: IconCamera,    glowColor: 'rgba(237,250,54,0.6)',    title: 'Photographe',           description: "Fiches Google sans photos, pas d'Instagram. Score basé sur l'absence visuelle." },
+  { IconComp: IconUsers,     glowColor: 'rgba(236,72,153,0.6)',    title: 'Community Manager',     description: "Audite tous les réseaux sociaux. Score l'e-réputation et l'activité pour cibler les bons commerces." },
+  { IconComp: IconPen,       glowColor: 'rgba(74,222,128,0.6)',    title: 'Rédacteur SEO',         description: 'Descriptions absentes, meta vides, pas de blog. Score les lacunes de contenu.' },
+  { IconComp: IconVideo,     glowColor: 'rgba(239,68,68,0.6)',     title: 'Vidéaste',              description: 'Pas de YouTube, pas de TikTok, pas de vidéo sur le site. Score le potentiel vidéo.' },
+  { IconComp: IconPalette,   glowColor: 'rgba(249,115,22,0.6)',    title: 'Designer / Branding',   description: "Photos de mauvaise qualité, pas de cohérence visuelle, description absente. Score l'identité de marque." },
+  { IconComp: IconMail,      glowColor: 'rgba(237,250,54,0.6)',    title: 'Email Marketing',       description: 'Pas de newsletter, pas de fidélisation, avis sans réponse. Score le potentiel de rétention client.' },
+  { IconComp: IconMegaphone, glowColor: 'rgba(59,130,246,0.6)',    title: 'Consultant Google Ads', description: 'Invisible sur Maps malgré de bons avis, site lent, concurrence locale. Score la rentabilité pub.' },
 ]
 
 const cardVariants = {
@@ -178,8 +178,8 @@ function ProfileCard({ profile, index }) {
       onHoverStart={() => setHovered(true)}
       onHoverEnd={() => setHovered(false)}
       style={{
-        borderRadius: 20, overflow: 'hidden',
-        minHeight: 420,
+        borderRadius: 18, overflow: 'hidden',
+        minHeight: 320,
         display: 'flex', flexDirection: 'column',
         border: hovered ? '1px solid rgba(29,110,85,0.45)' : '1px solid rgba(255,255,255,0.07)',
         boxShadow: hovered
@@ -196,30 +196,31 @@ function ProfileCard({ profile, index }) {
         background: 'rgba(255,255,255,0.03)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        minHeight: 188,
+        minHeight: 160,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        position: 'relative', padding: '36px 20px',
+        position: 'relative', padding: '32px 20px',
       }}>
-        {/* Glow below icon */}
-        <motion.div
-          style={{
-            position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-            width: 120, height: 60,
-            background: 'radial-gradient(ellipse, rgba(29,110,85,0.4) 0%, transparent 70%)',
-            pointerEvents: 'none',
-          }}
-          animate={{ opacity: hovered ? 1 : 0.5 }}
-        />
+        {/* Glow spot below icon */}
+        <div style={{
+          position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
+          width: 40, height: 8,
+          borderRadius: '50%',
+          background: profile.glowColor,
+          filter: 'blur(8px)',
+          pointerEvents: 'none',
+          opacity: hovered ? 1 : 0.55,
+          transition: 'opacity 0.3s',
+        }} />
 
         {/* 3D icon container */}
         <motion.div
           style={{
-            width: 110, height: 110,
+            width: 80, height: 80,
             background: 'rgba(255,255,255,0.055)',
             backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
             border: '1px solid rgba(255,255,255,0.13)',
-            borderRadius: 24,
+            borderRadius: 18,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: hovered
               ? '0 16px 48px rgba(0,0,0,0.5), 0 4px 16px rgba(29,110,85,0.3), inset 0 1px 0 rgba(255,255,255,0.15)'
@@ -235,14 +236,11 @@ function ProfileCard({ profile, index }) {
       </div>
 
       {/* BOTTOM — white */}
-      <div style={{ background: '#ffffff', padding: '20px 22px 26px' }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#131815', marginBottom: 4, letterSpacing: '-0.01em' }}>
+      <div style={{ background: '#ffffff', padding: '16px 20px', minHeight: 120 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: '#131815', marginBottom: 6, letterSpacing: '-0.01em' }}>
           {profile.title}
         </div>
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#1D6E55', marginBottom: 10, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-          {profile.subtitle}
-        </div>
-        <div style={{ fontSize: 13, color: '#555', lineHeight: 1.65 }}>
+        <div style={{ fontSize: 12, color: '#555', lineHeight: 1.5 }}>
           {profile.description}
         </div>
       </div>
@@ -286,7 +284,7 @@ export default function ProfilesSection() {
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-        gap: 18,
+        gap: 12,
       }}>
         {PROFILES.map((p, i) => <ProfileCard key={i} profile={p} index={i} />)}
       </div>
