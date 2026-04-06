@@ -39,7 +39,7 @@ function MockupForm() {
         textAlign: 'center', cursor: 'default',
         boxShadow: '0 4px 16px rgba(29,110,85,0.4)',
       }}>
-        Trouver des leads ⚡
+        Trouver des leads
       </div>
     </div>
   )
@@ -304,7 +304,7 @@ export default function HowItWorks() {
                 background: 'rgba(237,250,54,0.08)', border: '1px solid rgba(237,250,54,0.2)',
                 borderRadius: 8, width: 'fit-content',
               }}>
-                <span style={{ fontSize: 14 }}>⚡</span>
+                <span style={{ fontSize: 14 }}>→</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#EDFA36' }}>Généré en 30 secondes par l'IA</span>
               </div>
             </div>

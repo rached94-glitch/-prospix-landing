@@ -155,7 +155,7 @@ export default function WaitlistForm({ size = 'normal' }) {
           e.currentTarget.style.boxShadow = '0 4px 24px rgba(237,250,54,0.3)'
         }}
       >
-        {status === 'loading' ? '...' : '⚡ Rejoindre la waitlist'}
+        {status === 'loading' ? '...' : 'Rejoindre la waitlist'}
       </button>
 
       {status === 'error' && (

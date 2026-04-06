@@ -41,8 +41,7 @@ export default function Footer() {
 
           {/* Brand */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 18 }}>⚡</span>
+            <div>
               <span style={{ fontSize: 17, fontWeight: 700, color: '#F5F5F0' }}>Prospix</span>
             </div>
             <p style={{ fontSize: 13, color: 'rgba(245,245,240,0.4)', lineHeight: 1.6, maxWidth: 240 }}>
@@ -109,7 +108,7 @@ export default function Footer() {
             © 2026 Prospix. Tous droits réservés.
           </span>
           <span style={{ fontSize: 12, color: 'rgba(245,245,240,0.2)' }}>
-            Fait avec ⚡ pour les freelances ambitieux
+            Fait pour les freelances ambitieux
           </span>
         </div>
       </div>

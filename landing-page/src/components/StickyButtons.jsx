@@ -62,7 +62,7 @@ export default function StickyButtons() {
         onMouseEnter={e => { e.currentTarget.style.background = '#2A9D74'; e.currentTarget.style.transform = 'scale(1.03)' }}
         onMouseLeave={e => { e.currentTarget.style.background = '#1D6E55'; e.currentTarget.style.transform = 'scale(1)' }}
       >
-        ⚡ Rejoindre la waitlist
+        Rejoindre la waitlist
       </button>
 
       <button
