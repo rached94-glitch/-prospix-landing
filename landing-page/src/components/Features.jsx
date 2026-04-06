@@ -1,35 +1,15 @@
 import { useRef, useEffect, useState } from 'react'
-import { MapPin, Sparkles, Mail, Target } from 'lucide-react'
+import { MapPin, Eye, Star, Building2, FileText, Mail, TrendingUp, Users } from 'lucide-react'
 
 const FEATURES = [
-  {
-    Icon: MapPin,
-    color: '#2A9D74',
-    colorRgb: '42,157,116',
-    title: 'Recherche locale intelligente',
-    description: "Cherchez par ville et secteur. Prospix scanne Google Maps et trouve les commerces avec le plus de potentiel pour votre métier.",
-  },
-  {
-    Icon: Sparkles,
-    color: '#7c3aed',
-    colorRgb: '124,58,237',
-    title: 'Audit IA personnalisé',
-    description: "Un rapport complet avec forces, faiblesses, recommandations et plan d'action. Généré en 30 secondes par l'IA, adapté au profil du freelance.",
-  },
-  {
-    Icon: Mail,
-    color: '#EDFA36',
-    colorRgb: '237,250,54',
-    title: 'Email de prospection IA',
-    description: "Un email prêt à envoyer basé sur les données réelles du commerce. Pas de template générique — chaque email est unique.",
-  },
-  {
-    Icon: Target,
-    color: '#f59e0b',
-    colorRgb: '245,158,11',
-    title: "Score d'opportunité",
-    description: "Chaque commerce reçoit un score sur 100. Plus le score est bas, plus l'opportunité est grande. Vous ne perdez plus de temps sur les mauvais leads.",
-  },
+  { Icon: MapPin,      colorRgb: '42,157,116',  title: 'Recherche Google Maps',     description: "Cherchez par ville et secteur. Jusqu'à 200 commerces avec nom, adresse, téléphone, site, avis, réseaux sociaux." },
+  { Icon: Eye,         colorRgb: '124,58,237',  title: 'Analyse visuelle IA',       description: "L'IA capture et score le site web — qualité design, époque visuelle, verdict. Vous savez si le site date de 2009 avant d'appeler." },
+  { Icon: Star,        colorRgb: '245,158,11',  title: 'Analyse des avis IA',       description: "L'IA lit chaque avis Google, détecte les plaintes récurrentes, les questions sans réponse, la réactivité du gérant." },
+  { Icon: Building2,   colorRgb: '99,102,241',  title: 'Intelligence entreprise',   description: "Données légales via Pappers — nom, capital, date de création, décideur. Vous atteignez la bonne personne au premier appel." },
+  { Icon: FileText,    colorRgb: '20,184,166',  title: 'Audit PDF personnalisé',    description: "Un rapport PDF complet avec forces, faiblesses, recommandations et plan d'action. Prêt à envoyer au prospect." },
+  { Icon: Mail,        colorRgb: '237,250,54',  title: 'Email IA personnalisé',     description: "Un email de prospection basé sur les données réelles du commerce. Modifiable et reformulable par l'IA." },
+  { Icon: TrendingUp,  colorRgb: '239,68,68',   title: "Score d'opportunité",       description: "Chaque commerce reçoit un score sur 100 adapté à votre profil. Plus le score est bas, plus l'opportunité est grande." },
+  { Icon: Users,       colorRgb: '29,110,85',   title: 'Multi-profils',             description: "10 profils métier, chacun avec son scoring, son audit et son email adaptés. Un outil, tous les freelances." },
 ]
 
 function FeatureCard({ feature, index }) {
@@ -39,7 +19,7 @@ function FeatureCard({ feature, index }) {
   const { Icon } = feature
 
   useEffect(() => {
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } }, { threshold: 0.2 })
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } }, { threshold: 0.1 })
     if (ref.current) obs.observe(ref.current)
     return () => obs.disconnect()
   }, [])
@@ -50,42 +30,53 @@ function FeatureCard({ feature, index }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
+        borderRadius: 18, overflow: 'hidden',
+        border: hovered ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(255,255,255,0.06)',
+        opacity: visible ? 1 : 0,
+        transform: visible ? (hovered ? 'translateY(-6px)' : 'translateY(0)') : 'translateY(36px)',
+        boxShadow: hovered ? '0 16px 48px rgba(0,0,0,0.5)' : '0 4px 16px rgba(0,0,0,0.3)',
+        transition: `opacity 0.55s ease ${index * 55}ms, transform 0.28s ease, border-color 0.25s, box-shadow 0.28s`,
+      }}
+    >
+      {/* TOP — glassmorphism dark avec icon */}
+      <div style={{
         background: 'rgba(255,255,255,0.03)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        border: hovered ? '1px solid rgba(255,255,255,0.13)' : '1px solid rgba(255,255,255,0.06)',
-        borderRadius: 20,
-        padding: '28px 26px',
-        display: 'flex', gap: 20,
-        opacity: visible ? 1 : 0,
-        transform: visible
-          ? (hovered ? 'translateY(-6px)' : 'translateY(0)')
-          : `translateX(${index % 2 === 0 ? '-32px' : '32px'})`,
-        boxShadow: hovered
-          ? '0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)'
-          : '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)',
-        transition: `opacity 0.55s ease ${index * 80}ms, transform 0.3s ease, border-color 0.3s, box-shadow 0.3s`,
-      }}
-    >
-      {/* Icon */}
-      <div style={{
-        width: 52, height: 52, flexShrink: 0,
-        background: `rgba(${feature.colorRgb}, 0.1)`,
-        border: `1px solid rgba(${feature.colorRgb}, 0.25)`,
-        borderRadius: 14,
+        minHeight: 140,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: `0 4px 16px rgba(${feature.colorRgb}, 0.15)`,
-        transition: 'transform 0.3s',
-        transform: hovered ? 'scale(1.08)' : 'scale(1)',
+        position: 'relative',
+        padding: '28px 16px',
       }}>
-        <Icon size={24} color={feature.color} strokeWidth={1.75} />
+        <div style={{
+          position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+          width: 80, height: 40,
+          background: `radial-gradient(ellipse, rgba(${feature.colorRgb},0.3) 0%, transparent 70%)`,
+          pointerEvents: 'none',
+        }} />
+        <div style={{
+          width: 80, height: 80,
+          background: 'rgba(255,255,255,0.05)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 18,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: `0 8px 28px rgba(0,0,0,0.35), 0 4px 16px rgba(${feature.colorRgb},0.15), inset 0 1px 0 rgba(255,255,255,0.1)`,
+          position: 'relative', zIndex: 1,
+          transition: 'transform 0.3s ease',
+          transform: hovered ? 'translateY(-5px) scale(1.06)' : 'translateY(0) scale(1)',
+        }}>
+          <Icon size={32} color={`rgb(${feature.colorRgb})`} strokeWidth={1.5} />
+        </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-        <div style={{ fontSize: 17, fontWeight: 700, color: '#F5F5F0', letterSpacing: '-0.01em' }}>
+      {/* BOTTOM — white */}
+      <div style={{ background: '#ffffff', padding: '16px 18px 20px' }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#131815', marginBottom: 6, letterSpacing: '-0.01em' }}>
           {feature.title}
         </div>
-        <div style={{ fontSize: 14, color: 'rgba(245,245,240,0.5)', lineHeight: 1.68 }}>
+        <div style={{ fontSize: 12.5, color: '#666', lineHeight: 1.6 }}>
           {feature.description}
         </div>
       </div>
@@ -104,33 +95,40 @@ export default function Features() {
   }, [])
 
   return (
-    <section id="fonctionnalites" style={{ padding: '96px 24px', background: 'rgba(255,255,255,0.01)' }}>
-      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+    <section id="fonctionnalites" style={{ padding: '112px 24px', background: 'rgba(0,0,0,0.15)' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto' }}>
 
         <div
           ref={titleRef}
           style={{
-            textAlign: 'center', marginBottom: 56,
+            textAlign: 'center', marginBottom: 64,
             opacity: titleVisible ? 1 : 0,
-            transform: titleVisible ? 'scale(1) translateY(0)' : 'scale(0.95) translateY(24px)',
+            transform: titleVisible ? 'scale(1) translateY(0)' : 'scale(0.96) translateY(20px)',
             transition: 'opacity 0.5s, transform 0.5s',
           }}
         >
           <div style={{
-            display: 'inline-block', marginBottom: 14,
-            padding: '4px 14px',
-            background: 'rgba(237,250,54,0.1)',
-            border: '1px solid rgba(237,250,54,0.25)',
-            borderRadius: 20, fontSize: 11, fontWeight: 600, color: '#EDFA36', letterSpacing: '0.07em', textTransform: 'uppercase',
+            display: 'inline-block', marginBottom: 16,
+            padding: '5px 14px',
+            background: 'rgba(237,250,54,0.1)', border: '1px solid rgba(237,250,54,0.25)',
+            borderRadius: 20, fontSize: 11, fontWeight: 600, color: '#EDFA36',
+            letterSpacing: '0.07em', textTransform: 'uppercase',
           }}>
             Fonctionnalités
           </div>
-          <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 700, color: '#F5F5F0', letterSpacing: '-0.02em', margin: 0 }}>
-            Ce que Prospix fait pour vous
+          <h2 style={{ fontSize: 'clamp(30px, 4vw, 48px)', fontWeight: 700, color: '#F5F5F0', letterSpacing: '-0.02em', margin: '0 0 14px' }}>
+            Chaque audit. Automatisé.
           </h2>
+          <p style={{ fontSize: 16, color: 'rgba(245,245,240,0.45)', maxWidth: 480, margin: '0 auto' }}>
+            Tout ce dont vous avez besoin pour arriver devant un prospect avec des faits.
+          </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 16 }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+          gap: 16,
+        }}>
           {FEATURES.map((f, i) => <FeatureCard key={i} feature={f} index={i} />)}
         </div>
       </div>

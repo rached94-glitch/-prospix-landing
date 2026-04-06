@@ -120,6 +120,16 @@ input, textarea {
   to   { transform: rotate(360deg); }
 }
 
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes iconBounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+
 /* ── Gradient text ────────────────────────────────── */
 .gradient-text {
   background: linear-gradient(135deg, #EDFA36 0%, #4ade80 100%);

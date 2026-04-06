@@ -1,104 +1,208 @@
 import { useRef, useEffect, useState } from 'react'
-import { Search, Zap, Send } from 'lucide-react'
 
-const STEPS = [
-  {
-    number: '1',
-    title: 'Cherchez',
-    Icon: Search,
-    description: "Entrez un secteur et une ville. Prospix trouve jusqu'à 200 commerces locaux avec leurs données Google.",
-  },
-  {
-    number: '2',
-    title: 'Analysez',
-    Icon: Zap,
-    description: "L'IA analyse les avis, le site web, les réseaux sociaux et génère un score d'opportunité pour chaque commerce.",
-  },
-  {
-    number: '3',
-    title: 'Prospectez',
-    Icon: Send,
-    description: "Générez un audit PDF et un email personnalisé. Prêt à envoyer en un clic.",
-  },
-]
+/* ── UI Mockups ─────────────────────────────────────── */
 
-function StepCard({ step, index }) {
-  const ref = useRef(null)
-  const [visible, setVisible] = useState(false)
-  const [hovered, setHovered] = useState(false)
-  const { Icon } = step
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } }, { threshold: 0.3 })
-    if (ref.current) obs.observe(ref.current)
-    return () => obs.disconnect()
-  }, [])
-
+function MockupForm() {
   return (
-    <div
-      ref={ref}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20,
-        flex: 1, minWidth: 200,
-        padding: '32px 24px',
-        background: 'rgba(255,255,255,0.03)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        border: hovered ? '1px solid rgba(29,110,85,0.4)' : '1px solid rgba(255,255,255,0.06)',
-        borderRadius: 20,
-        boxShadow: hovered
-          ? '0 16px 48px rgba(0,0,0,0.5), 0 0 32px rgba(29,110,85,0.1), inset 0 1px 0 rgba(255,255,255,0.08)'
-          : '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)',
-        opacity: visible ? 1 : 0,
-        transform: visible
-          ? (hovered ? 'translateY(-6px)' : 'translateY(0)')
-          : 'translateY(40px)',
-        transition: `opacity 0.6s ease ${index * 150}ms, transform 0.3s ease, border-color 0.3s, box-shadow 0.3s`,
-      }}
-    >
-      {/* Number circle */}
-      <div style={{
-        width: 64, height: 64,
-        borderRadius: '50%',
-        background: 'linear-gradient(135deg, rgba(29,110,85,0.35), rgba(42,157,116,0.15))',
-        border: '1.5px solid rgba(29,110,85,0.5)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 0 32px rgba(29,110,85,0.25)',
-        transition: 'box-shadow 0.3s',
-        ...(hovered ? { boxShadow: '0 0 48px rgba(29,110,85,0.45)' } : {}),
-      }}>
-        <span style={{ fontSize: 26, fontWeight: 800, color: '#4ade80', letterSpacing: '-0.03em', lineHeight: 1 }}>
-          {step.number}
-        </span>
+    <div style={{
+      background: '#1C2020', border: '1px solid rgba(255,255,255,0.1)',
+      borderRadius: 16, padding: '20px 22px',
+      fontFamily: 'Instrument Sans, sans-serif',
+      boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20 }}>
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 6px #4ade80' }} />
+        <span style={{ fontSize: 10, fontWeight: 700, color: '#4ade80', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Nouvelle recherche</span>
       </div>
-
-      {/* Lucide icon */}
-      <div style={{
-        width: 52, height: 52,
-        background: 'rgba(29,110,85,0.1)',
-        border: '1px solid rgba(29,110,85,0.2)',
-        borderRadius: 14,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'transform 0.3s',
-        transform: hovered ? 'translateY(-4px) scale(1.06)' : 'translateY(0) scale(1)',
-      }}>
-        <Icon size={24} color="#2A9D74" strokeWidth={1.75} />
-      </div>
-
-      {/* Text */}
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: '#F5F5F0', marginBottom: 10, letterSpacing: '-0.01em' }}>
-          {step.title}
+      {[
+        { label: 'Ville', value: 'Paris, France', icon: '📍' },
+        { label: 'Secteur', value: 'Restaurant', icon: '🍽️' },
+        { label: 'Profil', value: 'Consultant SEO', icon: '🔍' },
+      ].map((f, i) => (
+        <div key={i} style={{ marginBottom: i < 2 ? 12 : 20 }}>
+          <div style={{ fontSize: 10, color: 'rgba(245,245,240,0.35)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>{f.label}</div>
+          <div style={{
+            padding: '9px 12px',
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 8,
+            fontSize: 13, color: '#F5F5F0',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <span>{f.icon}</span>{f.value}
+          </div>
         </div>
-        <div style={{ fontSize: 14, color: 'rgba(245,245,240,0.5)', lineHeight: 1.68, maxWidth: 240 }}>
-          {step.description}
+      ))}
+      <div style={{
+        padding: '11px', background: '#1D6E55', borderRadius: 9,
+        fontSize: 13, fontWeight: 700, color: '#F5F5F0',
+        textAlign: 'center', cursor: 'default',
+        boxShadow: '0 4px 16px rgba(29,110,85,0.4)',
+      }}>
+        Trouver des leads ⚡
+      </div>
+    </div>
+  )
+}
+
+function MockupResults() {
+  const results = [
+    { name: 'Brasserie Le Marais', rating: '4.2 ★', tags: ['Pas de site', 'Pas d\'Instagram'], score: 78 },
+    { name: 'Restaurant Chez Paul', rating: '3.8 ★', tags: ['Site lent', 'Pas de Facebook'], score: 85 },
+    { name: 'Café de la Gare', rating: '4.5 ★', tags: ['Pas de Google Ads', 'Pas de chatbot'], score: 62 },
+  ]
+  return (
+    <div style={{
+      background: '#1C2020', border: '1px solid rgba(255,255,255,0.1)',
+      borderRadius: 16, padding: '18px 18px',
+      fontFamily: 'Instrument Sans, sans-serif',
+      boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <span style={{ fontSize: 10, color: '#4ade80', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>● 47 commerces trouvés</span>
+        <span style={{ fontSize: 10, color: 'rgba(245,245,240,0.3)' }}>Paris · Restaurant</span>
+      </div>
+      {results.map((r, i) => (
+        <div key={i} style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: 10, padding: '11px 12px',
+          marginBottom: i < results.length - 1 ? 8 : 0,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 7 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#F5F5F0' }}>{r.name}</div>
+            <div style={{
+              fontSize: 11, fontWeight: 700, color: '#EDFA36',
+              background: 'rgba(237,250,54,0.1)', border: '1px solid rgba(237,250,54,0.2)',
+              borderRadius: 6, padding: '2px 7px',
+            }}>
+              {r.score}
+            </div>
+          </div>
+          <div style={{ fontSize: 11, color: 'rgba(245,245,240,0.4)', marginBottom: 7 }}>{r.rating} · Paris 4e</div>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            {r.tags.map((t, j) => (
+              <span key={j} style={{
+                fontSize: 10, fontWeight: 600,
+                background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)',
+                color: '#f87171', borderRadius: 4, padding: '2px 7px',
+              }}>{t}</span>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function MockupAudit() {
+  return (
+    <div style={{
+      display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
+      fontFamily: 'Instrument Sans, sans-serif',
+    }}>
+      {/* PDF preview */}
+      <div style={{
+        background: '#1C2020', border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: 14, padding: '16px 16px',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+      }}>
+        <div style={{ fontSize: 9, color: '#4ade80', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>📄 AUDIT PDF</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: 'rgba(245,245,240,0.5)' }}>Score global</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#EDFA36' }}>73<span style={{ fontSize: 12, fontWeight: 400, color: 'rgba(245,245,240,0.3)' }}>/100</span></div>
+        </div>
+        {[{ label: '✦ Forces', color: '#4ade80' }, { label: '✦ Faiblesses', color: '#f87171' }, { label: '✦ Actions', color: '#EDFA36' }].map((s, i) => (
+          <div key={i} style={{ marginBottom: 7 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: s.color, letterSpacing: '0.04em', marginBottom: 3 }}>{s.label}</div>
+            <div style={{ height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 3 }}>
+              <div style={{ height: '100%', width: `${[70, 40, 90][i]}%`, background: s.color, borderRadius: 3, opacity: 0.7 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Email preview */}
+      <div style={{
+        background: '#1C2020', border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: 14, padding: '16px 16px',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+      }}>
+        <div style={{ fontSize: 9, color: '#EDFA36', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>✉️ EMAIL IA</div>
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 9, color: 'rgba(245,245,240,0.3)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Objet</div>
+          <div style={{ fontSize: 11, color: '#F5F5F0', fontWeight: 600, lineHeight: 1.4 }}>Brasserie Le Marais — j'ai analysé votre présence en ligne</div>
+        </div>
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '8px 0' }} />
+        <div style={{ fontSize: 10.5, color: 'rgba(245,245,240,0.5)', lineHeight: 1.6 }}>
+          Bonjour,<br />
+          J'ai analysé la fiche Google de votre restaurant — 4.2 étoiles, mais 12 avis sans réponse...
         </div>
       </div>
     </div>
   )
 }
+
+/* ── Step component ─────────────────────────────────── */
+
+function Step({ number, title, textContent, mockup, reverse, index }) {
+  const ref = useRef(null)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } }, { threshold: 0.2 })
+    if (ref.current) obs.observe(ref.current)
+    return () => obs.disconnect()
+  }, [])
+
+  const textCol = (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 20, padding: '8px 0' }}>
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: 10,
+        padding: '5px 14px 5px 10px',
+        background: 'rgba(29,110,85,0.12)', border: '1px solid rgba(29,110,85,0.25)',
+        borderRadius: 20, width: 'fit-content',
+      }}>
+        <span style={{
+          width: 28, height: 28, borderRadius: '50%',
+          background: 'linear-gradient(135deg, rgba(29,110,85,0.5), rgba(42,157,116,0.3))',
+          border: '1px solid rgba(29,110,85,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 12, fontWeight: 800, color: '#4ade80', flexShrink: 0,
+        }}>{number}</span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: '#4ade80', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{title}</span>
+      </div>
+      {textContent}
+    </div>
+  )
+
+  const mockupCol = (
+    <div style={{ flex: 1 }}>
+      {mockup}
+    </div>
+  )
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        display: 'flex', flexWrap: 'wrap',
+        flexDirection: reverse ? 'row-reverse' : 'row',
+        gap: 'clamp(32px, 5vw, 72px)',
+        alignItems: 'center',
+        padding: '48px 0',
+        borderBottom: index < 2 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0)' : 'translateY(40px)',
+        transition: 'opacity 0.65s ease, transform 0.65s ease',
+      }}
+    >
+      {reverse ? <>{mockupCol}{textCol}</> : <>{textCol}{mockupCol}</>}
+    </div>
+  )
+}
+
+/* ── Section ─────────────────────────────────────────── */
 
 export default function HowItWorks() {
   const titleRef = useRef(null)
@@ -111,44 +215,102 @@ export default function HowItWorks() {
   }, [])
 
   return (
-    <section id="comment" style={{ padding: '96px 24px' }}>
-      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+    <section id="comment" style={{ padding: '112px 24px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
         <div
           ref={titleRef}
           style={{
-            textAlign: 'center', marginBottom: 64,
+            textAlign: 'center', marginBottom: 80,
             opacity: titleVisible ? 1 : 0,
-            transform: titleVisible ? 'scale(1) translateY(0)' : 'scale(0.95) translateY(24px)',
+            transform: titleVisible ? 'scale(1) translateY(0)' : 'scale(0.96) translateY(20px)',
             transition: 'opacity 0.5s, transform 0.5s',
           }}
         >
           <div style={{
-            display: 'inline-block', marginBottom: 14,
-            padding: '4px 14px',
-            background: 'rgba(29,110,85,0.12)',
-            border: '1px solid rgba(29,110,85,0.25)',
-            borderRadius: 20, fontSize: 11, fontWeight: 600, color: '#4ade80', letterSpacing: '0.07em', textTransform: 'uppercase',
+            display: 'inline-block', marginBottom: 16,
+            padding: '5px 14px',
+            background: 'rgba(29,110,85,0.12)', border: '1px solid rgba(29,110,85,0.25)',
+            borderRadius: 20, fontSize: 11, fontWeight: 600, color: '#4ade80',
+            letterSpacing: '0.07em', textTransform: 'uppercase',
           }}>
-            Simple comme bonjour
+            3 étapes
           </div>
-          <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 700, color: '#F5F5F0', letterSpacing: '-0.02em', margin: 0 }}>
+          <h2 style={{ fontSize: 'clamp(30px, 4vw, 48px)', fontWeight: 700, color: '#F5F5F0', letterSpacing: '-0.02em', margin: 0 }}>
             Comment ça marche
           </h2>
         </div>
 
-        {/* Steps */}
-        <div style={{ position: 'relative', display: 'flex', flexWrap: 'wrap', gap: 20, justifyContent: 'center', alignItems: 'stretch' }}>
-          {/* Connector line */}
-          <div style={{
-            position: 'absolute',
-            top: 32, left: '18%', right: '18%',
-            height: 1,
-            background: 'linear-gradient(90deg, transparent 0%, rgba(29,110,85,0.35) 30%, rgba(74,222,128,0.25) 50%, rgba(29,110,85,0.35) 70%, transparent 100%)',
-            pointerEvents: 'none',
-          }} />
-          {STEPS.map((step, i) => <StepCard key={i} step={step} index={i} />)}
-        </div>
+        {/* STEP 01 */}
+        <Step
+          number="01" title="Vous définissez la cible" index={0}
+          reverse={false}
+          mockup={<MockupForm />}
+          textContent={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <p style={{ fontSize: 'clamp(17px, 2.2vw, 22px)', color: '#F5F5F0', lineHeight: 1.55, fontWeight: 400, letterSpacing: '-0.01em' }}>
+                Ville, secteur, profil freelance.<br />
+                <strong>Trois champs. C'est tout.</strong> Prospix fait le reste.
+              </p>
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '8px 14px',
+                background: 'rgba(237,250,54,0.08)', border: '1px solid rgba(237,250,54,0.2)',
+                borderRadius: 8, width: 'fit-content',
+              }}>
+                <span style={{ fontSize: 14 }}>⏱</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#EDFA36' }}>10 secondes</span>
+              </div>
+            </div>
+          }
+        />
+
+        {/* STEP 02 */}
+        <Step
+          number="02" title="On scanne Google Maps" index={1}
+          reverse={true}
+          mockup={<MockupResults />}
+          textContent={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <p style={{ fontSize: 'clamp(17px, 2.2vw, 22px)', color: '#F5F5F0', lineHeight: 1.55, fontWeight: 400, letterSpacing: '-0.01em' }}>
+                Jusqu'à <strong>200 commerces locaux</strong> — nom, adresse, téléphone, site, avis, et tous les réseaux détectés.
+              </p>
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '8px 14px',
+                background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)',
+                borderRadius: 8, width: 'fit-content',
+              }}>
+                <span style={{ fontSize: 14 }}>🗺️</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#4ade80' }}>Score d'opportunité pour chaque commerce</span>
+              </div>
+            </div>
+          }
+        />
+
+        {/* STEP 03 */}
+        <Step
+          number="03" title="Vous prospectez avec des données" index={2}
+          reverse={false}
+          mockup={<MockupAudit />}
+          textContent={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <p style={{ fontSize: 'clamp(17px, 2.2vw, 22px)', color: '#F5F5F0', lineHeight: 1.55, fontWeight: 400, letterSpacing: '-0.01em' }}>
+                Audit PDF, email personnalisé, score d'opportunité. <strong>Tout est prêt.</strong> Vous n'avez plus qu'à envoyer.
+              </p>
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '8px 14px',
+                background: 'rgba(237,250,54,0.08)', border: '1px solid rgba(237,250,54,0.2)',
+                borderRadius: 8, width: 'fit-content',
+              }}>
+                <span style={{ fontSize: 14 }}>⚡</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#EDFA36' }}>Généré en 30 secondes par l'IA</span>
+              </div>
+            </div>
+          }
+        />
+
       </div>
     </section>
   )
