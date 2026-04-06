@@ -229,7 +229,7 @@ export default function WaitlistForm() {
         </div>
         <span style={{ fontSize: 12, color: 'rgba(245,245,240,0.4)', lineHeight: 1.5 }}>
           J'accepte que Prospix utilise mes données pour me contacter au sujet de l'accès anticipé.{' '}
-          <a href="#" style={{ color: '#2A9D74', textDecoration: 'underline' }}>Politique de confidentialité</a>
+          <a href="#privacy" style={{ color: '#2A9D74', textDecoration: 'underline' }}>Politique de confidentialité</a>
         </span>
       </label>
 

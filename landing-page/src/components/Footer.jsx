@@ -107,9 +107,13 @@ export default function Footer() {
           <span style={{ fontSize: 12, color: 'rgba(245,245,240,0.3)' }}>
             © 2026 Prospix. Tous droits réservés.
           </span>
-          <span style={{ fontSize: 12, color: 'rgba(245,245,240,0.2)' }}>
-            Fait pour les freelances ambitieux
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <a href="#privacy" style={{ fontSize: 12, color: 'rgba(245,245,240,0.3)', textDecoration: 'none', transition: 'color 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.color = '#2A9D74'}
+              onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,245,240,0.3)'}
+            >Politique de confidentialité</a>
+            <span style={{ fontSize: 12, color: 'rgba(245,245,240,0.15)' }}>Fait pour les freelances ambitieux</span>
+          </div>
         </div>
       </div>
     </footer>
