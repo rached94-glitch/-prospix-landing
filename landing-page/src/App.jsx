@@ -14,10 +14,7 @@ export default function App() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: `
-        radial-gradient(ellipse 110% 55% at 50% -5%, rgba(29,110,85,0.22) 0%, transparent 55%),
-        #131815
-      `,
+      background: '#131815',
       display: 'flex', flexDirection: 'column',
       position: 'relative',
     }}>

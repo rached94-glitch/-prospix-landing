@@ -9,10 +9,10 @@ const PARTICLES = Array.from({ length: 18 }, (_, i) => {
   return {
     id: i,
     left:    `${(seed  * 1.03) % 100}%`,
-    size:    3 + (seed2 * 0.05) % 6,          // 3–9 px
+    size:    2 + (seed2 * 0.03) % 2,            // 2–4 px
     delay:   `${(seed3 * 0.18) % 18}s`,
-    duration:`${14 + (seed * 0.12) % 12}s`,   // 14–26s
-    opacity: 0.08 + (seed2 * 0.001) % 0.12,   // 0.08–0.2
+    duration:`${18 + (seed * 0.14) % 14}s`,   // 18–32s
+    opacity: 0.06 + (seed2 * 0.001) % 0.05,   // 0.06–0.11
   }
 })
 
@@ -26,16 +26,19 @@ export default function AnimatedBackground() {
       zIndex: 0, pointerEvents: 'none', overflow: 'hidden',
     }}>
 
-      {/* Animated gradient blobs */}
+      {/* Base background */}
+      <div style={{ position: 'absolute', inset: 0, background: '#131815' }} />
+
+      {/* Grand radial vert — centré en haut */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: `
-          radial-gradient(ellipse 60% 50% at 20% 40%, rgba(29,110,85,0.12) 0%, transparent 60%),
-          radial-gradient(ellipse 40% 40% at 80% 20%, rgba(42,157,116,0.08) 0%, transparent 55%),
-          radial-gradient(ellipse 50% 40% at 50% 80%, rgba(237,250,54,0.04) 0%, transparent 60%)
-        `,
-        backgroundSize: '200% 200%',
-        animation: 'gradientDrift 20s ease-in-out infinite',
+        background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(29,110,85,0.25) 0%, transparent 70%)',
+      }} />
+
+      {/* Petit radial vert — centré au milieu */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'radial-gradient(ellipse 60% 40% at 50% 50%, rgba(29,110,85,0.1) 0%, transparent 60%)',
       }} />
 
       {/* Particles */}
@@ -49,7 +52,7 @@ export default function AnimatedBackground() {
             width: p.size,
             height: p.size,
             borderRadius: '50%',
-            background: `rgba(29,110,85,${p.opacity})`,
+            background: `rgba(74,222,128,${p.opacity})`,
             animation: `floatParticle ${p.duration} ${p.delay} linear infinite`,
             willChange: 'transform, opacity',
           }}
