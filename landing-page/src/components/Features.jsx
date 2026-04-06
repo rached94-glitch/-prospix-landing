@@ -31,6 +31,8 @@ function FeatureCard({ feature, index }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         borderRadius: 18, overflow: 'hidden',
+        minHeight: 320,
+        display: 'flex', flexDirection: 'column',
         border: hovered ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(255,255,255,0.06)',
         opacity: visible ? 1 : 0,
         transform: visible ? (hovered ? 'translateY(-6px)' : 'translateY(0)') : 'translateY(36px)',
@@ -43,7 +45,7 @@ function FeatureCard({ feature, index }) {
         background: 'rgba(255,255,255,0.03)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        minHeight: 140,
+        minHeight: 180,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         position: 'relative',
         padding: '28px 16px',
@@ -72,7 +74,7 @@ function FeatureCard({ feature, index }) {
       </div>
 
       {/* BOTTOM — white */}
-      <div style={{ background: '#ffffff', padding: '16px 18px 20px' }}>
+      <div style={{ background: '#ffffff', padding: '20px 18px 24px', minHeight: 140 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: '#131815', marginBottom: 6, letterSpacing: '-0.01em' }}>
           {feature.title}
         </div>
@@ -126,7 +128,7 @@ export default function Features() {
 
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
           gap: 16,
         }}>
           {FEATURES.map((f, i) => <FeatureCard key={i} feature={f} index={i} />)}

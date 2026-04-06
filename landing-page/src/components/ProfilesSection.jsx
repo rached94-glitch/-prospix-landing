@@ -179,6 +179,8 @@ function ProfileCard({ profile, index }) {
       onHoverEnd={() => setHovered(false)}
       style={{
         borderRadius: 20, overflow: 'hidden',
+        minHeight: 420,
+        display: 'flex', flexDirection: 'column',
         border: hovered ? '1px solid rgba(29,110,85,0.45)' : '1px solid rgba(255,255,255,0.07)',
         boxShadow: hovered
           ? '0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(29,110,85,0.15)'
@@ -283,7 +285,7 @@ export default function ProfilesSection() {
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
         gap: 18,
       }}>
         {PROFILES.map((p, i) => <ProfileCard key={i} profile={p} index={i} />)}
