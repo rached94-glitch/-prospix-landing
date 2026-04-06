@@ -104,6 +104,10 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
   // AI-generated email state
   const [aiEmail, setAiEmail] = useState(null) // { subject, body } — géré dans AIEmailGenerator via onEmailGenerated
 
+  // Bandeaux guides contextuels — true = fermé par l'utilisateur (ne plus afficher)
+  const [guideBanners, setGuideBanners] = useState({ reviewsDone: false, auditDone: false, emailDone: false, reformulated: false })
+  const [reformulatedOnce, setReformulatedOnce] = useState(false)
+
   // Pappers financial data state
   const [pappersData,  setPappersData]    = useState(null)
   const [pappersState, setPappersState]   = useState('idle') // idle | loading | done | not_found
@@ -216,6 +220,9 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
     }
     // Reset SEMrush on lead change
     setSemrushData(null); setSemrushLoading(false); setSemrushError(null)
+    // Reset bandeaux guides
+    setGuideBanners({ reviewsDone: false, auditDone: false, emailDone: false, reformulated: false })
+    setReformulatedOnce(false)
   }, [lead?.id, lead?._id])
 
   const handleUnlock = async () => {
@@ -3505,6 +3512,15 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
             onAnalyzeAI={handleAnalyzeAI}
           />
 
+          {/* ── BANDEAU a — après analyse des avis ── */}
+          {aiState === 'done' && !guideBanners.reviewsDone && (
+            <div style={{ marginBottom: 12, padding: '12px 16px', background: 'rgba(29,110,85,0.15)', borderLeft: '3px solid #1d6e55', borderRadius: '0 8px 8px 0', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>💡</span>
+              <span style={{ fontSize: 13, color: '#F5F5F0', lineHeight: 1.5, flex: 1 }}>Avis analysés — consultez les thèmes récurrents ci-dessus. Générez l'audit pour identifier les points critiques à utiliser dans votre approche.</span>
+              <button onClick={() => setGuideBanners(p => ({ ...p, reviewsDone: true }))} style={{ background: 'none', border: 'none', color: '#475569', fontSize: 15, cursor: 'pointer', flexShrink: 0, lineHeight: 1, padding: '0 0 0 4px' }}>✕</button>
+            </div>
+          )}
+
           {/* ── DONNÉES FINANCIÈRES ── */}
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: '#1D6E55', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(29,110,85,0.12)' }}>
@@ -3550,6 +3566,15 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
             <div style={{ marginBottom: 20, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#64748b' }}>Audit en cours…</div>
           )}
 
+          {/* ── BANDEAU b — après audit terminé ── */}
+          {auditState === 'done' && !guideBanners.auditDone && (
+            <div style={{ marginBottom: 12, padding: '12px 16px', background: 'rgba(29,110,85,0.15)', borderLeft: '3px solid #1d6e55', borderRadius: '0 8px 8px 0', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>💡</span>
+              <span style={{ fontSize: 13, color: '#F5F5F0', lineHeight: 1.5, flex: 1 }}>Audit prêt — les faiblesses identifiées sont vos meilleurs arguments. Si vous appelez le prospect, ouvrez avec le point critique n°1.</span>
+              <button onClick={() => setGuideBanners(p => ({ ...p, auditDone: true }))} style={{ background: 'none', border: 'none', color: '#475569', fontSize: 15, cursor: 'pointer', flexShrink: 0, lineHeight: 1, padding: '0 0 0 4px' }}>✕</button>
+            </div>
+          )}
+
           {/* ── EMAIL IA + AUDIT PDF ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
 
@@ -3560,6 +3585,7 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
               aiReport={aiReport}
               aiEmail={aiEmail}
               onEmailGenerated={setAiEmail}
+              onReformulated={() => setReformulatedOnce(true)}
               visualAnalysis={visualAnalysis}
               visualError={visualError}
               auditState={auditState}
@@ -3567,6 +3593,24 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
               reviewsData={reviewsData}
               photoQuality={photoQuality}
             />
+
+            {/* ── BANDEAU c — après génération email ── */}
+            {aiEmail && !guideBanners.emailDone && !reformulatedOnce && (
+              <div style={{ padding: '12px 16px', background: 'rgba(29,110,85,0.15)', borderLeft: '3px solid #1d6e55', borderRadius: '0 8px 8px 0', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>💡</span>
+                <span style={{ fontSize: 13, color: '#F5F5F0', lineHeight: 1.5, flex: 1 }}>Email généré — relisez et personnalisez avant d'envoyer. Ajoutez un détail spécifique au prospect (son prénom, un avis précis, un service mentionné) pour augmenter le taux de réponse.</span>
+                <button onClick={() => setGuideBanners(p => ({ ...p, emailDone: true }))} style={{ background: 'none', border: 'none', color: '#475569', fontSize: 15, cursor: 'pointer', flexShrink: 0, lineHeight: 1, padding: '0 0 0 4px' }}>✕</button>
+              </div>
+            )}
+
+            {/* ── BANDEAU d — après reformulation IA ── */}
+            {reformulatedOnce && !guideBanners.reformulated && (
+              <div style={{ padding: '12px 16px', background: 'rgba(74,222,128,0.1)', borderLeft: '3px solid #4ade80', borderRadius: '0 8px 8px 0', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>✅</span>
+                <span style={{ fontSize: 13, color: '#F5F5F0', lineHeight: 1.5, flex: 1 }}>Email reformulé par l'IA. Vérifiez que le ton vous correspond avant d'envoyer.</span>
+                <button onClick={() => setGuideBanners(p => ({ ...p, reformulated: true }))} style={{ background: 'none', border: 'none', color: '#475569', fontSize: 15, cursor: 'pointer', flexShrink: 0, lineHeight: 1, padding: '0 0 0 4px' }}>✕</button>
+              </div>
+            )}
 
             {/* Export PDF */}
             <button

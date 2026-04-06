@@ -740,6 +740,64 @@ Retourne UNIQUEMENT un JSON valide (pas de texte avant ou après) :
   }
 })
 
+// ─── POST /reformulate-email — Reformule un email édité par l'utilisateur ────
+router.post('/reformulate-email', async (req, res, next) => {
+  const Anthropic = require('@anthropic-ai/sdk')
+  try {
+    // TODO: déduire 1 crédit Supabase avant l'appel
+    const { subject, body, profileId } = req.body
+    if (!subject && !body) return res.status(400).json({ error: 'subject ou body requis' })
+    if (!process.env.ANTHROPIC_API_KEY) throw new AppError('ANTHROPIC_API_KEY manquante', 503)
+
+    const prompt = `L'utilisateur a modifié un email de prospection. Voici sa version :
+
+OBJET : ${subject || '(sans objet)'}
+CORPS : ${body || '(sans corps)'}
+
+Améliore cet email en gardant :
+- Le ton et l'intention de l'utilisateur
+- Les modifications qu'il a faites (c'est volontaire)
+- Les données spécifiques du prospect mentionnées
+
+Corrige :
+- Les fautes d'orthographe et de grammaire
+- Les formulations maladroites
+- La longueur si c'est trop long (max 8 lignes)
+
+NE PAS :
+- Ajouter des statistiques externes
+- Ajouter des noms de marque
+- Changer l'angle choisi par l'utilisateur
+- Rendre le mail plus long qu'il ne l'est
+- Ajouter un compliment d'ouverture si l'utilisateur n'en a pas mis
+
+Retourne UNIQUEMENT l'email amélioré, sans commentaire.
+Format : première ligne = objet, ligne vide, puis le corps.`
+
+    console.log(`[ReformulateEmail] profil=${profileId ?? 'n/a'} subject="${(subject ?? '').slice(0, 40)}"`)
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const msg = await anthropic.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 1024,
+      messages:   [{ role: 'user', content: prompt }],
+    })
+
+    const raw   = msg.content?.[0]?.text?.trim() ?? ''
+    const lines = raw.split('\n')
+    const newSubject = lines[0]?.replace(/^(?:OBJET\s*:\s*|Objet\s*:\s*)/i, '').trim() || subject
+    const rest       = lines.slice(1)
+    // Skip the blank separator line if present
+    const bodyStart  = rest[0]?.trim() === '' ? 1 : 0
+    const newBody    = rest.slice(bodyStart).join('\n').trim() || body
+
+    console.log(`[ReformulateEmail] ✓ reformulé (tokens: ${msg.usage?.output_tokens ?? '?'})`)
+    res.json({ subject: newSubject, body: newBody })
+  } catch (e) {
+    console.error('[ReformulateEmail] error:', e)
+    next(e)
+  }
+})
+
 // ─── POST /photo-quality — Analyse qualité photos Google via IA ──────────────
 router.post('/photo-quality', async (req, res, next) => {
   try {
