@@ -80,7 +80,7 @@ export default function StickyButtons() {
         onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'; e.currentTarget.style.color = '#F5F5F0' }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'; e.currentTarget.style.color = 'rgba(245,245,240,0.7)' }}
       >
-        Voir la démo ▶
+        Voir la démo
       </button>
     </div>
   )

@@ -221,23 +221,14 @@ export default function HowItWorks() {
         <div
           ref={titleRef}
           style={{
-            textAlign: 'center', marginBottom: 80,
+            textAlign: 'center', marginBottom: 48,
             opacity: titleVisible ? 1 : 0,
             transform: titleVisible ? 'scale(1) translateY(0)' : 'scale(0.96) translateY(20px)',
             transition: 'opacity 0.5s, transform 0.5s',
           }}
         >
-          <div style={{
-            display: 'inline-block', marginBottom: 16,
-            padding: '5px 14px',
-            background: 'rgba(29,110,85,0.12)', border: '1px solid rgba(29,110,85,0.25)',
-            borderRadius: 20, fontSize: 11, fontWeight: 600, color: '#4ade80',
-            letterSpacing: '0.07em', textTransform: 'uppercase',
-          }}>
+          <h2 style={{ fontSize: 32, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em', margin: 0 }}>
             3 étapes
-          </div>
-          <h2 style={{ fontSize: 'clamp(30px, 4vw, 48px)', fontWeight: 700, color: '#F5F5F0', letterSpacing: '-0.02em', margin: 0 }}>
-            Comment ça marche
           </h2>
         </div>
 

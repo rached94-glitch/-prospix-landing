@@ -262,23 +262,11 @@ export default function ProfilesSection() {
         initial={{ opacity: 0, y: 24, scale: 0.97 }}
         animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
         transition={{ duration: 0.55 }}
-        style={{ textAlign: 'center', marginBottom: 64 }}
+        style={{ textAlign: 'center', marginBottom: 48 }}
       >
-        <div style={{
-          display: 'inline-block', marginBottom: 16,
-          padding: '5px 14px',
-          background: 'rgba(29,110,85,0.12)', border: '1px solid rgba(29,110,85,0.25)',
-          borderRadius: 20, fontSize: 11, fontWeight: 600, color: '#4ade80',
-          letterSpacing: '0.07em', textTransform: 'uppercase',
-        }}>
+        <h2 style={{ fontSize: 32, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em', margin: 0 }}>
           10 profils métier
-        </div>
-        <h2 style={{ fontSize: 'clamp(30px, 4vw, 48px)', fontWeight: 700, color: '#F5F5F0', letterSpacing: '-0.02em', margin: '0 0 14px' }}>
-          Conçu pour chaque freelance
         </h2>
-        <p style={{ fontSize: 16, color: 'rgba(245,245,240,0.45)', maxWidth: 480, margin: '0 auto' }}>
-          Chaque profil a son propre algorithme de scoring, son audit et son email adaptés.
-        </p>
       </motion.div>
 
       <div style={{

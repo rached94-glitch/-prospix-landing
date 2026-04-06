@@ -103,27 +103,15 @@ export default function Features() {
         <div
           ref={titleRef}
           style={{
-            textAlign: 'center', marginBottom: 64,
+            textAlign: 'center', marginBottom: 48,
             opacity: titleVisible ? 1 : 0,
             transform: titleVisible ? 'scale(1) translateY(0)' : 'scale(0.96) translateY(20px)',
             transition: 'opacity 0.5s, transform 0.5s',
           }}
         >
-          <div style={{
-            display: 'inline-block', marginBottom: 16,
-            padding: '5px 14px',
-            background: 'rgba(237,250,54,0.1)', border: '1px solid rgba(237,250,54,0.25)',
-            borderRadius: 20, fontSize: 11, fontWeight: 600, color: '#EDFA36',
-            letterSpacing: '0.07em', textTransform: 'uppercase',
-          }}>
+          <h2 style={{ fontSize: 32, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em', margin: 0 }}>
             Fonctionnalités
-          </div>
-          <h2 style={{ fontSize: 'clamp(30px, 4vw, 48px)', fontWeight: 700, color: '#F5F5F0', letterSpacing: '-0.02em', margin: '0 0 14px' }}>
-            Chaque audit. Automatisé.
           </h2>
-          <p style={{ fontSize: 16, color: 'rgba(245,245,240,0.45)', maxWidth: 480, margin: '0 auto' }}>
-            Tout ce dont vous avez besoin pour arriver devant un prospect avec des faits.
-          </p>
         </div>
 
         <div style={{
