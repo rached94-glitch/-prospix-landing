@@ -173,9 +173,9 @@ export default function Hero() {
       {/* Ticker villes */}
       <div style={{
         width: '100%', overflow: 'hidden',
-        marginTop: 24,
+        marginTop: 48,
         borderTop: '1px solid rgba(255,255,255,0.06)',
-        paddingTop: 16,
+        paddingTop: 32,
       }}>
         <div style={{ display: 'inline-flex', whiteSpace: 'nowrap', animation: 'marquee 35s linear infinite' }}>
           {[0, 1].map(n => (
