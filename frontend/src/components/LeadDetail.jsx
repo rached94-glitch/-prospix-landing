@@ -310,6 +310,52 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
           })
       }
 
+      // ── videaste : deep Instagram + TikTok stats en arrière-plan ────────────
+      if (activeProfile?.id === 'videaste') {
+        if (lead.social?.instagram) {
+          console.log('[Videaste] Démarrage deep Instagram —', lead.social.instagram)
+          fetch(`${API}/api/leads/instagram-deep`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ instagramUrl: lead.social.instagram }),
+          })
+            .then(r => r.json().then(body => ({ ok: r.ok, body })))
+            .then(({ ok, body }) => {
+              if (!ok) throw new Error(body.error || 'Erreur serveur')
+              if (body.error) {
+                console.warn('[Videaste] Deep IG — compte privé ou absent:', body.error)
+                return
+              }
+              console.log('[Videaste] Deep IG résultat —', JSON.stringify(body))
+              setAuditData(prev => prev ? { ...prev, instagramDeep: body } : { instagramDeep: body })
+            })
+            .catch(e => {
+              console.warn('[Videaste] Deep IG erreur (ignorée) —', e.message)
+            })
+        }
+        if (lead.social?.tiktok) {
+          console.log('[Videaste] Démarrage TikTok stats —', lead.social.tiktok)
+          setTkStatsLoading(true)
+          setTkStatsError(null)
+          fetch(`${API}/api/leads/tiktok-stats`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ tiktokUrl: lead.social.tiktok }),
+          })
+            .then(r => r.json().then(body => ({ ok: r.ok, body })))
+            .then(({ ok, body }) => {
+              if (!ok) throw new Error(body.error || 'Erreur serveur')
+              console.log('[Videaste] TikTok stats —', JSON.stringify(body))
+              setTkStats(body)
+            })
+            .catch(e => {
+              console.warn('[Videaste] TikTok stats erreur (ignorée) —', e.message)
+              setTkStatsError(e.message)
+            })
+            .finally(() => setTkStatsLoading(false))
+        }
+      }
+
       // ── dev-web : analyse visuelle en arrière-plan après PageSpeed ──────────
       if (activeProfile?.id === 'dev-web' && lead.website) {
         console.log('[VisualAnalysis dev-web] Démarrage —', lead.website)
@@ -942,19 +988,46 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
         const videoStatus  = videoOnSite === null ? 'muted'
           : videoOnSite ? (videoCount >= 3 ? 'good' : 'warn') : 'danger'
 
+        // ── Données Apify (phase 2 — après clic "Analyser les réseaux et chaînes vidéo") ──
+        const auditDoneVid = auditState === 'done'
+        const igActivity   = auditData?.instagramActivity ?? null
+        const fbActivity   = auditData?.facebookActivity  ?? null
+        const igFollowers  = igActivity?.followers ?? null
+        const igDaysAgo    = igActivity?.daysAgo   ?? null
+        const fbFollowers  = fbActivity?.followers ?? null
+        const fbDaysAgo    = fbActivity?.daysAgo   ?? null
+        const igDeep       = auditData?.instagramDeep ?? null
+        const igAvgLikes   = igDeep?.avgLikes ?? null
+        const tkFollowers  = tkStats?.followers ?? null
+
+        // ── KPIs de base (toujours visibles) ────────────────────────────────────
+        const baseKpis = [
+          kpi('YouTube',            hasYoutube  ? 'Présent' : 'Absent',                             hasYoutube  ? 'good' : 'danger'),
+          kpi('TikTok',             hasTiktok   ? 'Présent' : 'Absent',                             hasTiktok   ? 'good' : 'danger'),
+          kpi('Instagram',          hasInstagram ? 'Présent' : 'Absent',                            hasInstagram ? 'good' : 'neutral'),
+          kpi('Vidéo sur le site',  videoLabel,                                                     videoStatus),
+          kpi('Portfolio / galerie',hasPortfolio === null ? '—' : hasPortfolio ? 'Détecté' : 'Non', hasPortfolio === null ? 'muted' : hasPortfolio ? 'good' : 'neutral'),
+          kpi('Chaîne YT liée',     ytChannel ? 'Liée' : 'Non détectée',                           ytChannel ? 'good' : 'neutral'),
+        ]
+
+        // ── KPIs enrichis Apify (visibles après analyse) ─────────────────────────
+        const enrichedKpis = auditDoneVid ? [
+          ...(igFollowers !== null ? [kpi('Instagram — abonnés', igFollowers.toLocaleString('fr-FR'), igFollowers >= 1000 ? 'good' : igFollowers >= 200 ? 'warn' : 'danger')] : []),
+          ...(igDaysAgo !== null   ? [kpi('Dernier post IG',     igDaysAgo === 0 ? "Aujourd'hui" : `Il y a ${igDaysAgo}j`, igDaysAgo <= 7 ? 'good' : igDaysAgo <= 30 ? 'warn' : 'danger')] : []),
+          ...(igAvgLikes !== null  ? [kpi('Likes moy. / post',   igAvgLikes.toLocaleString('fr-FR'), igAvgLikes >= 50 ? 'good' : igAvgLikes >= 10 ? 'warn' : 'neutral')] : []),
+          ...(fbFollowers !== null ? [kpi('Facebook — abonnés',  fbFollowers.toLocaleString('fr-FR'), fbFollowers >= 500 ? 'good' : fbFollowers >= 100 ? 'warn' : 'danger')] : []),
+          ...(fbDaysAgo !== null   ? [kpi('Dernier post FB',     fbDaysAgo === 0 ? "Aujourd'hui" : `Il y a ${fbDaysAgo}j`, fbDaysAgo <= 7 ? 'good' : fbDaysAgo <= 30 ? 'warn' : 'danger')] : []),
+          ...(tkFollowers !== null ? [kpi('TikTok — abonnés',    tkFollowers.toLocaleString('fr-FR'), tkFollowers >= 1000 ? 'good' : tkFollowers >= 200 ? 'warn' : 'danger')] : []),
+        ] : []
+
         return {
-          kpis: [
-            kpi('YouTube',            hasYoutube  ? 'Présent' : 'Absent',                             hasYoutube  ? 'good' : 'danger'),
-            kpi('TikTok',             hasTiktok   ? 'Présent' : 'Absent',                             hasTiktok   ? 'good' : 'danger'),
-            kpi('Instagram',          hasInstagram ? 'Présent' : 'Absent',                            hasInstagram ? 'good' : 'neutral'),
-            kpi('Vidéo sur le site',  videoLabel,                                                     videoStatus),
-            kpi('Portfolio / galerie',hasPortfolio === null ? '—' : hasPortfolio ? 'Détecté' : 'Non', hasPortfolio === null ? 'muted' : hasPortfolio ? 'good' : 'neutral'),
-            kpi('Chaîne YT liée',     ytChannel ? 'Liée' : 'Non détectée',                           ytChannel ? 'good' : 'neutral'),
-          ],
+          kpis: [...baseKpis, ...enrichedKpis],
           problems: [
             ...(!hasVideo                   ? [prob('Aucun contenu vidéo détecté — opportunité directe pour le vidéo marketing', '#ef4444')] : []),
             ...(!hasYoutube && !hasTiktok   ? [prob('YouTube et TikTok absents — canaux vidéo non exploités', '#f59e0b')] : []),
             ...(videoOnSite === false       ? [prob('Aucune vidéo intégrée sur le site — différenciation forte possible', '#f59e0b')] : []),
+            ...(auditDoneVid && igFollowers !== null && igFollowers < 500 ? [prob(`Instagram — seulement ${igFollowers} abonnés, faible notoriété visuelle`, '#f59e0b')] : []),
+            ...(auditDoneVid && fbDaysAgo !== null  && fbDaysAgo  > 30   ? [prob(`Facebook inactif depuis ${fbDaysAgo} jours — audience non engagée`, '#f59e0b')] : []),
           ],
         }
       }
@@ -2948,7 +3021,7 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
                 {/* ANALYSER — videaste uniquement, inline sous les KPIs */}
                 {activeProfile?.id === 'videaste' && (lead.website || lead.social?.facebook || lead.social?.instagram) && (() => {
                   if (auditState === 'idle')
-                    return <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ width: '100%', height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#64748b', fontSize: 10.5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 8 }}>Analyser les performances digitales — 1 crédit</button>
+                    return <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ width: '100%', height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#64748b', fontSize: 10.5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 8 }}>Analyser les réseaux et chaînes vidéo — 1 crédit</button>
                   if (auditState === 'loading')
                     return <div style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, color: '#64748b', marginBottom: 8 }}>Analyse en cours…</div>
                   return null

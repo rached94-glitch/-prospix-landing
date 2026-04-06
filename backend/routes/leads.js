@@ -760,7 +760,7 @@ router.get('/audit', async (req, res, next) => {
     const { website, facebook, instagram, placeId, profileId, category, city, businessName, address, phone } = req.query
     console.log('[PageSpeed] website reçu (query):', website ?? 'undefined')
 
-    const SOCIAL_PROFILES   = ['photographe', 'social-media']
+    const SOCIAL_PROFILES   = ['photographe', 'social-media', 'videaste']
     const SEO_PROFILES      = ['seo', 'consultant-seo']
     const hasSocialUrls     = !!(facebook || instagram)
 
