@@ -147,7 +147,7 @@ export default function Hero() {
               fontFamily: 'DM Sans, sans-serif',
             }}
           >
-            Voir la démo ▶
+            Voir la démo
           </motion.button>
         </motion.div>
 
