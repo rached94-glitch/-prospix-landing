@@ -40,6 +40,7 @@ export default function AIEmailGenerator({
   const [copiedEmail,       setCopiedEmail]        = useState(false)
   const [reformulateState,  setReformulateState]   = useState('idle') // 'idle' | 'loading' | 'done' | 'error'
   const [reformulateBadge,  setReformulateBadge]   = useState(false)
+  const [instructions,      setInstructions]       = useState('')
   const textareaRef = useRef(null)
 
   // Reset sur changement de lead (géré par key={leadId} dans le parent)
@@ -51,6 +52,7 @@ export default function AIEmailGenerator({
     setIsEdited(false)
     setReformulateBadge(false)
     setReformulateState('idle')
+    setInstructions('')
   }, [lead?.id, lead?._id])
 
   // Sync local editable state quand aiEmail change
@@ -131,7 +133,7 @@ export default function AIEmailGenerator({
       const res = await fetch(`${API}/api/leads/reformulate-email`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ subject: emailSubject, body: emailBody, profileId: activeProfile?.id ?? 'seo' }),
+        body:    JSON.stringify({ subject: emailSubject, body: emailBody, profileId: activeProfile?.id ?? 'seo', ...(instructions.trim() ? { instructions: instructions.trim() } : {}) }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erreur serveur')
@@ -140,6 +142,7 @@ export default function AIEmailGenerator({
       setIsEdited(false)
       setReformulateBadge(true)
       setReformulateState('done')
+      setInstructions('')
       if (onReformulated) onReformulated()
     } catch (e) {
       console.error('[ReformulateEmail] error:', e)
@@ -244,6 +247,16 @@ export default function AIEmailGenerator({
 
           {/* Boutons d'action */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+
+            {/* Instructions pour la reformulation */}
+            <input
+              type="text"
+              value={instructions}
+              onChange={e => setInstructions(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && reformulateState !== 'loading') handleReformulate() }}
+              placeholder="Instruction optionnelle : plus court, ajoute une question, parle des avis…"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6, padding: '7px 10px', fontSize: 11, color: '#94a3b8', outline: 'none', boxSizing: 'border-box', fontFamily: 'var(--font-body)' }}
+            />
 
             {/* Reformuler */}
             <button

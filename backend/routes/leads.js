@@ -745,11 +745,24 @@ router.post('/reformulate-email', async (req, res, next) => {
   const Anthropic = require('@anthropic-ai/sdk')
   try {
     // TODO: déduire 1 crédit Supabase avant l'appel
-    const { subject, body, profileId } = req.body
+    const { subject, body, profileId, instructions } = req.body
     if (!subject && !body) return res.status(400).json({ error: 'subject ou body requis' })
     if (!process.env.ANTHROPIC_API_KEY) throw new AppError('ANTHROPIC_API_KEY manquante', 503)
 
-    const prompt = `L'utilisateur a modifié un email de prospection. Voici sa version :
+    const prompt = instructions?.trim()
+      ? `L'utilisateur veut modifier cet email selon une instruction précise.
+
+INSTRUCTION : "${instructions.trim()}"
+
+OBJET ACTUEL : ${subject || '(sans objet)'}
+CORPS ACTUEL :
+${body || '(sans corps)'}
+
+Applique UNIQUEMENT la modification demandée dans l'instruction. Garde le reste intact.
+NE PAS ajouter de commentaire, d'explication ou de reformulation non demandée.
+Retourne UNIQUEMENT l'email modifié.
+Format : première ligne = objet, ligne vide, puis le corps.`
+      : `L'utilisateur a modifié un email de prospection. Voici sa version :
 
 OBJET : ${subject || '(sans objet)'}
 CORPS : ${body || '(sans corps)'}
