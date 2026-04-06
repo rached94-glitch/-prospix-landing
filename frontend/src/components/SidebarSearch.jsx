@@ -128,6 +128,49 @@ function IconGoogleMaps() {
   )
 }
 
+const BUSINESS_CATEGORIES = [
+  {
+    label: '💇 Beauté & Bien-être',
+    items: ['Institut de beauté', 'Coiffeur', 'Barbier', 'Salon de manucure', 'Spa', 'Centre esthétique', 'Prothésiste ongulaire'],
+  },
+  {
+    label: '🍽️ Restauration',
+    items: ['Restaurant', 'Brasserie', 'Pizzeria', 'Boulangerie', 'Pâtisserie', 'Traiteur', 'Bar', 'Salon de thé', 'Food truck'],
+  },
+  {
+    label: '🏥 Santé',
+    items: ['Dentiste', 'Médecin généraliste', 'Kinésithérapeute', 'Ostéopathe', 'Opticien', 'Pharmacie', 'Vétérinaire', 'Psychologue', 'Podologue'],
+  },
+  {
+    label: '🔧 Artisans & BTP',
+    items: ['Plombier', 'Électricien', 'Peintre en bâtiment', 'Menuisier', 'Serrurier', 'Couvreur', 'Maçon', 'Carreleur', 'Chauffagiste', 'Entreprise de rénovation'],
+  },
+  {
+    label: '🧹 Services',
+    items: ['Entreprise de nettoyage', 'Société de ménage', 'Pressing', 'Déménageur', 'Jardinier', 'Paysagiste', 'Photographe', 'Vidéaste', 'Coach sportif'],
+  },
+  {
+    label: '🚗 Automobile',
+    items: ['Garage automobile', 'Concessionnaire auto', 'Vendeur voiture occasion', 'Carrossier', 'Centre auto', 'Contrôle technique', 'Lavage auto'],
+  },
+  {
+    label: '🏠 Immobilier',
+    items: ['Agence immobilière', 'Diagnostiqueur immobilier', 'Courtier immobilier', 'Syndic copropriété'],
+  },
+  {
+    label: '⚖️ Professions libérales',
+    items: ['Avocat', 'Notaire', 'Expert-comptable', 'Architecte', 'Géomètre', 'Conseil en gestion'],
+  },
+  {
+    label: '🛍️ Commerce',
+    items: ['Fleuriste', 'Bijouterie', 'Boutique vêtements', 'Magasin bio', 'Cave à vin', 'Librairie', 'Animalerie', 'Magasin de sport'],
+  },
+  {
+    label: '🎓 Formation & Enfants',
+    items: ['Auto-école', 'Crèche', 'Soutien scolaire', 'École de musique', 'École de danse', 'Centre de formation'],
+  },
+]
+
 const MOCK_CREDITS     = 847
 const MOCK_CREDITS_MAX = 1000
 
@@ -190,7 +233,10 @@ export default function SidebarSearch({
   const [keywordInput, setKeywordInput] = useState('')
   const [sources,         setSources]         = useState(['google', 'linkedin', 'facebook', 'instagram'])
   const [selectedMaxLeads, setSelectedMaxLeads] = useState(30)
-  const tagInputRef = useRef(null)
+  const [showCategories,  setShowCategories]  = useState(false)
+  const [openSector,      setOpenSector]      = useState(null)
+  const tagInputRef  = useRef(null)
+  const cityInputRef = useRef(null)
 
   // Country autocomplete
   const [countrySugg,      setCountrySugg]      = useState([])
@@ -310,6 +356,14 @@ export default function SidebarSearch({
     if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addKeyword(keywordInput) }
     else if (e.key === 'Backspace' && keywordInput === '') setKeywords(keywords.slice(0, -1))
   }
+  const selectCategory = (item) => {
+    try { playClick() } catch (_) {}
+    setKeywords([item])
+    setShowCategories(false)
+    setOpenSector(null)
+    setTimeout(() => cityInputRef.current?.focus(), 50)
+  }
+
   const toggleSource = (value) =>
     setSources(prev => prev.includes(value) ? prev.filter(s => s !== value) : [...prev, value])
 
@@ -450,6 +504,7 @@ export default function SidebarSearch({
       <div ref={cityWrapperRef} style={{ position: 'relative', flexShrink: 0 }}>
         <span style={sectionLabel}>Ville</span>
         <input
+          ref={cityInputRef}
           className="input-premium"
           placeholder="Paris, Lyon, Bordeaux..."
           value={city}
@@ -550,6 +605,88 @@ export default function SidebarSearch({
             onBlur={() => keywordInput && addKeyword(keywordInput)}
           />
         </div>
+      </div>
+
+      {/* Catégories métier */}
+      <div style={{ flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={() => { try { playClick() } catch (_) {} setShowCategories(v => !v); setOpenSector(null) }}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            background: showCategories ? 'rgba(29,110,85,0.12)' : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${showCategories ? 'rgba(29,110,85,0.35)' : 'rgba(255,255,255,0.08)'}`,
+            borderRadius: showCategories ? '10px 10px 0 0' : 10,
+            padding: '8px 12px', cursor: 'pointer',
+            color: showCategories ? '#4ade80' : 'rgba(255,255,255,0.45)',
+            fontSize: 11.5, fontFamily: 'var(--font-body)', fontWeight: 600,
+            transition: 'all 0.15s',
+          }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 13 }}>🗂️</span> Parcourir les catégories
+          </span>
+          <span style={{ fontSize: 10, opacity: 0.6, transition: 'transform 0.2s', transform: showCategories ? 'rotate(180deg)' : 'none' }}>▾</span>
+        </button>
+
+        {showCategories && (
+          <div style={{
+            border: '1px solid rgba(29,110,85,0.25)', borderTop: 'none',
+            borderRadius: '0 0 10px 10px',
+            background: 'rgba(13,20,16,0.95)',
+            maxHeight: 320, overflowY: 'auto',
+            display: 'flex', flexDirection: 'column',
+          }}>
+            {BUSINESS_CATEGORIES.map((sector, si) => {
+              const isOpen = openSector === si
+              return (
+                <div key={si} style={{ borderBottom: si < BUSINESS_CATEGORIES.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                  {/* Sector header */}
+                  <button
+                    type="button"
+                    onClick={() => setOpenSector(isOpen ? null : si)}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      background: isOpen ? 'rgba(29,110,85,0.08)' : 'transparent',
+                      border: 'none', padding: '8px 12px', cursor: 'pointer',
+                      color: isOpen ? '#4ade80' : 'rgba(255,255,255,0.55)',
+                      fontSize: 11.5, fontFamily: 'var(--font-body)', fontWeight: isOpen ? 700 : 500,
+                      textAlign: 'left', transition: 'all 0.12s',
+                    }}
+                    onMouseEnter={e => { if (!isOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
+                    onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background = 'transparent' }}
+                  >
+                    <span>{sector.label}</span>
+                    <span style={{ fontSize: 9, opacity: 0.5, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'none' }}>▾</span>
+                  </button>
+
+                  {/* Items */}
+                  {isOpen && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, padding: '6px 10px 10px' }}>
+                      {sector.items.map((item, ii) => (
+                        <button
+                          key={ii}
+                          type="button"
+                          onClick={() => selectCategory(item)}
+                          style={{
+                            background: 'rgba(29,110,85,0.10)', border: '1px solid rgba(29,110,85,0.25)',
+                            borderRadius: 20, padding: '3px 10px',
+                            fontSize: 11, fontFamily: 'var(--font-body)', fontWeight: 500,
+                            color: '#94a3b8', cursor: 'pointer', transition: 'all 0.12s',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(29,110,85,0.22)'; e.currentTarget.style.color = '#4ade80'; e.currentTarget.style.borderColor = 'rgba(29,110,85,0.5)' }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(29,110,85,0.10)'; e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.borderColor = 'rgba(29,110,85,0.25)' }}
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Sources */}
