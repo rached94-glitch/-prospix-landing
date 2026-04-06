@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import PrivacyModal from './PrivacyModal'
+
 const NAV = [
   { label: 'Profils',           href: '#profils' },
   { label: 'Fonctionnalités',   href: '#fonctionnalites' },
@@ -23,6 +26,7 @@ function IconTikTok() {
 }
 
 export default function Footer() {
+  const [showPrivacy, setShowPrivacy] = useState(false)
   const scrollTo = (href) => {
     if (href.startsWith('mailto')) { window.location.href = href; return }
     const el = document.querySelector(href)
@@ -30,6 +34,8 @@ export default function Footer() {
   }
 
   return (
+    <>
+    {showPrivacy && <PrivacyModal onClose={() => setShowPrivacy(false)} />}
     <footer style={{
       borderTop: '1px solid rgba(255,255,255,0.08)',
       padding: '44px 24px 32px',
@@ -108,14 +114,18 @@ export default function Footer() {
             © 2026 Prospix. Tous droits réservés.
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <a href="#privacy" style={{ fontSize: 12, color: 'rgba(245,245,240,0.3)', textDecoration: 'none', transition: 'color 0.15s' }}
+            <button
+              type="button"
+              onClick={() => setShowPrivacy(true)}
+              style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'rgba(245,245,240,0.3)', cursor: 'pointer', fontFamily: 'inherit', transition: 'color 0.15s' }}
               onMouseEnter={e => e.currentTarget.style.color = '#2A9D74'}
               onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,245,240,0.3)'}
-            >Politique de confidentialité</a>
+            >Politique de confidentialité</button>
             <span style={{ fontSize: 12, color: 'rgba(245,245,240,0.15)' }}>Fait pour les freelances ambitieux</span>
           </div>
         </div>
       </div>
     </footer>
+    </>
   )
 }

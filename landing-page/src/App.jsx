@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import './index.css'
 import AnimatedBackground from './components/AnimatedBackground'
 import Header from './components/Header'
@@ -10,19 +9,8 @@ import Pricing from './components/Pricing'
 import CTABanner from './components/CTABanner'
 import Footer from './components/Footer'
 import StickyButtons from './components/StickyButtons'
-import PrivacyPolicy from './components/PrivacyPolicy'
 
 export default function App() {
-  const [showPrivacy, setShowPrivacy] = useState(window.location.hash === '#privacy')
-
-  useEffect(() => {
-    const handler = () => setShowPrivacy(window.location.hash === '#privacy')
-    window.addEventListener('hashchange', handler)
-    return () => window.removeEventListener('hashchange', handler)
-  }, [])
-
-  if (showPrivacy) return <PrivacyPolicy />
-
   return (
     <div style={{
       minHeight: '100vh',

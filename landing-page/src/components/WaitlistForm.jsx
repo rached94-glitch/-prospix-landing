@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import PrivacyModal from './PrivacyModal'
 
 const METIERS = [
   'Consultant SEO',
@@ -49,6 +50,7 @@ export default function WaitlistForm() {
     email: '', prenom: '', nom: '', metier: '', ville: '', statut: '', referral: '',
   })
   const [rgpd, setRgpd] = useState(false)
+  const [showPrivacy, setShowPrivacy] = useState(false)
   const [status, setStatus] = useState('idle') // idle | loading | success | error
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
@@ -102,6 +104,8 @@ export default function WaitlistForm() {
   }
 
   return (
+    <>
+    {showPrivacy && <PrivacyModal onClose={() => setShowPrivacy(false)} />}
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
 
       {/* Email — pleine largeur */}
@@ -229,7 +233,11 @@ export default function WaitlistForm() {
         </div>
         <span style={{ fontSize: 12, color: 'rgba(245,245,240,0.4)', lineHeight: 1.5 }}>
           J'accepte que Prospix utilise mes données pour me contacter au sujet de l'accès anticipé.{' '}
-          <a href="#privacy" style={{ color: '#2A9D74', textDecoration: 'underline' }}>Politique de confidentialité</a>
+          <button
+              type="button"
+              onClick={e => { e.preventDefault(); setShowPrivacy(true) }}
+              style={{ background: 'none', border: 'none', padding: 0, color: '#2A9D74', textDecoration: 'underline', cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit' }}
+            >Politique de confidentialité</button>
         </span>
       </label>
 
@@ -263,5 +271,6 @@ export default function WaitlistForm() {
       )}
 
     </form>
+    </>
   )
 }
