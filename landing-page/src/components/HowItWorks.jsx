@@ -26,62 +26,103 @@ function MockupSearch() {
   )
 }
 
-function KpiGrid({ kpis }) {
+function SocialIcons({ li, fb, ig, tk }) {
+  const icons = [
+    { key: 'LI', active: li, bg: '#0077b5' },
+    { key: 'FB', active: fb, bg: '#1877f2' },
+    { key: 'IG', active: ig, bg: '#e1306c' },
+    { key: 'TK', active: tk, bg: '#010101' },
+  ]
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 10 }}>
-      {kpis.map((k) => (
-        <div key={k.label} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '6px 8px' }}>
-          <div style={{ fontSize: 10, color: 'rgba(245,245,240,0.4)', marginBottom: 2, fontFamily: 'DM Sans, system-ui, sans-serif' }}>{k.label}</div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: k.color, fontFamily: 'DM Sans, system-ui, sans-serif' }}>{k.value}</div>
-        </div>
+    <div style={{ display: 'flex', gap: 4 }}>
+      {icons.map(({ key, active, bg }) => (
+        <div key={key} style={{
+          width: 22, height: 22, borderRadius: 4,
+          background: active ? bg : 'rgba(255,255,255,0.1)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 9, fontWeight: 700, color: active ? '#fff' : 'rgba(245,245,240,0.3)',
+          fontFamily: 'DM Sans, system-ui, sans-serif',
+        }}>{key}</div>
       ))}
     </div>
   )
 }
 
+function ScoreBadge({ score }) {
+  const color = score > 60 ? '#2A9D74' : score > 40 ? '#f59e0b' : '#ef4444'
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+      <span style={{ fontSize: 28, fontWeight: 800, color, lineHeight: 1, fontFamily: 'Satoshi, system-ui, sans-serif' }}>{score}</span>
+      <span style={{ fontSize: 11, color: 'rgba(245,245,240,0.4)', fontFamily: 'DM Sans, system-ui, sans-serif' }}>/100</span>
+    </div>
+  )
+}
+
+function LeadCard({ lead }) {
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.05)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: 12, padding: '14px 16px',
+      display: 'flex', gap: 12, alignItems: 'flex-start',
+    }}>
+      {/* Left */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#F5F5F0', fontFamily: 'DM Sans, system-ui, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {lead.name}
+        </div>
+        {/* Progress bar */}
+        <div style={{ height: 3, background: 'rgba(255,255,255,0.08)', borderRadius: 2 }}>
+          <div style={{ height: '100%', width: `${lead.bar}%`, background: '#2A9D74', borderRadius: 2 }} />
+        </div>
+        <div style={{ fontSize: 10, color: 'rgba(245,245,240,0.35)', fontFamily: 'DM Sans, system-ui, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {lead.address}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: '#f59e0b' }}>{lead.stars}</span>
+          <span style={{ fontSize: 10, color: 'rgba(245,245,240,0.35)', fontFamily: 'DM Sans, system-ui, sans-serif' }}>{lead.dist}</span>
+        </div>
+        {lead.badge && (
+          <span style={{ fontSize: 10, color: 'rgba(245,245,240,0.5)', background: 'rgba(255,255,255,0.08)', borderRadius: 4, padding: '2px 7px', width: 'fit-content', fontFamily: 'DM Sans, system-ui, sans-serif' }}>
+            {lead.badge}
+          </span>
+        )}
+        {lead.pos !== undefined && (
+          <div style={{ display: 'flex', gap: 8, fontSize: 11, fontFamily: 'DM Sans, system-ui, sans-serif' }}>
+            <span style={{ color: '#2A9D74', fontWeight: 600 }}>{lead.pos}%</span>
+            <span style={{ color: '#ef4444', fontWeight: 600 }}>{lead.neg}%</span>
+          </div>
+        )}
+        <SocialIcons li={lead.li} fb={lead.fb} ig={lead.ig} tk={lead.tk} />
+      </div>
+      {/* Score */}
+      <ScoreBadge score={lead.score} />
+    </div>
+  )
+}
+
 function MockupResults() {
-  const cards = [
-    {
-      name: 'Abou Plombier', rating: '⭐ 5', reviews: '170 avis',
-      kpis: [
-        { label: 'Chatbot',             value: 'Aucun',     color: '#ef4444' },
-        { label: 'Questions dans avis', value: '20',        color: '#f59e0b' },
-        { label: 'Réservation',         value: 'Détectée',  color: '#2A9D74' },
-        { label: 'FAQ',                 value: 'Absente',   color: '#ef4444' },
-      ],
-    },
-    {
-      name: 'Bistrot du Coin', rating: '⭐ 3.8', reviews: '47 avis',
-      kpis: [
-        { label: 'Site web',           value: 'Lent (8.2s)', color: '#ef4444' },
-        { label: 'Instagram',          value: 'Absent',      color: '#ef4444' },
-        { label: 'Avis sans réponse',  value: '12',          color: '#f59e0b' },
-        { label: 'Score',              value: '23/100',      color: '#2A9D74' },
-      ],
-    },
+  const leads = [
+    { name: 'Abou Plombier',                    address: '24 Rue du Champ de Manœuvre, Str...', stars: '★★★★★ 5 (170)', dist: '0.0 km', bar: 60, pos: 100, neg: 0,  li: false, fb: true,  ig: false, tk: false, score: 36 },
+    { name: 'R plombier',                        address: '40 All. du Bohrie, Ostwald',          stars: '★★★★★ 5 (7)',   dist: '5.1 km', bar: 40, badge: 'Potentiel nouveau', li: false, fb: false, ig: false, tk: false, score: 32 },
+    { name: 'Sanixpress - Plomberie Générale',   address: '5 Quai Kléber, Strasbourg',           stars: '★★★★★ 5 (1)',   dist: '0.7 km', bar: 35, badge: 'Potentiel nouveau', li: false, fb: false, ig: false, tk: false, score: 32 },
   ]
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <span style={{ fontSize: 12, color: 'rgba(245,245,240,0.45)', fontFamily: 'DM Sans, system-ui, sans-serif' }}>20 résultats · Strasbourg</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#4ade80', fontWeight: 600 }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 6px #4ade80', animation: 'pulse 2s infinite', flexShrink: 0 }} />
-          Live
-        </span>
-      </div>
-      {cards.map((c) => (
-        <div key={c.name} style={{
-          background: 'rgba(255,255,255,0.05)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: 8, padding: '14px 16px',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#F5F5F0', fontFamily: 'DM Sans, system-ui, sans-serif' }}>{c.name}</span>
-            <span style={{ fontSize: 11, color: 'rgba(245,245,240,0.45)' }}>{c.rating} · {c.reviews}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(245,245,240,0.3)', letterSpacing: '0.08em', fontFamily: 'DM Sans, system-ui, sans-serif' }}>LEADS</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 10, color: 'rgba(245,245,240,0.3)', fontFamily: 'DM Sans, system-ui, sans-serif' }}>SCORE MIN</span>
+          <div style={{ width: 60, height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, position: 'relative' }}>
+            <div style={{ width: '40%', height: '100%', background: '#2A9D74', borderRadius: 2 }} />
+            <div style={{ position: 'absolute', top: '50%', left: '40%', transform: 'translate(-50%,-50%)', width: 8, height: 8, background: '#2A9D74', borderRadius: '50%', border: '1px solid #131815' }} />
           </div>
-          <KpiGrid kpis={c.kpis} />
         </div>
-      ))}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {leads.map((l) => <LeadCard key={l.name} lead={l} />)}
+      </div>
     </div>
   )
 }
