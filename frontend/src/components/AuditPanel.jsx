@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { exportAuditPDF, exportAuditPhotographePDF, exportAuditChatbotPDF, exportAuditSocialMediaPDF, exportAuditDesignerPDF, exportAuditWebDevPDF, exportAuditEmailMarketingPDF, exportAuditGoogleAdsPDF } from '../utils/exportAuditPDF'
+import { exportAuditPDF, exportAuditPhotographePDF, exportAuditChatbotPDF, exportAuditSocialMediaPDF, exportAuditDesignerPDF, exportAuditWebDevPDF, exportAuditEmailMarketingPDF, exportAuditGoogleAdsPDF, exportAuditVideographerPDF } from '../utils/exportAuditPDF'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -15,6 +15,7 @@ const AUDIT_LABEL = {
   'email-marketing': "Générer l'audit email marketing — 2 crédits",
   'pub-google':      "Générer l'audit Google Ads — 2 crédits",
   'copywriter':      "Générer l'audit contenu — 2 crédits",
+  'videaste':        "Générer l'audit vidéaste — 2 crédits",
 }
 
 /**
@@ -190,6 +191,9 @@ export default function AuditPanel({
           break
         case 'pub-google':
           await exportAuditGoogleAdsPDF({ lead, activeProfile, googleAdsAudit: prospectAuditResult, auditData })
+          break
+        case 'videaste':
+          await exportAuditVideographerPDF({ lead, activeProfile, videographerAudit: prospectAuditResult, auditData })
           break
         default:
           await exportAuditPDF({ lead, activeProfile, activeWeights, aiReport, auditData, prospectAudit: prospectAuditResult })
