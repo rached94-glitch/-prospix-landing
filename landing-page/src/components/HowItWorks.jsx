@@ -310,18 +310,19 @@ export default function HowItWorks() {
           {STEPS.map((step, i) => <Step key={step.num} step={step} index={i} />)}
         </div>
 
-        {/* Paragraphe temps gagné */}
+        {/* Paragraphe pitch inversé */}
         <div style={{ marginTop: 64, textAlign: 'center' }}>
-          <p style={{ maxWidth: 700, margin: '0 auto', color: 'rgba(245,245,240,0.5)', fontSize: 16, lineHeight: 1.7, fontFamily: 'DM Sans, system-ui, sans-serif' }}>
-            Sans Prospix, prospecter un seul commerce prend{' '}
-            <strong style={{ color: '#EDFA36', fontWeight: 700 }}>35 minutes</strong>
-            {' '}:  chercher sur Google Maps, analyser le site, lire les avis, vérifier les réseaux sociaux, rédiger un email. Pour 10 prospects, c'est 6 heures de travail. Avec Prospix, c'est{' '}
-            <strong style={{ color: '#EDFA36', fontWeight: 700 }}>1 minute</strong>
-            {' '}par prospect. L'IA analyse tout — site, avis, réseaux, données légales — et génère un{' '}
-            <strong style={{ color: '#2A9D74', fontWeight: 700 }}>audit PDF</strong>
-            {' '}et un{' '}
-            <strong style={{ color: '#2A9D74', fontWeight: 700 }}>email personnalisé</strong>
-            {' '}adaptés à votre métier. Vous n'envoyez plus un email froid. Vous offrez une analyse gratuite. Le prospect voit ses faiblesses. Il vous répond.
+          <p style={{ maxWidth: 700, margin: '0 auto', color: 'rgba(245,245,240,0.6)', fontSize: 16, lineHeight: 1.8, fontFamily: 'DM Sans, system-ui, sans-serif' }}>
+            Imaginez recevoir un email d'un inconnu qui vous dit : votre site met{' '}
+            <strong style={{ color: '#EDFA36', fontWeight: 700 }}>8 secondes</strong>
+            {' '}à charger, vous n'avez{' '}
+            <strong style={{ color: '#EDFA36', fontWeight: 700 }}>aucune photo pro</strong>
+            , et{' '}
+            <strong style={{ color: '#EDFA36', fontWeight: 700 }}>23 clients</strong>
+            {' '}vous posent la même question dans vos avis.{' '}
+            <strong style={{ color: '#FFFFFF', fontWeight: 700 }}>Vous répondriez.</strong>
+            {' '}C'est exactement ce que vos prospects reçoivent quand vous utilisez{' '}
+            <strong style={{ color: '#2A9D74', fontWeight: 700 }}>Prospix</strong>.
           </p>
 
           <p style={{ fontSize: 16, fontWeight: 500, color: '#FFFFFF', textAlign: 'center', marginTop: 32, fontFamily: 'DM Sans, system-ui, sans-serif' }}>
