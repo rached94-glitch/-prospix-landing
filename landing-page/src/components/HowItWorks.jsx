@@ -26,14 +26,42 @@ function MockupSearch() {
   )
 }
 
+function KpiGrid({ kpis }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 10 }}>
+      {kpis.map((k) => (
+        <div key={k.label} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '6px 8px' }}>
+          <div style={{ fontSize: 10, color: 'rgba(245,245,240,0.4)', marginBottom: 2, fontFamily: 'DM Sans, system-ui, sans-serif' }}>{k.label}</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: k.color, fontFamily: 'DM Sans, system-ui, sans-serif' }}>{k.value}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function MockupResults() {
   const cards = [
-    { name: 'Abou Plombier',   rating: '⭐ 5',   reviews: '170 avis', tags: [{ t: 'Pas de site', c: 'rgba(239,68,68,0.15)', tc: '#f87171', b: 'rgba(239,68,68,0.25)' }, { t: "Pas d'Instagram", c: 'rgba(249,115,22,0.12)', tc: '#fb923c', b: 'rgba(249,115,22,0.25)' }] },
-    { name: 'Bistrot du Coin', rating: '⭐ 3.8', reviews: '47 avis',  tags: [{ t: 'Site lent',   c: 'rgba(239,68,68,0.15)', tc: '#f87171', b: 'rgba(239,68,68,0.25)' }, { t: 'Pas de SEO',      c: 'rgba(249,115,22,0.12)', tc: '#fb923c', b: 'rgba(249,115,22,0.25)' }] },
+    {
+      name: 'Abou Plombier', rating: '⭐ 5', reviews: '170 avis',
+      kpis: [
+        { label: 'Chatbot',             value: 'Aucun',     color: '#ef4444' },
+        { label: 'Questions dans avis', value: '20',        color: '#f59e0b' },
+        { label: 'Réservation',         value: 'Détectée',  color: '#2A9D74' },
+        { label: 'FAQ',                 value: 'Absente',   color: '#ef4444' },
+      ],
+    },
+    {
+      name: 'Bistrot du Coin', rating: '⭐ 3.8', reviews: '47 avis',
+      kpis: [
+        { label: 'Site web',           value: 'Lent (8.2s)', color: '#ef4444' },
+        { label: 'Instagram',          value: 'Absent',      color: '#ef4444' },
+        { label: 'Avis sans réponse',  value: '12',          color: '#f59e0b' },
+        { label: 'Score',              value: '23/100',      color: '#2A9D74' },
+      ],
+    },
   ]
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <span style={{ fontSize: 12, color: 'rgba(245,245,240,0.45)', fontFamily: 'DM Sans, system-ui, sans-serif' }}>20 résultats · Strasbourg</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#4ade80', fontWeight: 600 }}>
@@ -47,19 +75,11 @@ function MockupResults() {
           border: '1px solid rgba(255,255,255,0.08)',
           borderRadius: 8, padding: '14px 16px',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#F5F5F0', fontFamily: 'DM Sans, system-ui, sans-serif' }}>{c.name}</span>
             <span style={{ fontSize: 11, color: 'rgba(245,245,240,0.45)' }}>{c.rating} · {c.reviews}</span>
           </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {c.tags.map((tag) => (
-              <span key={tag.t} style={{
-                fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 4,
-                background: tag.c, border: `1px solid ${tag.b}`, color: tag.tc,
-                fontFamily: 'DM Sans, system-ui, sans-serif',
-              }}>{tag.t}</span>
-            ))}
-          </div>
+          <KpiGrid kpis={c.kpis} />
         </div>
       ))}
     </div>
@@ -67,22 +87,24 @@ function MockupResults() {
 }
 
 function MockupAudit() {
+  const auditKpis = [
+    { label: 'Chatbot existant',      value: 'Aucun — opportunité directe',          color: '#ef4444' },
+    { label: 'Questions récurrentes', value: 'tarif, services, contact',              color: '#f59e0b' },
+    { label: 'CMS détecté',           value: 'WordPress — intégration facilitée',    color: '#2A9D74' },
+    { label: 'Formulaire contact',    value: 'Absent',                               color: '#ef4444' },
+  ]
   const fakeLines = [90, 70, 55, 80]
   return (
     <div style={{ display: 'flex', gap: 12 }}>
       {/* Audit PDF */}
       <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '16px 14px' }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(245,245,240,0.3)', letterSpacing: '0.08em', marginBottom: 12 }}>AUDIT PDF</div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: '#4ade80', letterSpacing: '-0.02em', marginBottom: 14 }}>23<span style={{ fontSize: 12, fontWeight: 400, color: 'rgba(245,245,240,0.3)' }}>/100</span></div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          {[
-            { icon: '✗', text: 'Pas de chatbot', color: '#f87171' },
-            { icon: '✗', text: 'FAQ absente',    color: '#f87171' },
-            { icon: '✓', text: 'Réservation OK', color: '#4ade80' },
-          ].map((row) => (
-            <div key={row.text} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: row.color }}>
-              <span style={{ fontWeight: 700, flexShrink: 0 }}>{row.icon}</span>
-              <span style={{ fontFamily: 'DM Sans, system-ui, sans-serif' }}>{row.text}</span>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(245,245,240,0.3)', letterSpacing: '0.08em', marginBottom: 10 }}>AUDIT PDF</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#2A9D74', letterSpacing: '-0.02em', marginBottom: 12 }}>23<span style={{ fontSize: 12, fontWeight: 400, color: 'rgba(245,245,240,0.3)' }}>/100</span></div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {auditKpis.map((k) => (
+            <div key={k.label}>
+              <div style={{ fontSize: 10, color: 'rgba(245,245,240,0.4)', marginBottom: 1, fontFamily: 'DM Sans, system-ui, sans-serif' }}>{k.label}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: k.color, fontFamily: 'DM Sans, system-ui, sans-serif', lineHeight: 1.3 }}>{k.value}</div>
             </div>
           ))}
         </div>
@@ -242,19 +264,9 @@ export default function HowItWorks() {
           </h2>
         </div>
 
-        {/* Étapes avec ligne verticale centrale */}
-        <div style={{ position: 'relative' }}>
-          {/* Ligne verticale verte */}
-          <div style={{
-            position: 'absolute', left: '50%', top: 0, bottom: 0,
-            width: 2, background: 'rgba(29,110,85,0.3)',
-            transform: 'translateX(-50%)',
-            pointerEvents: 'none',
-          }} />
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 64, position: 'relative', zIndex: 1 }}>
-            {STEPS.map((step, i) => <Step key={step.num} step={step} index={i} />)}
-          </div>
+        {/* Étapes */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 64 }}>
+          {STEPS.map((step, i) => <Step key={step.num} step={step} index={i} />)}
         </div>
 
         {/* Paragraphe temps gagné */}
