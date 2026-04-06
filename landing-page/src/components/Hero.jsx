@@ -158,7 +158,7 @@ export default function Hero() {
         >
           {[
             { val: '10',   lab: 'profils métier' },
-            { val: '30s',  lab: 'Audit IA' },
+            { val: '1min', lab: 'Audit IA' },
             { val: '120',  lab: 'leads / recherche' },
           ].map((s, i) => (
             <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
