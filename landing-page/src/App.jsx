@@ -15,7 +15,6 @@ export default function App() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#131815',
       display: 'flex', flexDirection: 'column',
       position: 'relative',
     }}>

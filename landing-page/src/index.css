@@ -12,7 +12,8 @@ html {
 
 body {
   font-family: 'DM Sans', system-ui, sans-serif;
-  background: #0A0F0D;
+  background: linear-gradient(180deg, #0D1A14 0%, #0A1210 40%, #0D1A14 70%, #0A1210 100%);
+  background-attachment: fixed;
   color: #F5F5F0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -130,18 +131,20 @@ input, textarea {
 }
 
 @keyframes gradientMove1 {
-  0%, 100% { transform: translateX(0); }
-  50%       { transform: translateX(15%); }
+  0%, 100% { transform: translate(0px,   0px); }
+  33%       { transform: translate(50px, -30px); }
+  66%       { transform: translate(20px,  40px); }
 }
 
 @keyframes gradientMove2 {
-  0%, 100% { transform: translateX(0); }
-  50%       { transform: translateX(-15%); }
+  0%, 100% { transform: translate(0px,   0px); }
+  33%       { transform: translate(-50px, 30px); }
+  66%       { transform: translate(-20px, -40px); }
 }
 
 @keyframes gradientMove3 {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-10%); }
+  0%, 100% { transform: translate(0px,   0px); }
+  50%       { transform: translate(30px, -50px); }
 }
 
 @keyframes iconBounce {
