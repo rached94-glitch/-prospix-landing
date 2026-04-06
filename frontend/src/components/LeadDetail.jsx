@@ -2945,6 +2945,15 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
                   )
                 })()}
 
+                {/* ANALYSER — videaste uniquement, inline sous les KPIs */}
+                {activeProfile?.id === 'videaste' && (lead.website || lead.social?.facebook || lead.social?.instagram) && (() => {
+                  if (auditState === 'idle')
+                    return <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ width: '100%', height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#64748b', fontSize: 10.5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 8 }}>Analyser les performances digitales — 1 crédit</button>
+                  if (auditState === 'loading')
+                    return <div style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, color: '#64748b', marginBottom: 8 }}>Analyse en cours…</div>
+                  return null
+                })()}
+
                 {/* Compact perf-audit — SEO / dev-web / pub-google / chatbot */}
                 {['seo', 'consultant-seo', 'dev-web', 'pub-google', 'chatbot', 'dev-chatbot'].includes(activeProfile?.id) && (lead.website || lead.social?.facebook || lead.social?.instagram) && (() => {
                   const isChatbotProfile = ['chatbot', 'dev-chatbot'].includes(activeProfile?.id)
@@ -3455,15 +3464,15 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
             )}
           </div>
 
-          {/* Perf audit on-demand */}
-          {!['seo', 'consultant-seo', 'dev-web', 'pub-google', 'photographe', 'chatbot', 'dev-chatbot', 'email-marketing', 'copywriter'].includes(activeProfile?.id) && auditState === 'idle' && (lead.website || lead.social?.facebook || lead.social?.instagram) && (
+          {/* Perf audit on-demand — fallback profils non couverts ci-dessus */}
+          {!['seo', 'consultant-seo', 'dev-web', 'pub-google', 'photographe', 'chatbot', 'dev-chatbot', 'email-marketing', 'copywriter', 'social-media', 'designer', 'videaste'].includes(activeProfile?.id) && auditState === 'idle' && (lead.website || lead.social?.facebook || lead.social?.instagram) && (
             <div style={{ marginBottom: 20 }}>
               <button className="ld-btn" onClick={handleAnalyzePerformance} style={{ width: '100%', height: 40, borderRadius: 10, border: '1px solid rgba(29,110,85,0.25)', background: 'rgba(29,110,85,0.12)', color: '#1d6e55', fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                {activeProfile?.id === 'copywriter' ? 'Analyser le contenu du site — 1 crédit' : 'Analyser les performances digitales — 1 crédit'}
+                Analyser les performances digitales — 1 crédit
               </button>
             </div>
           )}
-          {!['seo', 'consultant-seo', 'dev-web', 'pub-google', 'photographe', 'email-marketing', 'copywriter'].includes(activeProfile?.id) && auditState === 'loading' && (
+          {!['seo', 'consultant-seo', 'dev-web', 'pub-google', 'photographe', 'email-marketing', 'copywriter', 'social-media', 'designer', 'videaste'].includes(activeProfile?.id) && auditState === 'loading' && (
             <div style={{ marginBottom: 20, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#64748b' }}>Audit en cours…</div>
           )}
 
