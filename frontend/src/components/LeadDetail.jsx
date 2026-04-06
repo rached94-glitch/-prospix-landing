@@ -337,14 +337,11 @@ export default function LeadDetail({ lead, leads, onClose, onStatusChange, onDec
           console.log('[Videaste] Démarrage TikTok stats —', lead.social.tiktok)
           setTkStatsLoading(true)
           setTkStatsError(null)
-          fetch(`${API}/api/leads/tiktok-stats`, {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ tiktokUrl: lead.social.tiktok }),
-          })
+          fetch(`${API}/api/leads/tiktok-stats?url=${encodeURIComponent(lead.social.tiktok)}`)
             .then(r => r.json().then(body => ({ ok: r.ok, body })))
             .then(({ ok, body }) => {
               if (!ok) throw new Error(body.error || 'Erreur serveur')
+              if (body.error === 'tiktok_unavailable') { setTkStatsError('Données indisponibles — compte privé ou restreint'); return }
               console.log('[Videaste] TikTok stats —', JSON.stringify(body))
               setTkStats(body)
             })

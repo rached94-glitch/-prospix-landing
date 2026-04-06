@@ -91,7 +91,7 @@ export default function AIEmailGenerator({
   }
 
   const VISUAL_PROFILES = ['photographe', 'designer', 'copywriter']
-  const AUDIT_PROFILES  = ['seo', 'consultant-seo', 'dev-web', 'pub-google']
+  const AUDIT_PROFILES  = ['seo', 'consultant-seo', 'dev-web', 'pub-google', 'social-media', 'videaste']
   const pid = activeProfile?.id
   const visualBlocked = VISUAL_PROFILES.includes(pid) && !!visualError && (visualError.includes('bloque') || visualError.includes('indisponible') || visualError.includes('ne permet pas'))
   const step2Done = VISUAL_PROFILES.includes(pid)
