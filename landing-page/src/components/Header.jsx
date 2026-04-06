@@ -29,11 +29,12 @@ export default function Header() {
   return (
     <header style={{
       position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000,
-      background: scrolled ? 'rgba(10,15,13,0.92)' : 'rgba(10,15,13,0.6)',
-      backdropFilter: 'blur(14px)',
-      WebkitBackdropFilter: 'blur(14px)',
+      background: scrolled ? 'rgba(10,15,13,0.92)' : 'rgba(10,15,13,0.5)',
+      backdropFilter: scrolled ? 'blur(20px)' : 'blur(8px)',
+      WebkitBackdropFilter: scrolled ? 'blur(20px)' : 'blur(8px)',
       borderBottom: '1px solid rgba(255,255,255,0.08)',
-      transition: 'background 0.3s',
+      boxShadow: scrolled ? '0 1px 32px rgba(0,0,0,0.5)' : 'none',
+      transition: 'background 0.3s, backdrop-filter 0.3s, box-shadow 0.3s',
     }}>
       <div style={{
         maxWidth: 1180, margin: '0 auto',
@@ -47,7 +48,7 @@ export default function Header() {
           onClick={e => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
           style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}
         >
-          <span style={{ fontSize: 20, lineHeight: 1 }}>⚡</span>
+          <span style={{ fontSize: 20, lineHeight: 1, display: 'inline-block', animation: 'logoPulse 2.5s ease-in-out infinite' }}>⚡</span>
           <span style={{ fontSize: 18, fontWeight: 700, color: '#F5F5F0', letterSpacing: '-0.02em' }}>Prospix</span>
         </a>
 

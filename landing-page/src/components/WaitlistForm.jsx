@@ -14,7 +14,6 @@ export default function WaitlistForm({ size = 'normal' }) {
     if (!email.trim() || status === 'loading') return
     playClick()
     setStatus('loading')
-
     try {
       // TODO: envoyer vers Google Sheets API
       const entries = JSON.parse(localStorage.getItem('prospix_waitlist') || '[]')
@@ -30,16 +29,17 @@ export default function WaitlistForm({ size = 'normal' }) {
   if (status === 'success') {
     return (
       <div style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-        padding: '20px 24px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+        padding: '22px 28px',
         background: 'rgba(29,110,85,0.12)',
         border: '1px solid rgba(29,110,85,0.3)',
         borderRadius: 14,
+        backdropFilter: 'blur(12px)',
         animation: 'fadeSlideUp 0.4s ease forwards',
       }}>
-        <div style={{ fontSize: 28 }}>✅</div>
+        <div style={{ fontSize: 30 }}>✅</div>
         <div style={{ fontSize: 17, fontWeight: 700, color: '#F5F5F0' }}>Merci ! Vous êtes sur la liste.</div>
-        <div style={{ fontSize: 13, color: 'rgba(245,245,240,0.55)', textAlign: 'center' }}>
+        <div style={{ fontSize: 13, color: 'rgba(245,245,240,0.55)', textAlign: 'center', lineHeight: 1.5 }}>
           On vous contacte en priorité au lancement de Prospix.
         </div>
       </div>
@@ -58,8 +58,8 @@ export default function WaitlistForm({ size = 'normal' }) {
         flexDirection: isCompact ? 'row' : 'column',
         gap: 8,
         flex: 1,
-        flexWrap: isCompact ? 'nowrap' : 'nowrap',
       }}>
+        {/* Email input */}
         <input
           type="email"
           required
@@ -75,12 +75,21 @@ export default function WaitlistForm({ size = 'normal' }) {
             color: '#F5F5F0',
             fontSize: 14,
             outline: 'none',
-            transition: 'border-color 0.2s',
+            transition: 'border-color 0.2s, box-shadow 0.2s',
             fontFamily: 'Instrument Sans, sans-serif',
+            backdropFilter: 'blur(8px)',
           }}
-          onFocus={e => e.target.style.borderColor = 'rgba(29,110,85,0.6)'}
-          onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.12)'}
+          onFocus={e => {
+            e.target.style.borderColor = 'rgba(29,110,85,0.7)'
+            e.target.style.boxShadow = '0 0 20px rgba(29,110,85,0.25), inset 0 0 12px rgba(29,110,85,0.05)'
+          }}
+          onBlur={e => {
+            e.target.style.borderColor = 'rgba(255,255,255,0.12)'
+            e.target.style.boxShadow = 'none'
+          }}
         />
+
+        {/* Referral input */}
         {!isCompact && (
           <input
             type="text"
@@ -95,22 +104,35 @@ export default function WaitlistForm({ size = 'normal' }) {
               color: 'rgba(245,245,240,0.7)',
               fontSize: 13,
               outline: 'none',
-              transition: 'border-color 0.2s',
+              transition: 'border-color 0.2s, box-shadow 0.2s',
               fontFamily: 'Instrument Sans, sans-serif',
             }}
-            onFocus={e => e.target.style.borderColor = 'rgba(29,110,85,0.4)'}
-            onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
+            onFocus={e => {
+              e.target.style.borderColor = 'rgba(29,110,85,0.4)'
+              e.target.style.boxShadow = '0 0 14px rgba(29,110,85,0.15)'
+            }}
+            onBlur={e => {
+              e.target.style.borderColor = 'rgba(255,255,255,0.08)'
+              e.target.style.boxShadow = 'none'
+            }}
           />
         )}
       </div>
 
+      {/* Shimmer CTA button */}
       <button
         type="submit"
         disabled={status === 'loading'}
         onClick={playClick}
         style={{
+          position: 'relative',
+          overflow: 'hidden',
           padding: isCompact ? '11px 20px' : '14px 28px',
-          background: status === 'loading' ? 'rgba(237,250,54,0.5)' : '#EDFA36',
+          background: status === 'loading'
+            ? 'rgba(237,250,54,0.5)'
+            : 'linear-gradient(90deg, #EDFA36 0%, #c8f000 40%, #EDFA36 60%, #fff880 80%, #EDFA36 100%)',
+          backgroundSize: '300% auto',
+          animation: status === 'loading' ? 'none' : 'btnShimmer 3s linear infinite',
           color: '#0A0F0D',
           border: 'none',
           borderRadius: 10,
@@ -119,11 +141,19 @@ export default function WaitlistForm({ size = 'normal' }) {
           cursor: status === 'loading' ? 'default' : 'pointer',
           fontFamily: 'Instrument Sans, sans-serif',
           whiteSpace: 'nowrap',
-          transition: 'all 0.15s',
-          boxShadow: '0 4px 20px rgba(237,250,54,0.25)',
+          transition: 'transform 0.15s, box-shadow 0.15s',
+          boxShadow: '0 4px 24px rgba(237,250,54,0.3)',
         }}
-        onMouseEnter={e => { if (status !== 'loading') { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.boxShadow = '0 6px 28px rgba(237,250,54,0.4)' } }}
-        onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(237,250,54,0.25)' }}
+        onMouseEnter={e => {
+          if (status !== 'loading') {
+            e.currentTarget.style.transform = 'scale(1.03) translateY(-1px)'
+            e.currentTarget.style.boxShadow = '0 8px 32px rgba(237,250,54,0.45)'
+          }
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.transform = 'scale(1) translateY(0)'
+          e.currentTarget.style.boxShadow = '0 4px 24px rgba(237,250,54,0.3)'
+        }}
       >
         {status === 'loading' ? '...' : '⚡ Rejoindre la waitlist'}
       </button>

@@ -72,7 +72,7 @@ input, textarea {
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50%       { opacity: 0.5; }
+  50%       { opacity: 0.4; }
 }
 
 @keyframes shimmer {
@@ -83,6 +83,41 @@ input, textarea {
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50%       { transform: translateY(-6px); }
+}
+
+@keyframes floatParticle {
+  0%   { transform: translateY(0)   translateX(0)   scale(1);   opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 0.6; }
+  100% { transform: translateY(-120vh) translateX(30px)  scale(0.6); opacity: 0; }
+}
+
+@keyframes gradientDrift {
+  0%   { background-position: 20% 40%; }
+  33%  { background-position: 80% 20%; }
+  66%  { background-position: 50% 80%; }
+  100% { background-position: 20% 40%; }
+}
+
+@keyframes badgePulseRing {
+  0%   { box-shadow: 0 0 0 0   rgba(29,110,85,0.5), 0 0 0 0 rgba(74,222,128,0.3); }
+  70%  { box-shadow: 0 0 0 10px rgba(29,110,85,0),   0 0 0 20px rgba(74,222,128,0); }
+  100% { box-shadow: 0 0 0 0   rgba(29,110,85,0),   0 0 0 0  rgba(74,222,128,0); }
+}
+
+@keyframes btnShimmer {
+  0%   { background-position: -300% center; }
+  100% { background-position:  300% center; }
+}
+
+@keyframes logoPulse {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(237,250,54,0.6)); }
+  50%       { filter: drop-shadow(0 0 12px rgba(237,250,54,1)); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 /* ── Gradient text ────────────────────────────────── */
