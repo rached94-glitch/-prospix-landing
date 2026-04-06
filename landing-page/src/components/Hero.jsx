@@ -49,11 +49,11 @@ export default function Hero() {
           <span style={{
             fontSize: 11, fontWeight: 500,
             color: 'rgba(245,245,240,0.4)',
-            letterSpacing: '2px',
+            letterSpacing: '3px',
             textTransform: 'uppercase',
             fontFamily: 'DM Sans, system-ui, sans-serif',
           }}>
-            Prospection IA pour freelances
+            Prospection Intelligente
           </span>
         </motion.div>
 
@@ -161,7 +161,7 @@ export default function Hero() {
           {[
             { val: '10',    lab: 'profils métier' },
             { val: '30s',   lab: 'Audit IA' },
-            { val: '200',   lab: 'leads / recherche' },
+            { val: '120',   lab: 'leads / recherche' },
           ].map((s, i) => (
             <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
               <span style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 800, color: '#EDFA36', letterSpacing: '-0.03em', lineHeight: 1, textShadow: '0 0 28px rgba(237,250,54,0.35)' }}>{s.val}</span>
@@ -179,13 +179,13 @@ export default function Hero() {
         borderTop: '1px solid rgba(255,255,255,0.06)',
         paddingTop: 18,
       }}>
-        <div style={{ display: 'inline-flex', whiteSpace: 'nowrap', animation: 'marquee 30s linear infinite' }}>
+        <div style={{ display: 'inline-flex', whiteSpace: 'nowrap', animation: 'marquee 35s linear infinite' }}>
           {[0, 1].map(n => (
             <span key={n} style={{ display: 'inline-flex', alignItems: 'center' }}>
               {CITIES.map((city, i) => (
                 <span key={i} style={{ display: 'inline-flex', alignItems: 'center' }}>
-                  <span style={{ fontSize: 14, fontWeight: 400, color: 'rgba(245,245,240,0.3)', fontFamily: 'DM Sans, system-ui, sans-serif' }}>{city}</span>
-                  <span style={{ margin: '0 20px', color: 'rgba(245,245,240,0.2)', fontSize: 14 }}>·</span>
+                  <span style={{ fontSize: 13, fontWeight: 400, color: 'rgba(245,245,240,0.25)', fontFamily: 'DM Sans, system-ui, sans-serif' }}>{city}</span>
+                  <span style={{ margin: '0 20px', color: 'rgba(245,245,240,0.15)', fontSize: 13 }}>·</span>
                 </span>
               ))}
             </span>
