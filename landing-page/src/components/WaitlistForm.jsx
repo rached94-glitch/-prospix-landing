@@ -48,6 +48,7 @@ export default function WaitlistForm() {
   const [form, setForm] = useState({
     email: '', prenom: '', nom: '', metier: '', ville: '', statut: '', referral: '',
   })
+  const [rgpd, setRgpd] = useState(false)
   const [status, setStatus] = useState('idle') // idle | loading | success | error
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
@@ -63,12 +64,12 @@ export default function WaitlistForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.email.trim() || !form.prenom.trim() || !form.metier) return
+    if (!form.email.trim() || !form.prenom.trim() || !form.metier || !rgpd) return
     setStatus('loading')
     try {
       // TODO: envoyer vers Google Sheets API
       const entries = JSON.parse(localStorage.getItem('prospix_waitlist') || '[]')
-      entries.push({ ...form, date: new Date().toISOString() })
+      entries.push({ ...form, rgpd_consent: true, date: new Date().toISOString() })
       localStorage.setItem('prospix_waitlist', JSON.stringify(entries))
       await new Promise(r => setTimeout(r, 600))
       setStatus('success')
@@ -200,6 +201,37 @@ export default function WaitlistForm() {
           />
         </Field>
       </Row>
+
+      {/* RGPD */}
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+        <div style={{ position: 'relative', flexShrink: 0, marginTop: 1 }}>
+          <input
+            type="checkbox"
+            required
+            checked={rgpd}
+            onChange={e => setRgpd(e.target.checked)}
+            style={{ position: 'absolute', opacity: 0, width: 16, height: 16, margin: 0, cursor: 'pointer' }}
+          />
+          <div style={{
+            width: 16, height: 16, borderRadius: 4,
+            border: rgpd ? '1px solid #1D6E55' : '1px solid rgba(255,255,255,0.2)',
+            background: rgpd ? '#1D6E55' : 'transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.15s, border-color 0.15s',
+            pointerEvents: 'none',
+          }}>
+            {rgpd && (
+              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+          </div>
+        </div>
+        <span style={{ fontSize: 12, color: 'rgba(245,245,240,0.4)', lineHeight: 1.5 }}>
+          J'accepte que Prospix utilise mes données pour me contacter au sujet de l'accès anticipé.{' '}
+          <a href="#" style={{ color: '#2A9D74', textDecoration: 'underline' }}>Politique de confidentialité</a>
+        </span>
+      </label>
 
       {/* Bouton submit */}
       <button
