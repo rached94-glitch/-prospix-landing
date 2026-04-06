@@ -2956,4 +2956,292 @@ Retourne UNIQUEMENT un JSON valide :
   catch { return JSON.parse(jsonMatch[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')) }
 }
 
-module.exports = { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateEmailSocialMedia, generateEmailDesigner, generateEmailWebDev, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot, generateAuditSocialMedia, generateAuditDesigner, generateAuditWebDev, generateAuditEmailMarketing, generateEmailEmailMarketing, generateAuditGoogleAds, generateEmailGoogleAds, generateEmailCopywriter }
+// ─── generateAuditVideographer ────────────────────────────────────────────────
+async function generateAuditVideographer({ businessName, websiteUrl, socialActivity, photoCount, reviewsData, googleRating, totalReviews }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
+
+  const anthropic = new Anthropic({ apiKey })
+
+  const name        = businessName ?? 'ce commerce'
+  const website     = websiteUrl   ?? null
+  const rating      = googleRating ?? null
+  const reviewCount = totalReviews ?? null
+  const photos      = photoCount   ?? 0
+
+  const hasInstagram  = socialActivity?.hasInstagram   ?? false
+  const hasFacebook   = socialActivity?.hasFacebook    ?? false
+  const hasTiktok     = socialActivity?.hasTiktok      ?? false
+  const hasYoutube    = socialActivity?.hasYoutube     ?? false
+  const videoOnSite   = socialActivity?.videoOnSite    ?? false
+  const videoCount    = socialActivity?.videoCount     ?? 0
+  const hasPortfolio  = socialActivity?.hasPortfolio   ?? false
+  const youtubeChannel = socialActivity?.youtubeChannel ?? null
+
+  const unanswered  = reviewsData?.unanswered ?? 0
+  const keywords    = reviewsData?.keywords   ?? []
+  const keywordsText = keywords.length > 0 ? keywords.slice(0, 5).join(', ') : '—'
+
+  // ── Forces détectées côté JS ──────────────────────────────────────────────
+  const forcesHints = []
+  if (hasYoutube || youtubeChannel)             forcesHints.push('Présence YouTube détectée — chaîne ou lien vidéo existant')
+  if (hasTiktok)                                forcesHints.push('Présence TikTok détectée — format vidéo court valorisé')
+  if (hasInstagram)                             forcesHints.push('Compte Instagram présent — relais visuel potentiel')
+  if (videoOnSite && videoCount >= 3)           forcesHints.push(`Vidéos intégrées sur le site (${videoCount} vidéo${videoCount > 1 ? 's' : ''})`)
+  else if (videoOnSite)                         forcesHints.push('Vidéo présente sur le site — début de présence vidéo en ligne')
+  if (hasPortfolio)                             forcesHints.push('Page portfolio / réalisations détectée sur le site')
+  if (photos >= 10)                             forcesHints.push(`Fiche Google illustrée (${photos} photos)`)
+  if (rating !== null && rating >= 4.5)         forcesHints.push(`Excellente note Google (${rating}/5 — ${reviewCount ?? '?'} avis)`)
+  else if (rating !== null && rating >= 4)      forcesHints.push(`Bonne note Google (${rating}/5)`)
+  if (website)                                  forcesHints.push('Site web présent — support pour intégration vidéo')
+  if (forcesHints.length === 0)                 forcesHints.push('Fiche Google Maps existante et indexée')
+
+  // ── Faiblesses détectées côté JS ─────────────────────────────────────────
+  const weaknessHints = []
+  if (!hasYoutube && !youtubeChannel)           weaknessHints.push('Aucune chaîne YouTube liée — canal vidéo long format absent')
+  if (!hasTiktok)                               weaknessHints.push('TikTok absent — format vidéo court non exploité')
+  if (!videoOnSite)                             weaknessHints.push('Aucune vidéo intégrée sur le site — expérience visiteur incomplète')
+  else if (videoCount < 3)                      weaknessHints.push(`Peu de vidéos sur le site (${videoCount}) — potentiel sous-exploité`)
+  if (!hasPortfolio)                            weaknessHints.push('Pas de page portfolio / réalisations — travaux non valorisés en ligne')
+  if (photos < 10)                              weaknessHints.push(`Peu de photos sur la fiche Google (${photos}) — crédibilité visuelle limitée`)
+  if (!hasInstagram && !hasTiktok && !hasYoutube) weaknessHints.push('Absence totale sur les réseaux vidéo/visuels')
+  if (unanswered > 0)                           weaknessHints.push(`${unanswered} avis Google sans réponse — engagement client manquant`)
+
+  const socialsBlock = [
+    `  - YouTube    : ${(hasYoutube || youtubeChannel) ? `Présent${youtubeChannel ? ` (${youtubeChannel.slice(0, 50)})` : ''}` : 'Absent'}`,
+    `  - TikTok     : ${hasTiktok    ? 'Présent' : 'Absent'}`,
+    `  - Instagram  : ${hasInstagram ? 'Présent' : 'Absent'}`,
+    `  - Facebook   : ${hasFacebook  ? 'Présent' : 'Absent'}`,
+    `  - Vidéo site : ${videoOnSite  ? `${videoCount} vidéo${videoCount > 1 ? 's' : ''} intégrée${videoCount > 1 ? 's' : ''}` : 'Aucune'}`,
+    `  - Portfolio  : ${hasPortfolio ? 'Page réalisations détectée' : 'Absent'}`,
+  ].join('\n')
+
+  const prompt = `Tu es un vidéaste professionnel expert en production de contenu vidéo pour les commerces locaux. Rédige un audit vidéo et présence en ligne pour "${name}".
+Ton : consultant professionnel, factuel, bienveillant — jamais alarmiste, jamais vendeur.
+
+RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : YouTube Studio, TikTok Business, InShot, CapCut, Adobe Premiere, Final Cut, DaVinci, Vimeo, etc. Utilise uniquement des descriptions génériques : "plateforme de partage vidéo", "outil de montage", "réseau vidéo court format", "plateforme d'hébergement vidéo".
+
+DONNÉES VERROUILLÉES — N'UTILISE QUE CES CHIFFRES :
+- Nom             : ${name}
+- Site web        : ${website || 'ABSENT'}
+- Note Google     : ${rating ?? '—'}/5 (${reviewCount ?? '—'} avis)
+- Avis sans réponse : ${unanswered}
+- Mots-clés avis  : ${keywordsText}
+- Photos Google   : ${photos} photo(s)
+${socialsBlock}
+
+FORCES DÉTECTÉES (base de départ obligatoire) :
+${forcesHints.map(f => `- ${f}`).join('\n')}
+
+FAIBLESSES IDENTIFIÉES (points à traiter) :
+${weaknessHints.map(w => `- ${w}`).join('\n') || '- Aucune faiblesse majeure identifiée'}
+
+INSTRUCTIONS :
+1. Commence toujours par les forces — ne jamais ouvrir sur les problèmes
+2. Les faiblesses doivent être factuelles et directement tirées des données ci-dessus
+3. Les opportunités = bénéfices concrets d'une production vidéo professionnelle : présentation du commerce (30s-1min), témoignages clients, visite virtuelle / behind the scenes, contenu récurrent pour les réseaux, captation d'événements
+4. Les recommandations doivent être priorisées et orienter naturellement vers la vidéo de présentation, les témoignages vidéo, le contenu réseaux sociaux vidéo
+5. L'accroche est une phrase courte et percutante — jamais "j'ai analysé", jamais de liste
+6. N'invente aucun chiffre absent des DONNÉES VERROUILLÉES ci-dessus
+
+LIMITES STRICTES DE LONGUEUR — OBLIGATOIRE :
+- resume_executif : maximum 4 phrases courtes
+- forces : exactement 3 entrées maximum
+- faiblesses : exactement 3 entrées maximum
+- opportunites : exactement 3 entrées maximum
+- recommandations : exactement 4 entrées maximum
+- Chaque titre : maximum 10 mots
+- Chaque description : maximum 2 phrases
+- accroche : 1 seule phrase
+- Sois CONCIS. Le JSON total doit faire moins de 4000 caractères.
+${buildAuditRulesBlock('videaste')}
+
+IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide. Pas de texte avant, pas de texte après, pas de markdown, pas de \`\`\`json.
+
+Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou après :
+{
+  "resume_executif": "3-4 phrases courtes max",
+  "forces": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
+  "faiblesses": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
+  "opportunites": [{"titre": "max 10 mots", "description": "max 2 phrases"}],
+  "recommandations": [{"titre": "max 10 mots", "description": "max 2 phrases", "priorite": 1}],
+  "accroche": "1 seule phrase factuelle — jamais de promesses marketing",
+  "comparaison_concurrents": {"position": "...", "avantages": ["..."], "retards": ["..."]},
+  "timeline": {"semaine_1": "...", "semaine_2_3": "...", "mois_2_3": "..."},
+  "titre_audit": "Audit Vidéo & Présence Visuelle"
+}`
+
+  console.log(`[generateAuditVideographer] ${name} | yt:${hasYoutube} | tt:${hasTiktok} | videoOnSite:${videoOnSite} | prompt:${prompt.length} chars`)
+
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 3500,
+      messages:   [{ role: 'user', content: prompt }],
+    })
+  } catch (err) {
+    console.error('[generateAuditVideographer] ✗ Erreur Anthropic:', err.message)
+    throw new Error(`Erreur génération audit vidéaste: ${err.message}`)
+  }
+
+  const raw = message.content[0].text
+  console.log(`[generateAuditVideographer] ✓ réponse reçue (${raw.length} chars)`)
+
+  // ── Parsing robuste ────────────────────────────────────────────────────────
+  let jsonStr = ''
+  let start = raw.indexOf('{')
+  let end   = raw.lastIndexOf('}')
+
+  if (start === -1 || end === -1 || end <= start) {
+    console.error('[generateAuditVideographer] Aucun JSON trouvé dans la réponse')
+    return {
+      resume_executif: 'Audit généré avec des données partielles — veuillez relancer.',
+      forces:          [], faiblesses: [], opportunites: [], recommandations: [],
+      accroche:        '', comparaison_concurrents: null, timeline: null,
+      titre_audit:     'Audit Vidéo & Présence Visuelle',
+    }
+  }
+
+  jsonStr = raw.slice(start, end + 1)
+  let parsed
+  try {
+    parsed = JSON.parse(jsonStr)
+  } catch {
+    try { parsed = JSON.parse(jsonStr.replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')) }
+    catch { parsed = null }
+  }
+
+  if (!parsed) {
+    console.error('[generateAuditVideographer] Parse échoué. JSON extrait:', jsonStr)
+    return enrichAuditResult({
+      resume_executif: 'Audit généré avec des données partielles — veuillez relancer.',
+      forces:          [], faiblesses: [], opportunites: [], recommandations: [],
+      accroche:        '', titre_audit: 'Audit Vidéo & Présence Visuelle',
+    })
+  }
+
+  return enrichAuditResult(parsed)
+}
+
+// ─── generateEmailVideographer ────────────────────────────────────────────────
+async function generateEmailVideographer({ leadData, socialActivity, reviewsData, photoCount }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
+
+  const anthropic = new Anthropic({ apiKey })
+
+  const name       = leadData?.name     ?? 'ce commerce'
+  const city       = leadData?.city     ?? ''
+  const category   = leadData?.category ?? null
+  const rating     = leadData?.rating   ?? null
+  const reviews    = leadData?.reviewCount ?? null
+
+  const hasYoutube    = !!(socialActivity?.hasYoutube || socialActivity?.youtubeChannel)
+  const hasTiktok     = !!(socialActivity?.hasTiktok)
+  const hasInstagram  = !!(socialActivity?.hasInstagram)
+  const videoOnSite   = !!(socialActivity?.videoOnSite)
+  const hasPortfolio  = !!(socialActivity?.hasPortfolio)
+  const photos        = photoCount ?? 0
+  const unanswered    = reviewsData?.unanswered ?? null
+  const reviewThemes  = reviewsData?.keywords   ?? []
+
+  // ── Sélection de l'angle prioritaire ──────────────────────────────────────
+  let priorityAngle = 'no_video_channels'
+
+  if (!hasYoutube && !hasTiktok) {
+    priorityAngle = 'no_video_channels'
+  } else if (!videoOnSite) {
+    priorityAngle = 'no_video_on_site'
+  } else if (photos < 10) {
+    priorityAngle = 'few_photos'
+  } else if (reviewThemes.length > 0) {
+    priorityAngle = 'reviews_as_content'
+  }
+
+  const angleInstructions = {
+    no_video_channels:
+      `Priorité 1 — AUCUN CANAL VIDÉO : ${!hasYoutube && !hasTiktok ? `Ni YouTube ni TikTok détectés.` : hasYoutube ? 'TikTok absent.' : 'YouTube absent.'}
+→ Angle : "${name} n'est visible sur aucun réseau vidéo — ${category ? `pour une ${category.toLowerCase()}` : 'pour ce type de commerce'}, c'est un levier de différenciation inexploité."`,
+
+    no_video_on_site:
+      `Priorité 2 — AUCUNE VIDÉO SUR LE SITE : videoOnSite = false.
+→ Angle : "Votre site n'a pas de vidéo de présentation — c'est souvent le premier élément qu'un visiteur cherche avant de prendre contact."`,
+
+    few_photos:
+      `Priorité 3 — PEU DE PHOTOS GOOGLE : ${photos} photo(s) sur la fiche Google.
+→ Angle : "Avec seulement ${photos} photo(s) sur votre fiche Google, une vidéo de présentation de 30 secondes compenserait l'absence de visuels professionnels."`,
+
+    reviews_as_content:
+      `Priorité 4 — AVIS COMME MATIÈRE À CONTENU : ${unanswered !== null ? `${unanswered} avis sans réponse.` : ''} Thèmes récurrents : ${reviewThemes.slice(0, 3).join(', ')}.
+→ Angle : "Vos clients mentionnent régulièrement ${reviewThemes[0] ?? 'votre qualité'} dans leurs avis — c'est exactement le type de contenu qui convaincrait de nouveaux clients s'il était en vidéo."`,
+  }
+
+  const prompt = `Tu es un vidéaste professionnel. Rédige un email de prospection B2B ultra-court pour "${name}" (${city || 'France'}).
+${EMAIL_STATS_NOTE}
+
+DONNÉES RÉELLES DU PROSPECT :
+- Catégorie   : ${category ?? '—'}
+- Note Google : ${rating ?? '—'}/5 (${reviews ?? '—'} avis)
+- YouTube     : ${hasYoutube ? '✅ Présent' : '❌ Absent'}
+- TikTok      : ${hasTiktok  ? '✅ Présent' : '❌ Absent'}
+- Instagram   : ${hasInstagram ? '✅ Présent' : '❌ Absent'}
+- Vidéo site  : ${videoOnSite  ? '✅ Présente' : '❌ Absente'}
+- Portfolio   : ${hasPortfolio ? '✅ Présent'  : '❌ Absent'}
+- Photos Google : ${photos}
+- Avis sans réponse : ${unanswered ?? '—'}
+- Thèmes récurrents : ${reviewThemes.slice(0, 3).join(', ') || '—'}
+
+${angleInstructions[priorityAngle]}
+
+NE JAMAIS COMBINER. Un email = un seul problème.
+
+FORMAT :
+
+OBJET : [Nom] — reformulation du point de douleur avec une donnée réelle.
+
+BLOC 1 (1-2 lignes) : Le problème avec SES données. Pas de compliment. Chiffres directs.
+BLOC 2 (1-2 lignes) : Ce que ça change en une phrase. Pas de liste de prestations.
+BLOC 3 (1 ligne) : Question directe. "15 minutes pour vous montrer ce qu'on peut filmer ?"
+
+Signature : [Votre prénom] / Vidéaste — ${city || 'France'} / [Votre numéro]
+
+INTERDIT :
+1. Statistique externe
+2. "J'ai analysé votre site avec [outil]" — ne pas révéler les outils
+3. Nom de marque ou d'outil (YouTube Studio, TikTok, CapCut, Adobe Premiere, etc.)
+4. "Probablement", "peut-être"
+5. Plus de 5 lignes de contenu
+6. Inventer une donnée absente des paramètres
+7. Combiner plusieurs angles
+8. Compliment d'ouverture
+9. Liste de prestations ("je réalise des clips, des témoignages, des visites virtuelles...")
+10. Double CTA
+11. Promettre des vues ou un classement Google
+
+Retourne UNIQUEMENT un JSON valide :
+{"subject":"...","body":"..."}`
+
+  console.log(`[generateEmailVideographer] → appel Anthropic (prompt: ${prompt.length} chars)`)
+
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 600,
+      messages:   [{ role: 'user', content: prompt }],
+    })
+  } catch (err) {
+    console.error('[generateEmailVideographer] ✗ Erreur Anthropic:', err.message)
+    throw new Error(`Erreur génération email vidéaste: ${err.message}`)
+  }
+
+  const raw = message.content[0].text
+  console.log(`[generateEmailVideographer] ✓ réponse reçue (${raw.length} chars)`)
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error('Réponse invalide — JSON introuvable')
+  try { return JSON.parse(jsonMatch[0]) }
+  catch { return JSON.parse(jsonMatch[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')) }
+}
+
+module.exports = { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateEmailSocialMedia, generateEmailDesigner, generateEmailWebDev, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot, generateAuditSocialMedia, generateAuditDesigner, generateAuditWebDev, generateAuditEmailMarketing, generateEmailEmailMarketing, generateAuditGoogleAds, generateEmailGoogleAds, generateEmailCopywriter, generateAuditVideographer, generateEmailVideographer }

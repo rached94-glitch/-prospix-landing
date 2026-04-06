@@ -2928,3 +2928,267 @@ export async function exportAuditGoogleAdsPDF({ lead, activeProfile, googleAdsAu
     document.body.removeChild(container)
   }
 }
+
+// ─── exportAuditVideographerPDF ───────────────────────────────────────────────
+export async function exportAuditVideographerPDF({ lead, activeProfile, videographerAudit, auditData }) {
+  const { jsPDF }      = await import('jspdf')
+  const html2canvasLib = (await import('html2canvas')).default
+
+  const businessName  = esc(lead.name ?? 'Ce commerce')
+  const score         = lead.score?.total ?? 0
+  const rating        = lead.google?.rating       ?? '—'
+  const totalReviews  = lead.google?.totalReviews ?? 0
+  const date          = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  const city          = (lead.address ?? '').split(',').pop()?.trim() || ''
+  const profileName   = activeProfile?.name ?? 'Vidéaste professionnel'
+
+  const resumeExecutif  = esc(videographerAudit?.resume_executif ?? '')
+  const forces          = videographerAudit?.forces          ?? []
+  const faiblesses      = videographerAudit?.faiblesses      ?? []
+  const recommandations = videographerAudit?.recommandations ?? []
+  const opportunites    = videographerAudit?.opportunites    ?? []
+  const accroche        = esc(videographerAudit?.accroche    ?? '')
+  const comparaison     = videographerAudit?.comparaison_concurrents ?? null
+  const timeline        = videographerAudit?.timeline ?? null
+  const titreAudit      = esc(videographerAudit?.titre_audit ?? 'Audit Vidéo & Présence Visuelle')
+
+  const social       = lead.social ?? {}
+  const hasYoutube   = !!(social.youtube || social.youtubeChannel)
+  const hasTiktok    = !!(social.tiktok)
+  const hasInstagram = !!(social.instagram)
+  const videoOnSite  = !!(social.videoOnSite)
+  const videoCount   = social.videoCount ?? 0
+  const hasPortfolio = !!(social.hasPortfolio)
+  const photoCount   = lead.googleAudit?.photoCount ?? 0
+
+  const accentColor = '#7c3aed'
+  const sColor = score >= 75 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444'
+
+  const socialBadge = (has, label) =>
+    `<span class="badge ${has ? 'badge-green' : 'badge-red'}">${has ? '✓' : '✗'} ${label}</span>`
+
+  const kpiRow = (label, value, ok) => `
+    <div class="stat-row">
+      <span class="stat-label">${label}</span>
+      <span class="stat-value" style="color:${ok === true ? '#16a34a' : ok === false ? '#dc2626' : '#0f172a'}">${value}</span>
+    </div>`
+
+  const forceFaiblCard = (items, color) => items.slice(0, 3).map(item => `
+    <div class="ff-item" style="border-left-color:${color}">
+      <div class="ff-title">${esc(item.titre ?? '')}</div>
+      <div class="ff-desc">${esc(item.description ?? '')}</div>
+    </div>`).join('')
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Audit Vidéo — ${businessName}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:#fff; color:#0f172a; }
+  .cover { width:100%; height:1123px; background:linear-gradient(145deg,#0d0a1a 0%,#130a1f 55%,#0d0a1a 100%); display:flex; flex-direction:column; justify-content:space-between; padding:56px 60px 0 60px; position:relative; overflow:hidden; page-break-after:always; }
+  .cover::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse 50% 50% at 80% 20%,${accentColor}20 0%,transparent 65%),radial-gradient(ellipse 35% 35% at 15% 75%,#a21caf12 0%,transparent 55%); pointer-events:none; }
+  .cover-logo { font-size:8px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:rgba(255,255,255,0.3); }
+  .cover-eyebrow { font-size:10px; font-weight:700; letter-spacing:5px; text-transform:uppercase; color:${accentColor}; margin-bottom:12px; }
+  .cover-title { font-size:56px; font-weight:800; color:#fff; line-height:1.05; margin-bottom:8px; }
+  .cover-subtitle { font-size:13px; color:rgba(255,255,255,0.55); margin-bottom:32px; }
+  .cover-business { font-size:22px; font-weight:700; color:#fff; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.15); border-radius:10px; padding:12px 20px; display:inline-block; }
+  .cover-main { flex:1; display:flex; flex-direction:column; justify-content:center; gap:28px; }
+  .cover-score-row { display:flex; align-items:center; gap:28px; }
+  .cover-score-ring { width:90px; height:90px; border-radius:50%; border:4px solid ${sColor}; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(255,255,255,0.04); }
+  .cover-score-number { font-size:30px; font-weight:800; color:${sColor}; line-height:1; }
+  .cover-score-label  { font-size:9px; color:rgba(255,255,255,0.45); font-weight:600; }
+  .cover-score-meta { display:flex; flex-direction:column; gap:10px; }
+  .cover-score-meta-item { display:flex; flex-direction:column; gap:1px; }
+  .cover-score-meta-label { font-size:9px; color:rgba(255,255,255,0.4); font-weight:600; letter-spacing:0.5px; text-transform:uppercase; }
+  .cover-score-meta-value { font-size:15px; font-weight:700; color:#fff; }
+  .cover-footer { padding:24px 0 32px; display:flex; justify-content:space-between; align-items:flex-end; border-top:1px solid rgba(255,255,255,0.08); }
+  .cover-freelancer { font-size:11px; color:rgba(255,255,255,0.45); }
+  .cover-date { font-size:11px; color:rgba(255,255,255,0.3); font-family:monospace; }
+  .cover-watermark { font-size:8px; color:rgba(255,255,255,0.15); letter-spacing:1px; text-transform:uppercase; }
+  .report { padding:48px 56px; max-width:100%; }
+  .section-title { font-size:9px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:${accentColor}; margin-bottom:14px; padding-bottom:8px; border-bottom:2px solid ${accentColor}22; }
+  .exec-box { background:#f5f3ff; border:1px solid #e9d5ff; border-left:4px solid ${accentColor}; border-radius:0 10px 10px 0; padding:16px 18px; font-size:12.5px; color:#1e293b; line-height:1.65; margin-bottom:8px; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:8px; }
+  .card { background:#fafbfc; border:1px solid #e2e8f0; border-radius:10px; padding:16px 18px; }
+  .card-title { font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#64748b; margin-bottom:12px; }
+  .ff-item { padding:10px 14px; border-left:3px solid #e2e8f0; border-radius:0 8px 8px 0; margin-bottom:8px; background:#fafbfc; }
+  .ff-title { font-size:11.5px; font-weight:700; color:#0f172a; margin-bottom:3px; }
+  .ff-desc  { font-size:10px; color:#64748b; line-height:1.5; }
+  .stat-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f1f5f9; }
+  .stat-row:last-child { border-bottom:none; }
+  .stat-label { font-size:11px; color:#64748b; }
+  .stat-value { font-size:12px; font-weight:700; color:#0f172a; }
+  .badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:10px; font-weight:700; margin:3px; }
+  .badge-green { background:#dcfce7; color:#16a34a; }
+  .badge-red   { background:#fee2e2; color:#dc2626; }
+  .badge-blue  { background:#ede9fe; color:#6d28d9; }
+  .rec-item { padding:13px 16px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:8px; background:#f8fafc; display:flex; gap:14px; align-items:flex-start; }
+  .rec-num { width:24px; height:24px; border-radius:50%; background:${accentColor}; color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+  .rec-content { flex:1; }
+  .rec-title  { font-size:12px; font-weight:700; color:#0f172a; margin-bottom:3px; }
+  .rec-detail { font-size:10.5px; color:#64748b; line-height:1.5; }
+  .cta-block { background:linear-gradient(135deg,${accentColor} 0%,#a21caf 100%); border-radius:12px; padding:22px 28px; margin-top:16px; }
+  .cta-badge    { display:inline-block; background:rgba(255,255,255,0.2); color:#fff; font-size:8px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; padding:3px 10px; border-radius:4px; margin-bottom:12px; }
+  .cta-headline { font-size:18px; font-weight:800; color:#fff; margin-bottom:6px; }
+  .cta-sub      { font-size:11px; color:rgba(255,255,255,0.7); margin-bottom:20px; line-height:1.5; }
+  .accroche-box { background:#f5f3ff; border:1px solid #ddd6fe; border-radius:10px; padding:14px 18px; margin-bottom:20px; font-size:12px; font-style:italic; color:#6d28d9; line-height:1.6; }
+  .page-footer { font-size:7.5px; color:rgba(0,0,0,0.18); text-align:center; margin-top:32px; letter-spacing:0.5px; }
+  .card,.ff-item,.rec-item,.cta-block,.exec-box,.grid-2 { page-break-inside:avoid; break-inside:avoid; }
+  @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } @page { size:A4 portrait; margin:0; } }
+</style>
+</head>
+<body>
+
+<!-- ═══════ PAGE 1 : COUVERTURE ═══════ -->
+<div class="cover">
+  <div class="cover-logo">LeadGenPro</div>
+  <div class="cover-main">
+    <div>
+      <div class="cover-eyebrow">${titreAudit}</div>
+      <div class="cover-title">Audit<br>Vidéaste</div>
+      <div class="cover-subtitle">Analyse de présence vidéo & opportunités de production</div>
+      <div class="cover-business">${businessName}${city ? ` · ${city}` : ''}</div>
+    </div>
+    <div class="cover-score-row">
+      <div class="cover-score-ring">
+        <div class="cover-score-number">${score}</div>
+        <div class="cover-score-label">/ 100</div>
+      </div>
+      <div class="cover-score-meta">
+        <div class="cover-score-meta-item">
+          <div class="cover-score-meta-label">Note Google</div>
+          <div class="cover-score-meta-value">${rating}/5 · ${totalReviews} avis</div>
+        </div>
+        <div class="cover-score-meta-item">
+          <div class="cover-score-meta-label">Préparé par</div>
+          <div class="cover-score-meta-value">${esc(profileName)}</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      ${socialBadge(hasYoutube, 'YouTube')}
+      ${socialBadge(hasTiktok, 'TikTok')}
+      ${socialBadge(hasInstagram, 'Instagram')}
+      ${socialBadge(videoOnSite, 'Vidéo sur site')}
+      ${socialBadge(hasPortfolio, 'Portfolio')}
+    </div>
+  </div>
+  <div class="cover-footer">
+    <div class="cover-freelancer">${esc(profileName)}</div>
+    <div class="cover-date">${date}</div>
+    <div class="cover-watermark">Confidentiel</div>
+  </div>
+</div>
+
+<!-- ═══════ PAGE 2 : ANALYSE ═══════ -->
+<div class="report">
+  <div class="section-title">1 · Résumé exécutif</div>
+  <div class="exec-box">${resumeExecutif || '—'}</div>
+
+  <div class="grid-2" style="margin-top:22px">
+    <div class="card">
+      <div class="card-title">KPIs Vidéo & Réseaux</div>
+      ${kpiRow('YouTube / Chaîne liée', hasYoutube ? '✓ Présent' : '✗ Absent', hasYoutube)}
+      ${kpiRow('TikTok', hasTiktok ? '✓ Présent' : '✗ Absent', hasTiktok)}
+      ${kpiRow('Instagram', hasInstagram ? '✓ Présent' : '✗ Absent', hasInstagram)}
+      ${kpiRow('Vidéo intégrée sur site', videoOnSite ? `✓ ${videoCount} vidéo${videoCount > 1 ? 's' : ''}` : '✗ Aucune', videoOnSite)}
+      ${kpiRow('Portfolio / Réalisations', hasPortfolio ? '✓ Présent' : '✗ Absent', hasPortfolio)}
+      ${kpiRow('Photos fiche Google', photoCount > 0 ? `${photoCount} photo${photoCount > 1 ? 's' : ''}` : '✗ Aucune', photoCount >= 10)}
+    </div>
+    <div class="card">
+      <div class="card-title">Forces</div>
+      ${forceFaiblCard(forces, '#16a34a')}
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Faiblesses</div>
+      ${forceFaiblCard(faiblesses, '#dc2626')}
+    </div>
+    <div class="card">
+      <div class="card-title">Opportunités</div>
+      ${forceFaiblCard(opportunites, '#7c3aed')}
+    </div>
+  </div>
+
+  <div class="page-footer">LeadGenPro · ${date}</div>
+</div>
+
+<!-- ═══════ PAGE 3 : RECOMMANDATIONS + CTA ═══════ -->
+<div class="report" style="padding-top:40px">
+  ${accroche ? `<div class="accroche-box">"${accroche}"</div>` : ''}
+
+  <div class="section-title">4 · Recommandations priorisées</div>
+  ${recommandations.slice(0, 4).map((r, i) => `
+    <div class="rec-item">
+      <div class="rec-num">${r.priorite ?? i + 1}</div>
+      <div class="rec-content">
+        <div class="rec-title">${esc(r.titre ?? '')}</div>
+        <div class="rec-detail">${esc(r.description ?? '')}</div>
+      </div>
+    </div>`).join('')}
+
+  ${comparaison ? `
+  <div class="section-title" style="margin-top:28px">6 · Positionnement concurrentiel</div>
+  <div style="background:rgba(124,58,237,0.04);border-radius:10px;padding:16px 18px;border:1px solid rgba(124,58,237,0.15);margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(124,58,237,0.1)"><span style="font-size:11px;color:#94a3b8;font-weight:600">Position</span><span style="font-size:11px;font-weight:700;color:#1e293b;max-width:260px;text-align:right">${esc(comparaison.position)}</span></div>
+    ${(comparaison.avantages?.length ?? 0) > 0 ? `<div style="margin-top:8px;font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#16a34a;margin-bottom:6px">Points forts</div>${comparaison.avantages.map(a => `<div style="font-size:10.5px;color:#64748b;padding:4px 0;border-bottom:1px solid #f1f5f9">✓ ${esc(a)}</div>`).join('')}` : ''}
+    ${(comparaison.retards?.length ?? 0) > 0 ? `<div style="margin-top:8px;font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#dc2626;margin-bottom:6px">Points en retard</div>${comparaison.retards.map(r => `<div style="font-size:10.5px;color:#64748b;padding:4px 0;border-bottom:1px solid #f1f5f9">→ ${esc(r)}</div>`).join('')}` : ''}
+  </div>` : ''}
+
+  ${timeline ? `
+  <div class="section-title" style="margin-top:28px">7 · Calendrier de mise en oeuvre</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
+    <div style="background:#f5f3ff;border-radius:10px;padding:16px 18px;border:1px solid #ddd6fe"><div style="font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#7c3aed;margin-bottom:8px">Semaine 1</div><div style="font-size:10.5px;color:#64748b;line-height:1.5">${esc(timeline.semaine_1)}</div></div>
+    <div style="background:#f5f3ff;border-radius:10px;padding:16px 18px;border:1px solid #ddd6fe"><div style="font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#7c3aed;margin-bottom:8px">Semaines 2–3</div><div style="font-size:10.5px;color:#64748b;line-height:1.5">${esc(timeline.semaine_2_3)}</div></div>
+    <div style="background:#f5f3ff;border-radius:10px;padding:16px 18px;border:1px solid #ddd6fe"><div style="font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#7c3aed;margin-bottom:8px">Mois 2–3</div><div style="font-size:10.5px;color:#64748b;line-height:1.5">${esc(timeline.mois_2_3)}</div></div>
+  </div>` : ''}
+
+  <div class="cta-block">
+    <div class="cta-badge">Prochaine étape</div>
+    <div class="cta-headline">${accroche || 'Passons à la mise en oeuvre'}</div>
+    <div class="cta-sub">Discutons de vos priorités — sans engagement.</div>
+  </div>
+
+  <div class="page-footer">LeadGenPro · ${date} · Confidentiel — Préparé pour ${businessName}</div>
+</div>
+
+</body>
+</html>`
+
+  const container = document.createElement('div')
+  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;z-index:-1'
+  container.innerHTML = html
+  document.body.appendChild(container)
+
+  try {
+    const canvas = await html2canvasLib(container, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', width: 794 })
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const pageWidthMm = 210, pageHeightMm = 297
+    const pxPerMm    = canvas.width / pageWidthMm
+    const pageHeightPx = Math.round(pageHeightMm * pxPerMm)
+    const imgHeightMm  = (canvas.height * pageWidthMm) / canvas.width
+    const totalPages   = Math.ceil(imgHeightMm / pageHeightMm)
+    let firstPage = true
+    for (let i = 0; i < totalPages; i++) {
+      const srcY = i * pageHeightPx
+      const srcH = Math.min(pageHeightPx, canvas.height - srcY)
+      if (srcH < pageHeightPx * 0.10) continue
+      if (!firstPage) pdf.addPage()
+      firstPage = false
+      const slice = document.createElement('canvas')
+      slice.width = canvas.width; slice.height = pageHeightPx
+      const ctx = slice.getContext('2d')
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, slice.width, slice.height)
+      ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH)
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pageWidthMm, pageHeightMm)
+    }
+    const fileName = `AuditVideaste-${(lead.name ?? 'prospect').replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().slice(0, 10)}.pdf`
+    pdf.save(fileName)
+  } finally {
+    document.body.removeChild(container)
+  }
+}

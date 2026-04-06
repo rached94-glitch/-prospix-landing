@@ -10,7 +10,7 @@ const { enrichSocial }   = require('../services/socialEnrichment');
 const { calculateScore, getDomainComplexity, getRecommendedRAGType, estimateMonthlyConversations, getRecommendedStack, getEmailMarketingRecommendation, getGoogleAdsConcurrence, googleAdsReadiness, getGoogleAdsRecommendation } = require('../services/scoring');
 const { analyzeReviews, countQuestionsInReviews, countPhoneCallMentions, detectOffHoursActivity, detectLanguages, detectLoyaltyMentions, detectEmailThemes } = require('../services/reviewAnalysis');
 const { getAllReviews }      = require('../services/apifyReviews');
-const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateEmailSocialMedia, generateEmailDesigner, generateEmailWebDev, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot, generateAuditSocialMedia, generateAuditDesigner, generateAuditWebDev, generateAuditEmailMarketing, generateEmailEmailMarketing, generateAuditGoogleAds, generateEmailGoogleAds, generateEmailCopywriter } = require('../services/aiReviewAnalysis');
+const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateEmailSocialMedia, generateEmailDesigner, generateEmailWebDev, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot, generateAuditSocialMedia, generateAuditDesigner, generateAuditWebDev, generateAuditEmailMarketing, generateEmailEmailMarketing, generateAuditGoogleAds, generateEmailGoogleAds, generateEmailCopywriter, generateAuditVideographer, generateEmailVideographer } = require('../services/aiReviewAnalysis');
 const { findDecisionMaker } = require('../services/linkedinScraper');
 const { searchPappers }     = require('../services/pappersService');
 const { getPageSpeed, checkNAP, getSiteSignals } = require('../services/pagespeedService');
@@ -672,6 +672,29 @@ Retourne UNIQUEMENT un JSON valide (pas de texte avant ou après) :
       return res.json(emailResult)
     }
 
+    // ── Email spécialisé VIDEASTE → fonction dédiée ─────────────────────────────
+    if (profileId === 'videaste') {
+      console.log(`[generate-email] Délégation VIDEASTE → generateEmailVideographer`)
+      const leadCityV  = leadData?.address?.split(',').pop()?.trim() || req.body.city || ''
+      const socialV    = req.body.socialPresence ?? leadData.social ?? null
+      const emailResult = await generateEmailVideographer({
+        leadData:       { name: businessName, city: leadCityV, category: req.body.category ?? null, rating: leadData?.rating ?? avgRating, reviewCount: leadData?.reviewCount ?? totalReviews },
+        socialActivity: {
+          hasInstagram:   !!(socialV?.instagram),
+          hasFacebook:    !!(socialV?.facebook),
+          hasTiktok:      !!(socialV?.tiktok),
+          hasYoutube:     !!(socialV?.youtube),
+          videoOnSite:    socialV?.videoOnSite    ?? false,
+          videoCount:     socialV?.videoCount     ?? 0,
+          hasPortfolio:   socialV?.hasPortfolio   ?? false,
+          youtubeChannel: socialV?.youtubeChannel ?? null,
+        },
+        reviewsData:    { unanswered, keywords: reviewsData?.keywords ?? [] },
+        photoCount:     leadData?.googleAudit?.photoCount ?? req.body.photoCount ?? 0,
+      })
+      return res.json(emailResult)
+    }
+
     // ── Email spécialisé COPYWRITER → fonction dédiée ───────────────────────────
     if (profileId === 'copywriter') {
       console.log(`[generate-email] Délégation COPYWRITER → generateEmailCopywriter`)
@@ -981,6 +1004,20 @@ router.post('/audit-prospect/:placeId', async (req, res, next) => {
       case 'pub-google':
         result = await generateAuditGoogleAds({ businessName, websiteUrl, googleRating, totalReviews, pagespeedData, photoCount, hasDescription, hasHours, socialPresence, domain, semrushData, facebookActivity, instagramActivity, localRank })
         break
+      case 'videaste': {
+        const videoActivity = {
+          hasInstagram:   !!(social.instagram),
+          hasFacebook:    !!(social.facebook),
+          hasTiktok:      !!(social.tiktok),
+          hasYoutube:     !!(social.youtube),
+          videoOnSite:    social.videoOnSite    ?? false,
+          videoCount:     social.videoCount     ?? 0,
+          hasPortfolio:   social.hasPortfolio   ?? false,
+          youtubeChannel: social.youtubeChannel ?? null,
+        }
+        result = await generateAuditVideographer({ businessName, websiteUrl, socialActivity: videoActivity, photoCount, reviewsData, googleRating, totalReviews })
+        break
+      }
       case 'copywriter':
         console.warn('[audit-prospect] copywriter → fallback SEO en attendant generateAuditCopywriter')
         result = await generateAuditSEO({ leadData, pagespeedData, localRank, reviewsData, napData, facebookActivity, instagramActivity })

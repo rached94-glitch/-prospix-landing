@@ -289,5 +289,25 @@
       "forbidden_context": [],
       "note": "Pertinent pour le chatbot : lié à l'automatisation des réponses aux questions fréquentes"
     }
+  },
+  "video": {
+    "video_purchase_decision": {
+      "stat": "90% des consommateurs déclarent que la vidéo les aide à prendre une décision d'achat (Wyzowl State of Video Marketing 2024)",
+      "context": ["videaste"],
+      "forbidden_context": [],
+      "note": "Stat clé pour justifier la vidéo de présentation et les témoignages vidéo clients"
+    },
+    "video_landing_conversion": {
+      "stat": "Les pages avec une vidéo de présentation convertissent en moyenne 80% mieux que sans (EyeView Digital)",
+      "context": ["videaste", "web-dev"],
+      "forbidden_context": [],
+      "note": "Concerne les vidéos intégrées sur les pages d'atterrissage — argument fort pour le site web"
+    },
+    "video_social_shares": {
+      "stat": "Le contenu vidéo sur les réseaux sociaux génère 1200% plus de partages que le texte et les images combinés (WordStream)",
+      "context": ["videaste", "community-manager"],
+      "forbidden_context": [],
+      "note": "Pertinent pour justifier la création de contenu vidéo court sur les réseaux sociaux"
+    }
   }
 }
