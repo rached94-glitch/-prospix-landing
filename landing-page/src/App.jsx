@@ -3,6 +3,7 @@ import AnimatedBackground from './components/AnimatedBackground'
 import Header from './components/Header'
 import Hero from './components/Hero'
 import ProfilesSection from './components/ProfilesSection'
+import Sectors from './components/Sectors'
 import Features from './components/Features'
 import HowItWorks from './components/HowItWorks'
 import Pricing from './components/Pricing'
@@ -24,6 +25,7 @@ export default function App() {
         <main style={{ flex: 1 }}>
           <Hero />
           <ProfilesSection />
+          <Sectors />
           <Features />
           <HowItWorks />
           <Pricing />
