@@ -7,8 +7,8 @@ const PLANS = [
     name: 'Essai',
     price: '0€',
     period: 'gratuit',
-    credits: '15 crédits',
-    features: ["Recherche Google Maps", "Score d'opportunité", "Email IA", "Export PDF", "30 leads / recherche"],
+    volume: '5 prospects analysés',
+    features: ['Toutes les fonctionnalités', '10 profils métier', 'Audit IA + email IA + PDF'],
     popular: false,
     cta: 'Commencer gratuitement',
   },
@@ -16,8 +16,8 @@ const PLANS = [
     name: 'Starter',
     price: '19€',
     period: '/mois',
-    credits: '80 crédits / mois',
-    features: ["Tout dans Essai", "Audit IA personnalisé", "Analyse PageSpeed", "60 leads / recherche", "10 recherches / jour"],
+    volume: '~40 prospects/mois',
+    features: ['Toutes les fonctionnalités', '60 leads par recherche', '10 recherches/jour'],
     popular: false,
     cta: 'Commencer',
   },
@@ -25,8 +25,8 @@ const PLANS = [
     name: 'Pro',
     price: '49€',
     period: '/mois',
-    credits: '250 crédits / mois',
-    features: ["Tout dans Starter", "Analyse réseaux sociaux", "Email reformulable par IA", "120 leads par recherche", "30 recherches / jour"],
+    volume: '~125 prospects/mois',
+    features: ['Toutes les fonctionnalités', '120 leads par recherche', '30 recherches/jour'],
     popular: true,
     cta: 'Commencer',
   },
@@ -34,8 +34,8 @@ const PLANS = [
     name: 'Business',
     price: '99€',
     period: '/mois',
-    credits: '600 crédits / mois',
-    features: ["Tout dans Pro", "Rapports white-label", "Accès équipe", "200 leads par recherche", "Support prioritaire"],
+    volume: '~300 prospects/mois',
+    features: ['Toutes les fonctionnalités', '200 leads par recherche', 'Multi-utilisateurs', 'Support prioritaire'],
     popular: false,
     cta: 'Commencer',
   },
@@ -102,8 +102,8 @@ function PlanCard({ plan, index }) {
           <span style={{ fontSize: 42, fontWeight: 800, color: '#F5F5F0', letterSpacing: '-0.04em', lineHeight: 1 }}>{plan.price}</span>
           <span style={{ fontSize: 14, color: 'rgba(245,245,240,0.35)', fontWeight: 500 }}>{plan.period}</span>
         </div>
-        <div style={{ marginTop: 7, fontSize: 12, fontWeight: 600, color: plan.popular ? '#4ade80' : 'rgba(245,245,240,0.35)' }}>
-          {plan.credits}
+        <div style={{ marginTop: 4, fontSize: 15, fontWeight: 600, color: '#2A9D74' }}>
+          {plan.volume}
         </div>
       </div>
 
@@ -146,9 +146,6 @@ function PlanCard({ plan, index }) {
         {plan.cta}
       </motion.button>
 
-      <div style={{ fontSize: 11, color: 'rgba(245,245,240,0.2)', textAlign: 'center' }}>
-        Tous les plans incluent l'accès anticipé
-      </div>
     </motion.div>
   )
 }
@@ -172,7 +169,7 @@ export default function Pricing() {
             Simple. Tout en crédits.
           </h2>
           <p style={{ fontSize: 16, color: 'rgba(245,245,240,0.45)', maxWidth: 520, margin: '0 auto' }}>
-            Recherche, audit, email, export — chaque action consomme des crédits. Choisissez le plan adapté à votre volume de prospection.
+            Chaque plan inclut toutes les fonctionnalités. La seule différence : votre volume de prospection.
           </p>
         </motion.div>
 
