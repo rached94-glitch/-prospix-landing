@@ -199,6 +199,45 @@ function detectContactForm($) {
   return hasContactForm
 }
 
+function detectVideoAndPortfolio($, html) {
+  // A) Vidéo intégrée sur le site
+  const videoPatterns = [
+    /iframe[^>]*src=["'][^"']*youtube\.com\/embed/i,
+    /iframe[^>]*src=["'][^"']*youtu\.be/i,
+    /iframe[^>]*src=["'][^"']*vimeo\.com/i,
+    /<video[\s>]/i,
+    /iframe[^>]*src=["'][^"']*wistia\.com/i,
+    /class=["'][^"']*wistia/i,
+    /iframe[^>]*src=["'][^"']*dailymotion\.com/i,
+  ]
+  const hasVideoOnSite = videoPatterns.some(p => p.test(html))
+  const videoCount = ((html.match(/<iframe[^>]*(?:youtube|vimeo|wistia|dailymotion)[^>]*>/gi) || []).length
+    + (html.match(/<video[\s>]/gi) || []).length)
+
+  // B) Portfolio / galerie / showreel
+  const portfolioPatterns = [
+    /href=["'][^"']*\/portfolio/i,
+    /href=["'][^"']*\/realisations/i,
+    /href=["'][^"']*\/galerie/i,
+    /href=["'][^"']*\/gallery/i,
+    /href=["'][^"']*\/nos-videos/i,
+    /href=["'][^"']*\/videos/i,
+    /href=["'][^"']*\/projets/i,
+    /href=["'][^"']*\/references/i,
+    /href=["'][^"']*\/book/i,
+    /href=["'][^"']*\/showreel/i,
+    /href=["'][^"']*\/demo-reel/i,
+  ]
+  const hasPortfolio = portfolioPatterns.some(p => p.test(html))
+
+  // C) Chaîne YouTube liée (URL complète dans un href)
+  const youtubeMatch = html.match(/href=["']([^"']*youtube\.com\/(channel|c|@|user\/)[^"']*)/i)
+  const youtubeChannel = youtubeMatch ? youtubeMatch[1] : null
+
+  console.log(`[Social] videoOnSite:${hasVideoOnSite} count:${videoCount} portfolio:${hasPortfolio} ytChannel:${!!youtubeChannel}`)
+  return { videoOnSite: hasVideoOnSite, videoCount, hasPortfolio, youtubeChannel }
+}
+
 function extractSocialLinks(html) {
   const social = {
     linkedin:  null,
@@ -292,6 +331,12 @@ function extractSocialLinks(html) {
   social.contactFormDetection = { hasContactForm: detectContactForm($) }
   social.newsletterDetection  = detectNewsletter($, html)
 
+  const videoData = detectVideoAndPortfolio($, html)
+  social.videoOnSite    = videoData.videoOnSite
+  social.videoCount     = videoData.videoCount
+  social.hasPortfolio   = videoData.hasPortfolio
+  social.youtubeChannel = videoData.youtubeChannel
+
   return social;
 }
 
@@ -317,6 +362,10 @@ async function enrichSocial({ name, website, placeId }) {
     contactFormDetection: null,
     newsletterDetection:  null,
     blogDetection:        null,
+    videoOnSite:          false,
+    videoCount:           0,
+    hasPortfolio:         false,
+    youtubeChannel:       null,
   };
 
   if (website) {

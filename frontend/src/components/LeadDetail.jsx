@@ -1179,18 +1179,33 @@ Bien cordialement,
       }
 
       case 'videaste': {
-        const hasYoutube = !!(lead.social?.youtube)
-        const hasVideo   = hasYoutube || hasTiktok
+        const hasYoutube   = !!(lead.social?.youtube)
+        // Données enrichies depuis socialEnrichment (disponibles après unlock)
+        const videoOnSite  = lead.social?.videoOnSite  ?? null
+        const videoCount   = lead.social?.videoCount   ?? 0
+        const hasPortfolio = lead.social?.hasPortfolio ?? null
+        const ytChannel    = lead.social?.youtubeChannel ?? null
+        const hasVideo     = hasYoutube || hasTiktok || !!videoOnSite
+
+        const videoLabel   = videoOnSite === null ? '—'
+          : videoOnSite ? `Oui (${videoCount} vidéo${videoCount > 1 ? 's' : ''})`
+          : 'Non'
+        const videoStatus  = videoOnSite === null ? 'muted'
+          : videoOnSite ? (videoCount >= 3 ? 'good' : 'warn') : 'danger'
+
         return {
           kpis: [
-            kpi('YouTube',        hasYoutube ? 'Présent' : 'Absent', hasYoutube ? 'good' : 'danger'),
-            kpi('TikTok',         hasTiktok  ? 'Présent' : 'Absent', hasTiktok  ? 'good' : 'danger'),
-            kpi('Instagram',      hasInstagram ? 'Présent' : 'Absent', hasInstagram ? 'good' : 'neutral'),
-            kpi('Contenu vidéo',  hasVideo ? 'Détecté' : 'Aucun',   hasVideo ? 'good' : 'danger'),
+            kpi('YouTube',            hasYoutube  ? 'Présent' : 'Absent',                             hasYoutube  ? 'good' : 'danger'),
+            kpi('TikTok',             hasTiktok   ? 'Présent' : 'Absent',                             hasTiktok   ? 'good' : 'danger'),
+            kpi('Instagram',          hasInstagram ? 'Présent' : 'Absent',                            hasInstagram ? 'good' : 'neutral'),
+            kpi('Vidéo sur le site',  videoLabel,                                                     videoStatus),
+            kpi('Portfolio / galerie',hasPortfolio === null ? '—' : hasPortfolio ? 'Détecté' : 'Non', hasPortfolio === null ? 'muted' : hasPortfolio ? 'good' : 'neutral'),
+            kpi('Chaîne YT liée',     ytChannel ? 'Liée' : 'Non détectée',                           ytChannel ? 'good' : 'neutral'),
           ],
           problems: [
-            ...(!hasVideo               ? [prob('Aucun contenu vidéo — le video marketing augmente les conversions de 80%', '#ef4444')] : []),
-            ...(!hasYoutube && !hasTiktok ? [prob('YouTube et TikTok absents — canaux vidéo non exploités', '#f59e0b')] : []),
+            ...(!hasVideo                   ? [prob('Aucun contenu vidéo détecté — opportunité directe pour le vidéo marketing', '#ef4444')] : []),
+            ...(!hasYoutube && !hasTiktok   ? [prob('YouTube et TikTok absents — canaux vidéo non exploités', '#f59e0b')] : []),
+            ...(videoOnSite === false       ? [prob('Aucune vidéo intégrée sur le site — différenciation forte possible', '#f59e0b')] : []),
           ],
         }
       }

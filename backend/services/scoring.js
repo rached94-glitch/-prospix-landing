@@ -92,6 +92,32 @@ function photographeOpportunityScore(placeData, socialPresence) {
   return Math.min(100, photoScore + visualBonus)
 }
 
+// ── Opportunité vidéaste → score /100 ────────────────────────────────────────
+function videographerOpportunityScore(placeData, social) {
+  if (!social || typeof social !== 'object') social = {}
+  let score = 0
+
+  // Absence de chaînes vidéo = opportunité forte
+  if (!social.youtube)       score += 25
+  if (!social.tiktok)        score += 15
+
+  // Vidéo sur le site
+  if (!social.videoOnSite)               score += 20
+  else if ((social.videoCount ?? 0) < 3) score += 10  // a commencé mais peu
+
+  // Portfolio / galerie
+  if (!social.hasPortfolio) score += 10
+  else                      score -= 10  // déjà équipé → moins d'opportunité
+
+  // Peu de photos = contenu visuel insuffisant
+  if ((placeData.photoCount ?? 0) < 10) score += 5
+
+  // Pas d'Instagram dans un secteur visuel
+  if (!social.instagram) score += 5
+
+  return Math.max(10, Math.min(100, score))
+}
+
 // ── Complexité du domaine métier ──────────────────────────────────────────────
 const DOMAIN_COMPLEX = ['doctor', 'dentist', 'lawyer', 'hospital', 'clinique', 'cabinet', 'assurance', 'comptable', 'notaire', 'avocat', 'kine', 'psy', 'pharmacie', 'immo', 'insurance', 'medical', 'clinic', 'attorney', 'accountant', 'osteopathe', 'psychologue', 'psychiatre', 'orthodontiste']
 const DOMAIN_MEDIUM  = ['restaurant', 'cafe', 'hotel', 'salon', 'coiffure', 'spa', 'garage', 'sport', 'fitness', 'gym', 'brasserie', 'pizz', 'burger', 'barbier']
@@ -612,11 +638,13 @@ function calculateScore(placeData, socialPresence, reviewAnalysis, weights = DEF
   const rawOpportunity = Math.min(100,
     profileId === 'photographe'
       ? photographeOpportunityScore(placeData, socialPresence)
-      : (profileId === 'seo' || profileId === 'consultant-seo')
-        ? seoOpportunityScore(placeData, pagespeedData)
-        : (profileId === 'chatbot' || profileId === 'dev-chatbot')
-          ? chatbotOpportunityScore(placeData, pagespeedData, pappersData, reviewAnalysis)
-          : opportunityScore(placeData.website, socialPresence))
+      : profileId === 'videaste'
+        ? videographerOpportunityScore(placeData, socialPresence)
+        : (profileId === 'seo' || profileId === 'consultant-seo')
+          ? seoOpportunityScore(placeData, pagespeedData)
+          : (profileId === 'chatbot' || profileId === 'dev-chatbot')
+            ? chatbotOpportunityScore(placeData, pagespeedData, pappersData, reviewAnalysis)
+            : opportunityScore(placeData.website, socialPresence))
 
   const googleRating    = Math.min(w.googleRating,    Math.round(rawRating     / 100 * w.googleRating))
   const reviewVolume    = Math.min(w.reviewVolume,    Math.round(rawReview     / 100 * w.reviewVolume))
