@@ -310,10 +310,20 @@ export default function HowItWorks() {
           {STEPS.map((step, i) => <Step key={step.num} step={step} index={i} />)}
         </div>
 
-        {/* Paragraphe temps gagné */}
+        {/* Phrase finale */}
         <div style={{ marginTop: 64, textAlign: 'center' }}>
-          <p style={{ maxWidth: 700, margin: '0 auto', color: 'rgba(245,245,240,0.5)', fontSize: 16, lineHeight: 1.7, fontFamily: 'DM Sans, system-ui, sans-serif' }}>
-            Sans Prospix, prospecter un seul commerce prend <strong style={{ color: '#EDFA36', fontWeight: 700 }}>35 minutes</strong> : chercher sur Google Maps, analyser le site, lire les avis, vérifier les réseaux sociaux, rédiger un email. Pour 10 prospects, c'est 6 heures de travail. Avec Prospix, c'est <strong style={{ color: '#EDFA36', fontWeight: 700 }}>1 minute</strong> par prospect. L'IA analyse tout — site, avis, réseaux, données légales — et génère un <strong style={{ color: '#2A9D74', fontWeight: 700 }}>audit PDF</strong> et un <strong style={{ color: '#2A9D74', fontWeight: 700 }}>email personnalisé</strong> adaptés à votre métier. Vous n'envoyez plus un email froid. Vous offrez une analyse gratuite. Le prospect voit ses faiblesses. Il vous répond.
+          <p style={{ fontFamily: 'Satoshi, system-ui, sans-serif', fontSize: 28, fontWeight: 700, color: '#FFFFFF', margin: '0 auto', maxWidth: 700, lineHeight: 1.3 }}>
+            Offrir un{' '}
+            <span style={{ color: '#2A9D74' }}>audit gratuit</span>
+            {' '}surpasse{' '}
+            <span style={{ color: '#EDFA36' }}>toute autre approche</span>
+            {' '}de prospection.
+          </p>
+          <p style={{ fontSize: 15, color: 'rgba(245,245,240,0.4)', textAlign: 'center', marginTop: 12, fontFamily: 'DM Sans, system-ui, sans-serif' }}>
+            Email froid classique :{' '}
+            <span style={{ color: '#ef4444', fontWeight: 600 }}>1-3%</span>
+            {' '}de réponse. Email avec audit personnalisé : jusqu'à{' '}
+            <span style={{ color: '#2A9D74', fontWeight: 600 }}>25%</span>.
           </p>
         </div>
 
