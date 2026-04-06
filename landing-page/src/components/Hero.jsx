@@ -68,12 +68,19 @@ export default function Hero() {
             marginBottom: 16,
           }}
         >
-          Trouvez les commerces qui ont{' '}
+          Trouvez les{' '}
+          <span style={{
+            background: 'linear-gradient(135deg, #1D6E55, #2A9D74, #EDFA36)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+          }}>commerces</span>
+          {' '}qui ont{' '}
           <em style={{
             fontStyle: 'italic',
             fontFamily: 'Georgia, "Times New Roman", serif',
             fontWeight: 400,
-            background: 'linear-gradient(130deg, #2A9D74 0%, #EDFA36 55%, #fff 100%)',
+            background: 'linear-gradient(135deg, #1D6E55, #2A9D74, #EDFA36)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
@@ -88,13 +95,15 @@ export default function Hero() {
             fontSize: 18,
             fontStyle: 'italic',
             fontFamily: 'Georgia, serif',
-            color: '#EDFA36',
             marginBottom: 24,
             letterSpacing: '-0.01em',
-            opacity: 0.88,
+            background: 'linear-gradient(135deg, #1D6E55, #2A9D74, #EDFA36)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
           }}
         >
-          trouvés, scorés, prêts à closer.
+          trouvés, analysés, prêts à closer.
         </motion.p>
 
         {/* Description */}
