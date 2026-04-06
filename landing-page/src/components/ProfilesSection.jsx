@@ -181,21 +181,21 @@ function ProfileCard({ profile, index }) {
         borderRadius: 18, overflow: 'hidden',
         minHeight: 320,
         display: 'flex', flexDirection: 'column',
-        border: hovered ? '1px solid rgba(29,110,85,0.45)' : '1px solid rgba(255,255,255,0.07)',
+        background: 'rgba(255,255,255,0.03)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        border: hovered ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(255,255,255,0.08)',
         boxShadow: hovered
-          ? '0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(29,110,85,0.15)'
-          : '0 4px 24px rgba(0,0,0,0.3)',
-        transition: 'border-color 0.25s, box-shadow 0.3s',
+          ? '0 16px 48px rgba(0,0,0,0.5)'
+          : '0 4px 16px rgba(0,0,0,0.3)',
+        transition: 'border-color 0.25s, box-shadow 0.28s',
         cursor: 'default',
       }}
       whileHover={{ y: -7 }}
       transition={{ type: 'spring', stiffness: 300, damping: 24 }}
     >
-      {/* TOP — glassmorphism dark */}
+      {/* TOP — icône */}
       <div style={{
-        background: 'rgba(255,255,255,0.03)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
         minHeight: 160,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         position: 'relative', padding: '32px 20px',
@@ -235,12 +235,12 @@ function ProfileCard({ profile, index }) {
         </motion.div>
       </div>
 
-      {/* BOTTOM — white */}
-      <div style={{ background: '#ffffff', padding: '16px 20px', minHeight: 120 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#131815', marginBottom: 6, letterSpacing: '-0.01em' }}>
+      {/* BOTTOM — texte */}
+      <div style={{ padding: '16px 20px 20px', minHeight: 120 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#FFFFFF', marginBottom: 6, letterSpacing: '-0.01em' }}>
           {profile.title}
         </div>
-        <div style={{ fontSize: 12, color: '#555', lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12, color: 'rgba(245,245,240,0.5)', lineHeight: 1.5 }}>
           {profile.description}
         </div>
       </div>
