@@ -1,11 +1,13 @@
-import { motion } from 'framer-motion'
+import { useRef } from 'react'
+import { motion, useInView } from 'framer-motion'
 import { useClickSound } from '../hooks/useClickSound'
 
-const CITIES = ['Paris', 'Lyon', 'Marseille', 'Bordeaux', 'Toulouse', 'Strasbourg', 'Lille', 'Nantes', 'Nice', 'Montpellier', 'Rennes', 'Grenoble']
-const TICKER = CITIES.map(c => `${c}`).join('  ·  ') + '  ·  '
+const CITIES = ['Paris', 'Lyon', 'Marseille', 'Bordeaux', 'Toulouse', 'Strasbourg', 'Lille', 'Nantes', 'Nice', 'Montpellier', 'Rennes', 'Grenoble', 'Dijon', 'Metz', 'Rouen']
 
 export default function Hero() {
   const playClick = useClickSound()
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true })
 
   const scrollToWaitlist = () => {
     playClick()
@@ -16,27 +18,37 @@ export default function Hero() {
     document.querySelector('#fonctionnalites')?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  const container = {
+    hidden: {},
+    visible: { transition: { staggerChildren: 0.1 } },
+  }
+  const item = {
+    hidden:  { opacity: 0, y: 28 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 0.61, 0.36, 1] } },
+  }
+
   return (
     <section id="hero" style={{
       minHeight: '100vh',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      padding: '120px 24px 0',
+      padding: '130px 24px 0',
       position: 'relative', overflow: 'hidden',
       textAlign: 'center',
     }}>
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 900, width: '100%' }}>
+      <motion.div
+        ref={ref}
+        variants={container}
+        initial="hidden"
+        animate={inView ? 'visible' : 'hidden'}
+        style={{ position: 'relative', zIndex: 1, maxWidth: 920, width: '100%' }}
+      >
 
-        {/* Badge pill */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45 }}
-          style={{ marginBottom: 36 }}
-        >
+        {/* Badge */}
+        <motion.div variants={item} style={{ marginBottom: 36 }}>
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '6px 18px',
+            padding: '7px 18px',
             background: 'rgba(29,110,85,0.15)',
             border: '1px solid rgba(29,110,85,0.35)',
             borderRadius: 40,
@@ -51,16 +63,14 @@ export default function Hero() {
 
         {/* H1 — très grand, font-light */}
         <motion.h1
-          initial={{ opacity: 0, y: 28 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, delay: 0.08 }}
+          variants={item}
           style={{
-            fontSize: 'clamp(44px, 8vw, 96px)',
+            fontSize: 'clamp(42px, 8.5vw, 96px)',
             fontWeight: 300,
-            lineHeight: 1.05,
+            lineHeight: 1.04,
             letterSpacing: '-0.04em',
             color: '#F5F5F0',
-            marginBottom: 18,
+            marginBottom: 16,
           }}
         >
           Trouvez les commerces<br />
@@ -79,17 +89,15 @@ export default function Hero() {
 
         {/* Sous-ligne jaune italic */}
         <motion.p
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.18 }}
+          variants={item}
           style={{
-            fontSize: 'clamp(18px, 3vw, 28px)',
+            fontSize: 'clamp(17px, 3vw, 28px)',
             fontStyle: 'italic',
             fontFamily: 'Georgia, serif',
             color: '#EDFA36',
-            marginBottom: 24,
+            marginBottom: 22,
             letterSpacing: '-0.01em',
-            opacity: 0.9,
+            opacity: 0.88,
           }}
         >
           trouvés, scorés, prêts à closer.
@@ -97,13 +105,11 @@ export default function Hero() {
 
         {/* Description */}
         <motion.p
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.26 }}
+          variants={item}
           style={{
             fontSize: 'clamp(15px, 1.8vw, 18px)',
-            color: 'rgba(245,245,240,0.55)',
-            lineHeight: 1.7,
+            color: 'rgba(245,245,240,0.54)',
+            lineHeight: 1.72,
             maxWidth: 560, margin: '0 auto 44px',
           }}
         >
@@ -111,55 +117,64 @@ export default function Hero() {
           On vient d'en trouver 47 dans votre ville.
         </motion.p>
 
-        {/* 2 boutons CTA */}
+        {/* Boutons */}
         <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.34 }}
-          style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 64 }}
+          variants={item}
+          style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 68 }}
         >
-          <button
+          <motion.button
             onClick={scrollToWaitlist}
+            whileHover={{ y: -3, boxShadow: '0 12px 36px rgba(29,110,85,0.55)' }}
+            whileTap={{ scale: 0.97 }}
             style={{
-              padding: '15px 32px',
-              background: '#1D6E55',
-              color: '#F5F5F0',
-              border: 'none',
-              borderRadius: 12,
+              padding: '15px 34px',
+              background: '#1D6E55', color: '#F5F5F0',
+              border: 'none', borderRadius: 12,
               fontSize: 15, fontWeight: 700,
               cursor: 'pointer',
               fontFamily: 'Instrument Sans, sans-serif',
-              transition: 'all 0.2s',
               boxShadow: '0 4px 24px rgba(29,110,85,0.45)',
               letterSpacing: '0.01em',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#2A9D74'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(29,110,85,0.55)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#1D6E55'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 24px rgba(29,110,85,0.45)' }}
           >
             Rejoindre la waitlist
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
             onClick={scrollToDemo}
+            whileHover={{ y: -3, borderColor: 'rgba(245,245,240,0.6)', color: '#F5F5F0' }}
+            whileTap={{ scale: 0.97 }}
             style={{
-              padding: '15px 32px',
-              background: 'transparent',
-              color: 'rgba(245,245,240,0.85)',
+              padding: '15px 34px',
+              background: 'transparent', color: 'rgba(245,245,240,0.82)',
               border: '1.5px solid rgba(245,245,240,0.25)',
-              borderRadius: 12,
-              fontSize: 15, fontWeight: 600,
+              borderRadius: 12, fontSize: 15, fontWeight: 600,
               cursor: 'pointer',
               fontFamily: 'Instrument Sans, sans-serif',
-              transition: 'all 0.2s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,245,240,0.55)'; e.currentTarget.style.color = '#F5F5F0'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(245,245,240,0.25)'; e.currentTarget.style.color = 'rgba(245,245,240,0.85)'; e.currentTarget.style.transform = 'translateY(0)' }}
           >
             Voir la démo ▶
-          </button>
+          </motion.button>
         </motion.div>
 
-      </div>
+        {/* Stats rapides */}
+        <motion.div
+          variants={item}
+          style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '14px 48px', marginBottom: 72 }}
+        >
+          {[
+            { val: '10',    lab: 'profils métier' },
+            { val: '30s',   lab: 'Audit IA' },
+            { val: '200',   lab: 'leads / recherche' },
+          ].map((s, i) => (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 800, color: '#EDFA36', letterSpacing: '-0.03em', lineHeight: 1, textShadow: '0 0 28px rgba(237,250,54,0.35)' }}>{s.val}</span>
+              <span style={{ fontSize: 12, color: 'rgba(245,245,240,0.38)', fontWeight: 500, letterSpacing: '0.02em' }}>{s.lab}</span>
+            </div>
+          ))}
+        </motion.div>
+
+      </motion.div>
 
       {/* Ticker villes */}
       <div style={{
@@ -168,27 +183,15 @@ export default function Hero() {
         background: 'rgba(19,24,21,0.8)',
         backdropFilter: 'blur(8px)',
         overflow: 'hidden',
-        padding: '12px 0',
+        padding: '11px 0',
       }}>
-        <div style={{
-          display: 'inline-flex',
-          whiteSpace: 'nowrap',
-          animation: 'marquee 22s linear infinite',
-          gap: 0,
-        }}>
-          {/* Duplicate for seamless loop */}
+        <div style={{ display: 'inline-flex', whiteSpace: 'nowrap', animation: 'marquee 26s linear infinite' }}>
           {[0, 1].map(n => (
-            <span key={n} style={{
-              fontSize: 12, fontWeight: 500,
-              color: 'rgba(245,245,240,0.35)',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              paddingRight: 0,
-            }}>
+            <span key={n} style={{ display: 'inline-flex', alignItems: 'center', gap: 0 }}>
               {CITIES.map((city, i) => (
-                <span key={i}>
-                  <span style={{ color: 'rgba(245,245,240,0.35)' }}>{city}</span>
-                  <span style={{ margin: '0 20px', color: 'rgba(29,110,85,0.6)' }}>·</span>
+                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 0 }}>
+                  <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(245,245,240,0.32)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>{city}</span>
+                  <span style={{ margin: '0 18px', color: 'rgba(29,110,85,0.5)', fontSize: 12 }}>·</span>
                 </span>
               ))}
             </span>
