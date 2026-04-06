@@ -10,7 +10,7 @@ const { enrichSocial }   = require('../services/socialEnrichment');
 const { calculateScore, getDomainComplexity, getRecommendedRAGType, estimateMonthlyConversations, getRecommendedStack, getEmailMarketingRecommendation, getGoogleAdsConcurrence, googleAdsReadiness, getGoogleAdsRecommendation } = require('../services/scoring');
 const { analyzeReviews, countQuestionsInReviews, countPhoneCallMentions, detectOffHoursActivity, detectLanguages, detectLoyaltyMentions, detectEmailThemes } = require('../services/reviewAnalysis');
 const { getAllReviews }      = require('../services/apifyReviews');
-const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateEmailSocialMedia, generateEmailDesigner, generateEmailWebDev, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot, generateAuditSocialMedia, generateAuditDesigner, generateAuditWebDev, generateAuditEmailMarketing, generateEmailEmailMarketing, generateAuditGoogleAds, generateEmailGoogleAds } = require('../services/aiReviewAnalysis');
+const { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateEmailSocialMedia, generateEmailDesigner, generateEmailWebDev, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot, generateAuditSocialMedia, generateAuditDesigner, generateAuditWebDev, generateAuditEmailMarketing, generateEmailEmailMarketing, generateAuditGoogleAds, generateEmailGoogleAds, generateEmailCopywriter } = require('../services/aiReviewAnalysis');
 const { findDecisionMaker } = require('../services/linkedinScraper');
 const { searchPappers }     = require('../services/pappersService');
 const { getPageSpeed, checkNAP, getSiteSignals } = require('../services/pagespeedService');
@@ -636,6 +636,7 @@ Retourne UNIQUEMENT un JSON valide (pas de texte avant ou après) :
         hasContactForm: socialData?.contactFormDetection?.hasContactForm ?? false,
         socialPresence: socialData,
         ownerReplyRatio: leadData.ownerReplyRatio ?? null,
+        pagespeedData:  req.body.pagespeedData ?? null,
       })
       return res.json(emailResult)
     }
@@ -666,6 +667,20 @@ Retourne UNIQUEMENT un JSON valide (pas de texte avant ou après) :
         reviewsData:   { unanswered, avgRating, reviews: reviewsData?.reviews ?? [] },
         googleAdsReadiness: readiness,
         concurrence,
+        localRank:     localRank ?? null,
+      })
+      return res.json(emailResult)
+    }
+
+    // ── Email spécialisé COPYWRITER → fonction dédiée ───────────────────────────
+    if (profileId === 'copywriter') {
+      console.log(`[generate-email] Délégation COPYWRITER → generateEmailCopywriter`)
+      const leadCity5 = leadData?.address?.split(',').pop()?.trim() || req.body.city || ''
+      const emailResult = await generateEmailCopywriter({
+        leadData:     { name: businessName, city: leadCity5, category: req.body.category ?? null, rating: leadData?.rating ?? avgRating, reviewCount: leadData?.reviewCount ?? totalReviews, website: leadData?.website ?? null },
+        pagespeedData: req.body.pagespeedData ?? null,
+        reviewsData:   { unanswered, keywords: reviewsData?.keywords ?? [] },
+        googleAudit:   leadData?.googleAudit ?? req.body.leadData?.googleAudit ?? null,
       })
       return res.json(emailResult)
     }

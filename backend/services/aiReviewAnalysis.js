@@ -682,155 +682,92 @@ function extractTopQuotes(reviewsData) {
 
 // ── Email generator — PHOTOGRAPHE profile ─────────────────────────────────────
 async function generateEmailPhotographe({ leadData, visualAnalysis, googleData, siteAnalysis, reviewsData, facebookActivity, instagramActivity, photoQuality }) {
-  console.log('[generateEmailPhotographe] reçu:', JSON.stringify({
-    name: leadData?.name,
-    city: leadData?.city,
-    reviewCount: leadData?.reviewCount
-  }))
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
 
-  const topQuotes = extractTopQuotes(reviewsData)
+  const anthropic = new Anthropic({ apiKey })
+
+  const name        = leadData.name        ?? 'ce commerce'
+  const city        = leadData.city        ?? ''
+  const category    = leadData.category    ?? 'ce secteur'
+  const rating      = leadData.rating      ?? null
+  const reviewCount = leadData.reviewCount ?? null
+
   const hasInstagram = !!(siteAnalysis?.socialLinks?.instagram || googleData?.hasInstagram)
-  const date = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+  const photoCount   = googleData?.photoCount ?? 0
+  const redObs       = visualAnalysis?.observations?.find(o => o.level === 'red')?.text ?? null
+  const visualScore  = visualAnalysis?.score ?? null
 
-  const obsText = Array.isArray(visualAnalysis?.observations)
-    ? visualAnalysis.observations.map(o => `- [${o.level}] ${o.text}`).join('\n')
-    : '—'
+  const reviews    = reviewsData?.reviews ?? []
+  const unanswered = reviewsData?.unanswered ?? reviews.filter(r => !r.ownerReply && !r.reply).length
 
-  const quotesText = topQuotes.length > 0
-    ? topQuotes.map(q => `"${q}"`).join('\n')
-    : '— (aucune citation disponible — ne pas inventer de citations)'
+  const catLow = category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const isVisualSector = /restaurant|cafe|brasserie|coiffure|salon|spa|beaute|barbier|boutique|mode/.test(catLow)
 
-  const reviews = reviewsData?.reviews ?? []
-  const negativeRatio = reviews.length > 0
-    ? reviews.filter(r => (r.rating ?? 5) <= 2).length / reviews.length
-    : 0
-  const highNegativeRatio = negativeRatio > 0.5
+  console.log(`[generateEmailPhotographe] ${name} | photos:${photoCount} | visualScore:${visualScore ?? '—'} | redObs:${!!redObs} | instagram:${hasInstagram} | unanswered:${unanswered}`)
 
-  const fbLabel  = facebookActivity?.status === 'unknown' ? null : facebookActivity?.label  ?? null
-  const igLabel  = instagramActivity?.status === 'unknown' ? null : instagramActivity?.label ?? null
-  const fbFollowers = facebookActivity?.followers  ?? null
-  const igFollowers = instagramActivity?.followers ?? null
+  const prompt = `Rédige un email de prospection à froid pour un photographe spécialisé dans les commerces locaux. 3 blocs, 5 lignes max.
 
-  console.log(`[generateEmailPhotographe] topQuotes: ${topQuotes.length} citations | Instagram: ${hasInstagram ? 'présent' : 'absent'} | score visuel: ${visualAnalysis?.score ?? '—'} | FB: ${fbLabel ?? 'n/a'} | IG: ${igLabel ?? 'n/a'}`)
-  console.log('[EmailPhotographe] données reçues:', {
-    photoCount:          googleData?.photoCount,
-    hasInstagram:        hasInstagram,
-    instagramDaysAgo:    instagramActivity?.daysAgo,
-    instagramStatus:     instagramActivity?.status,
-    facebookFollowers:   facebookActivity?.followers,
-    visualScore:         visualAnalysis?.score,
-    visualVerdict:       visualAnalysis?.verdict,
-    topQuotesCount:      topQuotes?.length,
-  })
-
-  const photoCount        = googleData?.photoCount ?? 0
-  const redObs            = visualAnalysis?.observations?.find(o => o.level === 'red')?.text ?? null
-  const igLowActivity     = instagramActivity?.status === 'low_active' || instagramActivity?.status === 'inactive'
-  const city              = leadData.city || ''
-  const competitorDelta   = leadData.competitorDelta ?? null
-  const igDaysAgo         = (instagramActivity?.status !== 'unknown' && instagramActivity?.daysAgo != null) ? instagramActivity.daysAgo : null
-
-  // item 3 — real avg rating computed from reviews array (may differ from Google's displayed rating)
-  const reviewsAvgRating  = reviews.length >= 3
-    ? parseFloat((reviews.reduce((s, r) => s + (r.rating ?? 5), 0) / reviews.length).toFixed(1))
-    : null
-
-  // item 4 — unanswered reviews count
-  const unanswered = reviews.filter(r => !r.ownerReply && !r.reply).length
-
-  // P3 — dissonance entre expérience clients et photos actuelles, verrouillée en JS
-  const visualWords = topQuotes.slice(0, 2).join(' / ')
-  const p3Hint = topQuotes.length > 0
-    ? `${leadData.reviewCount} personnes ont décrit chez vous ${visualWords}. Mais celui qui découvre votre fiche pour la première fois ne retrouve pas cette histoire — les photos actuelles ne restituent pas ce que vos clients vivent réellement. Cette réputation existe — elle reste juste invisible.`
-    : `${leadData.reviewCount} personnes ont partagé leur expérience chez vous. Mais celui qui découvre votre fiche pour la première fois ne retrouve pas cette histoire — les photos actuelles ne restituent pas ce que vos clients vivent réellement. Cette réputation existe — elle reste juste invisible.`
-
-  // Social context lines — only include when data is available
-  const socialLines = [
-    igFollowers != null                        ? `- Abonnés Instagram : ${igFollowers}` : null,
-    igDaysAgo   != null                        ? `- Dernier post Instagram : il y a ${igDaysAgo} jours` : null,
-    fbFollowers != null                        ? `- Abonnés Facebook : ${fbFollowers}` : null,
-  ].filter(Boolean).join('\n')
-
-  const prompt = `Tu es un photographe professionnel. Rédige un email de prospection pour un commerce local.
-Ton : chaleureux, direct, sincère — jamais vendeur, jamais de liste à puces dans le corps.
-
-RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
-
-DONNÉES RÉELLES — UTILISER UNIQUEMENT CES CHIFFRES :
-- Nom : ${leadData.name}
+DONNÉES DU PROSPECT :
+- Nom : ${name}
 - Ville : ${city || '—'}
-- Catégorie : ${leadData.category ?? 'commerce local'}
-- Note Google affichée : ${leadData.rating}/5 (INTERDIT d'écrire un autre chiffre)${reviewsAvgRating !== null ? `\n- Note réelle des derniers avis analysés : ${reviewsAvgRating}/5 (INTERDIT d'écrire un autre chiffre — le total d'avis Google reste ${leadData.reviewCount})` : ''}
-- Nombre d'avis : ${leadData.reviewCount} (INTERDIT d'écrire un autre chiffre)
-- Avis sans réponse du propriétaire : ${unanswered} sur les ${leadData.reviewCount} derniers avis analysés (total Google : ${leadData.reviewCount})${visualAnalysis?.score != null ? `\n- Score qualité visuelle Instagram : ${visualAnalysis.score}/100` : ''}
-- Citations exactes des avis : ${quotesText}
-- Mots-clés récurrents dans les avis : ${reviewsData?.keywords?.join(', ') ?? '—'}${socialLines ? '\n' + socialLines : ''}
+- Secteur : ${category}
+- Note Google : ${rating ?? '—'}/5, ${reviewCount ?? '—'} avis
+- Avis sans réponse : ${unanswered}
+- Photos sur la fiche Google : ${photoCount}
+- Score qualité visuelle : ${visualScore != null ? visualScore + '/100' : 'non analysé'}
+- Observation critique : ${redObs ?? 'aucune'}
+- Instagram : ${hasInstagram ? 'Présent' : 'ABSENT'}
+- Secteur visuel : ${isVisualSector ? 'Oui' : 'Non'}
 
-STRUCTURE OBLIGATOIRE EN 5 PARAGRAPHES :
+CHOIX DE L'ANGLE — UN SEUL, le plus douloureux :
 
-OBJET :
-"${leadData.name} — ce que vos clients décrivent, personne ne le voit encore"
+Priorité 1 — MAUVAISE QUALITÉ VISUELLE : Si score < 50 ou observation critique présente
+→ Angle : "Votre fiche a [X] avis à [Y]/5, mais les photos actuelles ne rendent pas justice à ce que vos clients décrivent."
 
-SALUTATION :
-${leadData.decisionMaker?.name ? `"Bonjour ${leadData.decisionMaker.name},"` : '"Bonjour,"'}
+Priorité 2 — PEU DE PHOTOS : Si photoCount < 5
+→ Angle : "Avec [X] photos sur votre fiche Google, vos concurrents mieux illustrés captent les clics en premier."
 
-P1 — ACCROCHE (recopier quasi-exactement) :
-"Je suis photographe spécialisé dans la mise en valeur des commerces locaux que j'aime mettre en lumière — au sens propre comme au sens figuré.
-Il y a quelques jours, je suis tombé sur ${leadData.name} — et vos avis m'ont arrêté."
+Priorité 3 — PAS D'INSTAGRAM DANS UN SECTEUR VISUEL : Si secteur visuel et Instagram absent
+→ Angle : "Dans [secteur], Instagram est le premier canal de découverte locale — vous n'y êtes pas encore."
 
-P2 — CE QUE LES CLIENTS RESSENTENT :
-Tisser 2 citations EXACTES de topQuotes dans un récit fluide — JAMAIS une liste.
-Terminer OBLIGATOIREMENT par : "Ce n'est pas le genre d'expérience qu'on fabrique."
-Si aucune citation disponible → décrire l'ambiance ressentie à travers les mots-clés des avis.
+Priorité par défaut — photoCount < 10 : manque de présence visuelle.
 
-P3 — LE FOSSÉ (dissonance entre expérience clients et photos) :
-Reformuler naturellement en prose ce texte verrouillé : "${p3Hint}"
-Ce P3 doit exprimer la dissonance entre l'expérience décrite par les clients dans leurs avis et ce que les photos actuelles restituent.
-Ne jamais dire "ce que vous voyez" ou "il n'y a pas assez de photos".
-Dire que les photos ne racontent pas la même histoire que les clients.
-Terminer OBLIGATOIREMENT par : "Cette réputation existe — elle reste juste invisible."
+NE JAMAIS COMBINER. Un email = un seul problème.
 
-P4 — CE QU'ON A IDENTIFIÉ (en prose, jamais de liste) :
-"En regardant ${leadData.name}, j'ai identifié exactement ce qui mériterait d'être capturé : {sujet 1}, {sujet 2} et {sujet 3}."
-Les 3 sujets doivent être TRÈS SPÉCIFIQUES à ce commerce — tirés des mots-clés des avis et du type d'activité.
-Jamais de sujets génériques comme "intérieur" ou "équipe".
+FORMAT :
 
-P5 — CTA :
-"Ensemble, on peut faire en sorte que votre présence en ligne reflète enfin ce que vos clients vivent chez vous.
-Un appel de 15 minutes suffit pour voir si on peut faire quelque chose ensemble."
+OBJET : [Nom] — reformulation du point de douleur avec un chiffre réel.
 
-SIGNATURE (recopier exactement) :
-Photographe commerce local — ${city || 'Paris'}
+BLOC 1 (1-2 lignes) : Le problème avec SES données. Pas de compliment. Utiliser les chiffres directement.
+BLOC 2 (1-2 lignes) : Ce que ça change en une phrase. Pas de feature list.
+BLOC 3 (1 ligne) : Question directe. "15 minutes pour voir ce qu'on peut faire ensemble ?"
 
-${EMAIL_STATS_NOTE}
+Signature : [Votre prénom] / Photographe commerce local — ${city || 'Paris'} / [Votre numéro]
 
-RÈGLES ABSOLUES :
-- Jamais de liste à puces dans le corps de l'email
-- Jamais "j'ai analysé votre présence"
-- Jamais "Cordialement"
-- Jamais de mot technique (SEO, conversion, KPI...)
-- INTERDIT d'écrire un nombre d'avis différent de ${leadData.reviewCount} — même approximativement
-- INTERDIT d'écrire un autre chiffre que ${leadData.reviewCount} pour le total d'avis Google
-- INTERDIT d'écrire une note différente de ${leadData.rating}${reviewsAvgRating !== null ? ` ou ${reviewsAvgRating}` : ''} — même approximativement
-- Jamais de chiffre inventé — chaque chiffre mentionné doit figurer dans la liste DONNÉES RÉELLES ci-dessus
-- Jamais le statut ouvert/fermé ni les horaires
-- Jamais [Prénom], [Email], [Téléphone] ni aucun placeholder entre crochets
-- Maximum 200 mots
-- Vérifier avant de terminer que chaque chiffre mentionné est dans la liste ci-dessus
+INTERDIT :
+1. Statistique externe (SQ Magazine, Bain, Google, etc.)
+2. "J'ai analysé votre site / fiche avec [outil]" — ne pas révéler les outils
+3. Nom de marque ou d'outil (Google My Business, Instagram Insights, Lightroom)
+4. "Probablement", "peut-être"
+5. Plus de 5 lignes de contenu
+6. Inventer une donnée absente des paramètres
+7. Combiner plusieurs angles
+8. Compliment d'ouverture ("beau score", "vos avis sont excellents")
+9. Feature list ("je m'occupe des photos, de l'Instagram, de la fiche Google")
+10. Double CTA
+11. Citer les avis textuellement ou inventer des citations
 
 Retourne UNIQUEMENT un JSON valide :
 {"subject":"...","body":"..."}`
 
-  const anthropic = new Anthropic({ apiKey })
   console.log(`[generateEmailPhotographe] → appel Anthropic (prompt: ${prompt.length} chars)`)
 
   let message
   try {
     message = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
-      max_tokens: 800,
+      max_tokens: 600,
       messages:   [{ role: 'user', content: prompt }],
     })
   } catch (err) {
@@ -844,12 +781,7 @@ Retourne UNIQUEMENT un JSON valide :
   const jsonMatch = raw.match(/\{[\s\S]*\}/)
   if (!jsonMatch) throw new Error('Réponse invalide — JSON introuvable')
   const parsed = JSON.parse(jsonMatch[0])
-
-  const cleaned = parsed.body
-    .replace(/^---+$/gm, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
-
+  const cleaned = parsed.body.replace(/^---+$/gm, '').replace(/\n{3,}/g, '\n\n').trim()
   return { subject: parsed.subject, body: cleaned }
 }
 
@@ -1555,80 +1487,68 @@ async function generateEmailSocialMedia({ leadData, socialPresence, socialMediaA
   const igDaysAgo     = socialMediaActivity?.instagramActivity?.daysAgo    ?? null
   const fbDaysAgo     = socialMediaActivity?.facebookActivity?.daysAgo     ?? null
 
-  const missingNets = [!hasIG && 'Instagram', !hasFB && 'Facebook', !hasTK && 'TikTok'].filter(Boolean)
-  const missingLabel = missingNets.length > 0 ? missingNets.join(', ') : null
-
-  const isInactive = (igDaysAgo !== null && igDaysAgo > 30) || (fbDaysAgo !== null && fbDaysAgo > 30)
+  const unansweredReviews = reviewsData?.unanswered ?? null
 
   const catLow = category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  const isRestaurant = /restaurant|cafe|brasserie|pizz|burger|traiteur/.test(catLow)
-  const isBeauty     = /coiffure|salon|spa|beaute|barbier/.test(catLow)
+  const isVisualSector = /restaurant|cafe|brasserie|pizz|burger|coiffure|salon|spa|beaute|barbier|boutique|mode/.test(catLow)
 
-  let sectorHint
-  if (isRestaurant) sectorHint = 'La restauration est le secteur où les contenus visuels ont le plus fort impact : chaque plat, chaque ambiance peut devenir un levier d\'acquisition local.'
-  else if (isBeauty) sectorHint = 'La beauté est l\'un des secteurs où la transformation visuelle génère le plus d\'engagement organique — chaque résultat est une preuve concrète.'
-  else sectorHint = 'Dans votre secteur, la régularité et la qualité du contenu social sont des facteurs directs de différenciation face aux concurrents.'
+  console.log(`[generateEmailSocialMedia] ${name} | hasIG:${hasIG} | igDaysAgo:${igDaysAgo ?? '—'} | unanswered:${unansweredReviews ?? '—'} | visual:${isVisualSector}`)
 
-  const observationLine = missingLabel
-    ? `vous n'êtes pas présent(e) sur ${missingLabel}`
-    : isInactive
-    ? `votre activité sur les réseaux est très irrégulière depuis plus de ${Math.max(igDaysAgo ?? 0, fbDaysAgo ?? 0)} jours`
-    : 'votre présence sociale a un potentiel non exploité'
+  const prompt = `Rédige un email de prospection à froid pour un community manager spécialisé dans les commerces locaux. 3 blocs, 5 lignes max.
 
-  const prompt = `Tu es un social media manager freelance spécialisé dans les commerces locaux. Rédige un email de prospection pour ${name}.
-
-RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
-
-DONNÉES VERROUILLÉES — UTILISER UNIQUEMENT CES CHIFFRES :
+DONNÉES DU PROSPECT :
 - Nom : ${name}
 - Ville : ${city || '—'}
-- Catégorie : ${category}
-- Note Google : ${rating ?? '—'}/5 — Avis : ${reviewCount ?? '—'}
+- Secteur : ${category}
+- Note Google : ${rating ?? '—'}/5, ${reviewCount ?? '—'} avis
+- Avis sans réponse : ${unansweredReviews ?? 'non mesuré'}
 - Instagram : ${hasIG ? `Présent (${igFollowers !== null ? igFollowers + ' abonnés' : 'abonnés inconnus'}, dernier post il y a ${igDaysAgo ?? '?'} jours)` : 'ABSENT'}
 - Facebook : ${hasFB ? `Présent (${fbFollowers !== null ? fbFollowers + ' abonnés' : 'abonnés inconnus'})` : 'ABSENT'}
-- LinkedIn : ${hasLI ? 'Présent' : 'Absent'}
 - TikTok : ${hasTK ? 'Présent' : 'Absent'}
-- YouTube : ${hasYT ? 'Présent' : 'Absent'}
+- Secteur visuel : ${isVisualSector ? 'Oui' : 'Non'}
 
-OBSERVATION DE DÉPART : ${observationLine}
-CONTEXTE SECTEUR : ${sectorHint}
+CHOIX DE L'ANGLE — UN SEUL, le plus douloureux :
 
-STRUCTURE EN 5 PARAGRAPHES :
+Priorité 1 — PAS D'INSTAGRAM DANS UN SECTEUR VISUEL : Si secteur visuel = Oui et Instagram absent
+→ Angle : "Dans [secteur], vos concurrents acquièrent des nouveaux clients chaque semaine sur Instagram — vous n'y êtes pas."
 
-OBJET : ${missingLabel ? `${name} — Absent(e) sur ${missingLabel}` : `${name} — votre présence sociale a du potentiel`}
+Priorité 2 — COMPTE INACTIF : Si igDaysAgo > 30
+→ Angle : "Votre dernier post Instagram remonte à [X] jours — vos abonnés ne vous voient plus."
 
-SALUTATION : "Bonjour,"
+Priorité 3 — AVIS SANS RÉPONSE : Si unansweredReviews > 10
+→ Angle : "[X] avis sans réponse — vos clients vous interpellent en public et personne ne répond."
 
-P1 — ACCROCHE (observation concrète sur la situation réelle, prose naturelle, max 2 phrases) :
-À partir de l'observation : "${observationLine}"
+Priorité par défaut : absence de présence sociale cohérente.
 
-P2 — CONTEXTE SECTORIEL (1 phrase, utiliser l'indice secteur ci-dessus sans le recopier mot pour mot) :
-Reformuler naturellement.
+NE JAMAIS COMBINER. Un email = un seul problème.
 
-P3 — CE QUE JE PROPOSE (2 phrases, sans nommer d'outils ni de plateformes spécifiques, sans listes) :
-Décrire la gestion de contenu social, la régularité de publication, l'engagement communautaire.
+FORMAT :
 
-P4 — RÉSULTAT CONCRET (1 phrase de preuve, recopier exactement) :
-"Les commerces que j'accompagne voient leur engagement organique progresser de 20 à 25% en 45 jours."
+OBJET : [Nom] — reformulation du point de douleur avec un chiffre réel.
 
-P5 — CTA (recopier exactement) :
-"Je vous envoie des exemples de contenus réalisés pour des commerces similaires ?
+BLOC 1 (1-2 lignes) : Le problème avec SES données. Pas de compliment. Utiliser les chiffres directement.
+BLOC 2 (1-2 lignes) : Ce que ça change en une phrase. Pas de feature list.
+BLOC 3 (1 ligne) : Question directe. "15 minutes pour voir ce qu'on peut faire ?"
 
-Community Manager — ${city || 'France'}"
+Signature : [Votre prénom] / Community Manager — ${city || 'France'} / [Votre numéro]
 
-${EMAIL_STATS_NOTE}
-
-RÈGLES ABSOLUES :
-- Jamais de liste à puces dans le corps
-- Jamais "Bonjour [nom]" — uniquement "Bonjour,"
-- Jamais de noms d'outils ni de plateformes
-- Jamais de placeholder entre crochets dans l'email livré
-- Maximum 180 mots
+INTERDIT :
+1. Statistique externe (SQ Magazine, Bain, Google, etc.)
+2. "J'ai analysé votre présence sur les réseaux" — ne pas révéler l'outil
+3. Nom de marque ou d'outil (Hootsuite, Buffer, Canva, Meta Business Suite)
+4. "Probablement", "peut-être"
+5. Plus de 5 lignes de contenu
+6. Inventer une donnée absente des paramètres
+7. Combiner plusieurs angles
+8. Compliment d'ouverture
+9. Feature list ("je gère l'Instagram, le Facebook, le TikTok...")
+10. Double CTA
+11. Promettre un nombre d'abonnés ou de vues
 
 Retourne UNIQUEMENT un JSON valide :
-{"subject":"...","body":"Corps complet de l'email avec sauts de ligne \\n"}`
+{"subject":"...","body":"..."}`
 
-  console.log(`[generateEmailSocialMedia] ${name} | city:${city} | missingNets:${missingLabel ?? 'aucun'} | inactive:${isInactive} | prompt:${prompt.length} chars`)
+  console.log(`[generateEmailSocialMedia] → appel Anthropic (prompt: ${prompt.length} chars)`)
 
   let message
   try {
@@ -2084,66 +2004,67 @@ async function generateEmailDesigner({ leadData, photoCount, googleAudit, social
   const hasDesc = !!(googleAudit?.hasDescription)
   const photos  = photoCount ?? 0
 
-  const catLow = category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  const isRestaurant = /restaurant|cafe|brasserie|pizz|burger|traiteur/.test(catLow)
-  const isBeauty     = /coiffure|salon|spa|beaute|barbier/.test(catLow)
-  const isRetail     = /boutique|commerce|magasin|retail|mode|vetement/.test(catLow)
+  const catLow2 = category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const isVisualSector2 = /restaurant|cafe|brasserie|pizz|burger|coiffure|salon|spa|beaute|barbier|boutique|mode/.test(catLow2)
 
-  let sectorHint
-  if (isRestaurant) sectorHint = 'En restauration, les visuels sont le premier facteur de décision — une fiche Google sans photos professionnelles perd 30 à 40% des clics potentiels.'
-  else if (isBeauty) sectorHint = 'Dans la beauté, chaque avant/après est un argument de vente. Une identité visuelle cohérente crée la confiance avant même le premier contact.'
-  else if (isRetail) sectorHint = 'Dans le commerce local, la cohérence visuelle entre la vitrine, la fiche Google et les réseaux multiplie la mémorisation de marque.'
-  else sectorHint = 'Dans votre secteur, une identité visuelle professionnelle est l\'un des premiers critères d\'évaluation avant de faire appel à un prestataire.'
+  console.log(`[generateEmailDesigner] ${name} | photos:${photos} | hasDesc:${hasDesc} | hasIG:${hasIG} | hasFB:${hasFB} | hasPin:${hasPin}`)
 
-  const weakPoints = [
-    photos < 5                   ? `seulement ${photos} photo(s) sur Google` : null,
-    !hasDesc                     ? 'aucune description sur la fiche Google' : null,
-    !hasIG && !hasFB && !hasPin  ? 'aucun réseau visuel actif détecté' : null,
-  ].filter(Boolean)
+  const prompt = `Rédige un email de prospection à froid pour un designer graphique spécialisé dans les commerces locaux. 3 blocs, 5 lignes max.
 
-  const observationLine = weakPoints.length > 0
-    ? weakPoints.join(', ')
-    : 'l\'identité visuelle a un potentiel non exploité sur les supports digitaux'
-
-  const topQuotes = extractTopQuotes(reviewsData)
-  const quotesText = topQuotes.length > 0 ? topQuotes.map(q => `"${q}"`).join('\n') : null
-
-  const prompt = `Tu es un designer graphique et branding freelance spécialisé dans les commerces locaux. Rédige un email de prospection pour ${name}.
-
-RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
-
-DONNÉES VERROUILLÉES — UTILISER UNIQUEMENT CES CHIFFRES :
+DONNÉES DU PROSPECT :
 - Nom : ${name}
 - Ville : ${city || '—'}
-- Catégorie : ${category}
-- Note Google : ${rating ?? '—'}/5 — Avis : ${reviewCount ?? '—'}
+- Secteur : ${category}
+- Note Google : ${rating ?? '—'}/5, ${reviewCount ?? '—'} avis
 - Photos Google : ${photos}
-- Description fiche : ${hasDesc ? 'Présente' : 'Absente'}
-- Instagram : ${hasIG ? 'Présent' : 'Absent'} | Facebook : ${hasFB ? 'Présent' : 'Absent'} | Pinterest : ${hasPin ? 'Présent' : 'Absent'}
-- Observation principale : ${observationLine}
-- Contexte secteur : ${sectorHint}
-${quotesText ? `- Citations clients : ${quotesText}` : ''}
+- Description fiche Google : ${hasDesc ? 'Présente' : 'ABSENTE'}
+- Instagram : ${hasIG ? 'Présent' : 'ABSENT'}
+- Facebook : ${hasFB ? 'Présent' : 'ABSENT'}
+- Pinterest : ${hasPin ? 'Présent' : 'ABSENT'}
+- Secteur visuel : ${isVisualSector2 ? 'Oui' : 'Non'}
 
-STRUCTURE — 5 PARAGRAPHES COURTS :
-P1 — Accroche factuelle sur le point faible visuel identifié (1-2 phrases, ne pas commencer par "Je")
-P2 — Ce que les clients perçoivent vs ce que la fiche montre (lien réputation/identité visuelle)
-P3 — Ta valeur ajoutée concrète en tant que designer local (sans mention de tarif)
-P4 — Ce que tu peux améliorer précisément pour eux (photos Google, charte, réseaux)
-P5 — Appel à l'action simple et concret (1-2 phrases)
+CHOIX DE L'ANGLE — UN SEUL, le plus douloureux :
 
-${EMAIL_STATS_NOTE}
+Priorité 1 — AUCUN RÉSEAU VISUEL ACTIF : Si Instagram absent ET Facebook absent ET Pinterest absent
+→ Angle : "Vous avez [X] avis à [Y]/5 mais aucune présence visuelle en ligne — votre réputation reste invisible."
 
-RÈGLES :
-- Ne jamais inventer de chiffres, noms ou faits non fournis ci-dessus
-- Vouvoiement tout au long de l'email
-- Ton professionnel mais accessible
-- Longueur totale : 150-220 mots
-- Objet : accrocheur, factuel, sans emoji (max 80 caractères)
+Priorité 2 — RÉSEAUX VISUELS PARTIELLEMENT ABSENTS dans un secteur visuel : Si Instagram absent et secteur visuel
+→ Angle : "Dans [secteur], l'identité visuelle est le premier critère de décision — votre fiche Google ne reflète pas votre niveau."
+
+Priorité 3 — PAS DE DESCRIPTION GOOGLE : Si hasDesc = false
+→ Angle : "Votre fiche Google n'a pas de description — Google ne sait pas comment vous présenter dans les résultats."
+
+Priorité par défaut — photos < 5 : fiche visuelle insuffisante.
+
+NE JAMAIS COMBINER. Un email = un seul problème.
+
+FORMAT :
+
+OBJET : [Nom] — reformulation du point de douleur avec un chiffre réel.
+
+BLOC 1 (1-2 lignes) : Le problème avec SES données. Pas de compliment. Utiliser les données directement.
+BLOC 2 (1-2 lignes) : Ce que ça change en une phrase. Pas de feature list.
+BLOC 3 (1 ligne) : Question directe.
+
+Signature : [Votre prénom] / Designer graphique — ${city || 'France'} / [Votre numéro]
+
+INTERDIT :
+1. Statistique externe
+2. "J'ai analysé votre identité visuelle avec [outil]" — ne pas révéler l'outil
+3. Nom de marque ou d'outil (Canva, Adobe, Figma, Behance)
+4. "Probablement", "peut-être"
+5. Plus de 5 lignes de contenu
+6. Inventer une donnée absente des paramètres
+7. Combiner plusieurs angles
+8. Compliment d'ouverture
+9. Feature list ("je crée logo, charte, affiches...")
+10. Double CTA
+11. Promettre un résultat chiffré invérifiable
 
 Retourne UNIQUEMENT un JSON valide :
-{"subject":"...","body":"Corps complet de l'email avec sauts de ligne \\n"}`
+{"subject":"...","body":"..."}`
 
-  console.log(`[generateEmailDesigner] ${name} | city:${city} | photos:${photos} | instagram:${hasIG} | prompt:${prompt.length} chars`)
+  console.log(`[generateEmailDesigner] → appel Anthropic (prompt: ${prompt.length} chars)`)
 
   let message
   try {
@@ -2302,66 +2223,65 @@ async function generateEmailWebDev({ leadData, websiteUrl, pagespeedData, cms, h
   const CMS_LABELS = { wordpress: 'CMS open-source', wix: 'Constructeur de site', shopify: 'Plateforme e-commerce', squarespace: 'Solution tout-en-un', webflow: 'Solution no-code', jimdo: 'Constructeur de site' }
   const cmsLabel = CMS_LABELS[cmsKey] ?? null
 
-  const weakPoints = [
-    !hasSite                             ? 'aucun site web détecté' : null,
-    hasSite && https === false           ? 'site sans certificat HTTPS' : null,
-    perf != null && perf < 50            ? `performance très faible (${perf}/100)` : null,
-    mobile === false                     ? 'site non optimisé pour mobile' : null,
-    hasSite && sitemap === false         ? 'pas de sitemap XML' : null,
-  ].filter(Boolean)
+  console.log(`[generateEmailWebDev] ${name} | hasSite:${hasSite} | perf:${perf ?? '—'} | https:${https} | mobile:${mobile}`)
 
-  const observationLine = weakPoints.length > 0
-    ? weakPoints.slice(0, 2).join(' et ')
-    : 'les performances techniques ont un potentiel d\'amélioration'
+  const prompt = `Rédige un email de prospection à froid pour un développeur web spécialisé dans les commerces locaux. 3 blocs, 5 lignes max.
 
-  const topQuotes = extractTopQuotes(reviewsData)
-  const catLow = category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  const isRestaurant = /restaurant|cafe|brasserie|pizz|burger|traiteur/.test(catLow)
-  const isRetail     = /boutique|commerce|magasin|retail|mode|vetement/.test(catLow)
-
-  let sectorHint
-  if (isRestaurant) sectorHint = 'En restauration, un site avec menu en ligne et réservation convertit 30% de visiteurs supplémentaires.'
-  else if (isRetail) sectorHint = 'Dans le commerce local, un site rapide et mobile-friendly est le premier levier de conversion des recherches Google.'
-  else sectorHint = 'Dans votre secteur, la performance technique du site est un facteur direct de crédibilité et de conversion.'
-
-  const prompt = `Tu es développeur web freelance spécialisé dans les commerces locaux. Rédige un email de prospection pour ${name}.
-
-RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
-
-DONNÉES VERROUILLÉES — UTILISER UNIQUEMENT CES CHIFFRES :
+DONNÉES DU PROSPECT :
 - Nom : ${name}
 - Ville : ${city || '—'}
-- Catégorie : ${category}
-- Note Google : ${rating ?? '—'}/5 — Avis : ${reviewCount ?? '—'}
+- Secteur : ${category}
+- Note Google : ${rating ?? '—'}/5, ${reviewCount ?? '—'} avis
 - Site web : ${hasSite ? websiteUrl : 'ABSENT'}
 - HTTPS : ${https == null ? 'Non analysé' : https ? 'Oui' : 'Non'}
-- Performance : ${perf ?? 'Non analysé'}/100
+- Performance mobile : ${perf ?? 'Non analysé'}/100
 - Mobile friendly : ${mobile == null ? 'Non analysé' : mobile ? 'Oui' : 'Non'}
-- CMS : ${cmsLabel ?? 'Non identifié'}
-- Observation principale : ${observationLine}
-- Contexte secteur : ${sectorHint}
-${topQuotes.length > 0 ? `- Citations clients : ${topQuotes.slice(0,2).map(q => `"${q}"`).join(' / ')}` : ''}
 
-STRUCTURE — 5 PARAGRAPHES COURTS :
-P1 — Accroche factuelle sur le point technique faible identifié (1-2 phrases, ne pas commencer par "Je")
-P2 — Impact concret de ce problème sur les clients et le business
-P3 — Ta valeur ajoutée concrète en tant que développeur local (sans mention de tarif)
-P4 — Ce que tu peux améliorer précisément (HTTPS, vitesse, mobile, sitemap)
-P5 — Appel à l'action simple et concret (1-2 phrases)
+CHOIX DE L'ANGLE — UN SEUL, le plus douloureux :
 
-${EMAIL_STATS_NOTE}
+Priorité 1 — PAS DE SITE WEB : Si hasSite = false
+→ Angle : "Vous avez [X] avis sur Google mais aucun site — chaque client qui cherche votre adresse ou menu atterrit chez un concurrent."
 
-RÈGLES :
-- Ne jamais inventer de chiffres ou faits non fournis
-- Vouvoiement tout au long de l'email
-- Ton technique mais accessible, pas de jargon inutile
-- Longueur totale : 150-220 mots
-- Objet : accrocheur, factuel, sans emoji (max 80 caractères)
+Priorité 2 — SITE TRÈS LENT : Si perf < 50
+→ Angle : "Votre site charge à [X]/100 de performance mobile — la moitié de vos visiteurs partent avant de voir la page."
+
+Priorité 3 — PAS MOBILE-FRIENDLY : Si mobile = false
+→ Angle : "Votre site n'est pas adapté au mobile — 70% de vos visiteurs locaux viennent d'un téléphone."
+
+Priorité 4 — PAS HTTPS : Si https = false
+→ Angle : "Votre site est en HTTP — les navigateurs affichent 'Non sécurisé', ce qui fait fuir les visiteurs."
+
+Priorité par défaut : performances techniques à améliorer.
+
+NE JAMAIS COMBINER. Un email = un seul problème.
+
+FORMAT :
+
+OBJET : [Nom] — reformulation du point de douleur avec un chiffre réel.
+
+BLOC 1 (1-2 lignes) : Le problème avec SES données. Pas de compliment. Utiliser les chiffres directement.
+BLOC 2 (1-2 lignes) : Ce que ça change en une phrase. Pas de feature list.
+BLOC 3 (1 ligne) : Question directe. "15 minutes pour voir ce qu'on corrige en priorité ?"
+
+Signature : [Votre prénom] / Développeur web — ${city || 'France'} / [Votre numéro]
+
+INTERDIT :
+1. Statistique externe
+2. "J'ai passé votre site dans PageSpeed / GTmetrix" — ne pas révéler les outils
+3. Nom de marque ou d'outil (PageSpeed, WordPress, Wix, GTmetrix)
+4. "Probablement", "peut-être"
+5. Plus de 5 lignes de contenu
+6. Inventer une donnée absente des paramètres
+7. Combiner plusieurs angles
+8. Compliment d'ouverture
+9. Feature list ("je refais le site, j'optimise la vitesse, j'ajoute le HTTPS...")
+10. Double CTA
+11. Mentionner le CMS du prospect
 
 Retourne UNIQUEMENT un JSON valide :
-{"subject":"...","body":"Corps complet de l'email avec sauts de ligne \\n"}`
+{"subject":"...","body":"..."}`
 
-  console.log(`[generateEmailWebDev] ${name} | city:${city} | hasSite:${hasSite} | perf:${perf ?? '—'} | https:${https} | prompt:${prompt.length} chars`)
+  console.log(`[generateEmailWebDev] → appel Anthropic (prompt: ${prompt.length} chars)`)
 
   let message
   try {
@@ -2643,69 +2563,76 @@ Règles :
   return enrichAuditResult(parsed)
 }
 
-// ── Email personnalisé — EMAIL MARKETING profile ─────────────────────��────────
-async function generateEmailEmailMarketing({ leadData, reviewsData, hasNewsletter, hasContactForm, socialPresence, ownerReplyRatio }) {
+// ── Email personnalisé — EMAIL MARKETING profile ─────────────────────────────
+async function generateEmailEmailMarketing({ leadData, reviewsData, hasNewsletter, hasContactForm, socialPresence, ownerReplyRatio, pagespeedData }) {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
   const anthropic = new Anthropic({ apiKey })
 
-  const name         = leadData.name      ?? 'ce commerce'
-  const city         = leadData.city      ?? ''
-  const category     = leadData.category  ?? 'ce secteur'
-  const rating       = leadData.rating    ?? null
+  const name         = leadData.name        ?? 'ce commerce'
+  const city         = leadData.city        ?? ''
+  const category     = leadData.category    ?? 'ce secteur'
+  const rating       = leadData.rating      ?? null
   const reviewCount  = leadData.reviewCount ?? null
-  const hasSite      = !!(leadData.website && leadData.website !== 'null')
   const unanswered   = reviewsData?.unanswered ?? 0
-  const replyPct     = ownerReplyRatio != null ? Math.round(ownerReplyRatio * 100) : null
   const estimClients = Math.round((reviewCount ?? 0) * 10)
 
-  const nets = socialPresence
-    ? [socialPresence.facebook, socialPresence.instagram, socialPresence.tiktok,
-       socialPresence.linkedin, socialPresence.youtube, socialPresence.pinterest]
-        .filter(Boolean).length
-    : 0
+  const bookingPlatform = pagespeedData?.bookingPlatform ?? pagespeedData?.siteSignals?.bookingPlatform ?? null
 
-  const topQuotes = (reviewsData?.topQuotes ?? []).slice(0, 2)
+  console.log(`[generateEmailEmailMarketing] ${name} | booking:${bookingPlatform ?? 'absent'} | unanswered:${unanswered} | estimClients:${estimClients}`)
 
-  const prompt = `Tu es consultant en email marketing freelance spécialisé dans les commerces locaux. Rédige un email de prospection pour ${name}.
+  const prompt = `Rédige un email de prospection à froid pour un consultant en email marketing spécialisé dans les commerces locaux. 3 blocs, 5 lignes max.
 
-RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
-
-DONNÉES VERROUILLÉES — UTILISER UNIQUEMENT CES CHIFFRES :
+DONNÉES DU PROSPECT :
 - Nom : ${name}
 - Ville : ${city || '—'}
-- Catégorie : ${category}
-- Note Google : ${rating ?? '—'}/5 — Avis : ${reviewCount ?? '—'}
+- Secteur : ${category}
+- Note Google : ${rating ?? '—'}/5, ${reviewCount ?? '—'} avis
 - Clients estimés : ${estimClients} (base : avis × 10)
-- Taux réponse propriétaire : ${replyPct != null ? `${replyPct}%` : 'Non analysé'}
 - Avis sans réponse : ${unanswered}
-- Site web : ${hasSite ? 'Présent' : 'ABSENT'}
+- Réservation en ligne : ${bookingPlatform ? 'Détectée' : 'Absente'}
 - Newsletter : ${hasNewsletter ? 'Détectée' : 'Absente'}
 - Formulaire contact : ${hasContactForm ? 'Présent' : 'Absent'}
-- Réseaux sociaux actifs : ${nets}
-${topQuotes.length > 0 ? `- Citations clients : ${topQuotes.map(q => `"${q}"`).join(' / ')}` : ''}
 
-STRUCTURE — 5 PARAGRAPHES COURTS :
-P1 — Accroche sur les clients non fidélisés (chiffre concret, ne pas commencer par "Je")
-P2 — Impact concret : clients acquis mais jamais réengagés, perte de revenu récurrent
-P3 — Ta valeur ajoutée : mise en place d'une stratégie email adaptée au commerce local
-P4 — Ce que tu peux faire précisément (capture email, séquences automatiques, campagnes saisonnières)
-P5 — Appel à l'action simple et concret (1-2 phrases)
+CHOIX DE L'ANGLE — UN SEUL, le plus douloureux :
 
-${EMAIL_STATS_NOTE}
+Priorité 1 — A DÉJÀ LA RÉSERVATION EN LIGNE : Si bookingPlatform détectée
+→ Angle : "Vous avez la réservation en ligne, mais rien pour faire revenir vos clients — [X] visites sans séquence de réactivation, c'est [X] clients perdus."
+→ L'offre est la fidélisation et le réengagement. NE PAS parler de prise de RDV.
 
-RÈGLES :
-- Ne jamais inventer de chiffres ou faits non fournis
-- Vouvoiement tout au long de l'email
-- Orienté ROI et résultats concrets — aucune marque d'outil
-- Longueur totale : 150-220 mots
-- Objet : accrocheur, factuel, sans emoji (max 80 caractères)
-- Signature : Consultant Email Marketing — ${city || 'votre ville'}
+Priorité 2 — PAS DE RÉSERVATION : Si bookingPlatform absente
+→ Angle : "Vous avez [X] clients estimés qui ne sont liés à vous par aucun canal — ni email, ni programme de fidélité."
+→ L'offre est la capture de contacts et la séquence de réactivation.
+
+NE JAMAIS COMBINER. Un email = un seul problème.
+
+FORMAT :
+
+OBJET : [Nom] — reformulation du point de douleur avec un chiffre réel.
+
+BLOC 1 (1-2 lignes) : Le problème avec SES données. Pas de compliment. Utiliser les chiffres directement.
+BLOC 2 (1-2 lignes) : Ce que ça change en une phrase. Pas de feature list.
+BLOC 3 (1 ligne) : Question directe.
+
+Signature : [Votre prénom] / Consultant Email Marketing — ${city || 'France'} / [Votre numéro]
+
+INTERDIT :
+1. Statistique externe
+2. "J'ai analysé votre site / newsletter avec [outil]" — ne pas révéler les outils
+3. Nom de marque ou d'outil (Mailchimp, Brevo, Klaviyo, ActiveCampaign)
+4. "Probablement", "peut-être"
+5. Plus de 5 lignes de contenu
+6. Inventer une donnée absente des paramètres
+7. Combiner les deux angles (fidélisation ET capture)
+8. Compliment d'ouverture
+9. Feature list ("je gère les séquences, les campagnes, les newsletters...")
+10. Double CTA
+11. Promettre un ROI chiffré invérifiable
 
 Retourne UNIQUEMENT un JSON valide :
-{"subject":"...","body":"Corps complet de l'email avec sauts de ligne \\n"}`
+{"subject":"...","body":"..."}`
 
-  console.log(`[generateEmailEmailMarketing] ${name} | city:${city} | newsletter:${hasNewsletter} | prompt:${prompt.length} chars`)
+  console.log(`[generateEmailEmailMarketing] → appel Anthropic (prompt: ${prompt.length} chars)`)
 
   let message
   try {
@@ -2829,75 +2756,102 @@ RÈGLES :
 }
 
 // ── Email Google Ads ──────────────────────────────────────────────────────────
-async function generateEmailGoogleAds({ leadData, pagespeedData, reviewsData, googleAdsReadiness: readiness, concurrence }) {
+async function generateEmailGoogleAds({ leadData, pagespeedData, reviewsData, googleAdsReadiness: readiness, concurrence, localRank }) {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
 
-  const name    = leadData?.name     ?? 'ce commerce'
-  const city    = leadData?.city     ?? ''
-  const rating  = leadData?.rating   ?? '?'
+  const anthropic = new Anthropic({ apiKey })
+
+  const name    = leadData?.name        ?? 'ce commerce'
+  const city    = leadData?.city        ?? ''
+  const category = leadData?.category   ?? 'ce secteur'
+  const rating  = leadData?.rating      ?? '?'
   const reviews = leadData?.reviewCount ?? '?'
-  const website = leadData?.website  ?? null
+  const website = leadData?.website     ?? null
 
   const rawPerf = pagespeedData?.performance ?? null
   const perf    = rawPerf != null ? (rawPerf <= 1 ? Math.round(rawPerf * 100) : Math.round(rawPerf)) : null
-  const hasHttps  = pagespeedData?.https    ?? null
-  const loadTime  = pagespeedData?.loadTime ?? null
+  const loadTime = pagespeedData?.loadTime ?? null
 
-  const unanswered = reviewsData?.unanswered ?? 0
+  const unanswered     = reviewsData?.unanswered ?? 0
+  const mapsRanking    = localRank?.rank ?? null
   const readinessLabel = readiness?.label ?? 'Non évalué'
   const readinessScore = readiness?.score ?? null
+  const concLabel      = concurrence?.level  ?? 'Modérée'
+  const concCpc        = concurrence?.cpc    ?? '1–2€'
 
-  const concLabel  = concurrence?.level  ?? 'Modérée'
-  const concCpc    = concurrence?.cpc    ?? '1–2€'
-  const concBudget = concurrence?.budget ?? '500–1500€/mois'
+  console.log(`[generateEmailGoogleAds] ${name} | mapsRanking:${mapsRanking ?? '—'} | perf:${perf ?? '—'} | rating:${rating} | cpc:${concCpc}`)
 
-  const SIG = city ? `\n— Consultant Google Ads, ${city}` : '\n— Consultant Google Ads'
+  const prompt = `Rédige un email de prospection à froid pour un consultant Google Ads spécialisé dans les commerces locaux. 3 blocs, 5 lignes max.
 
-  const prompt = `Tu es un rédacteur expert en cold email B2B pour consultants Google Ads travaillant avec des commerces locaux.
+DONNÉES DU PROSPECT :
+- Nom : ${name}
+- Ville : ${city || '—'}
+- Secteur : ${category}
+- Note Google : ${rating}/5, ${reviews} avis
+- Avis sans réponse : ${unanswered}
+- Site web : ${website ? 'Présent' : 'ABSENT'}
+- Performance mobile : ${perf !== null ? perf + '/100' : 'non mesuré'}
+- Temps de chargement : ${loadTime ?? 'non mesuré'}
+- Classement Maps local : ${mapsRanking ?? 'non mesuré'}
+- CPC estimé secteur : ${concCpc}
+- Compatibilité Ads : ${readinessLabel}${readinessScore !== null ? ` (${readinessScore}/100)` : ''}
 
-RÈGLE ABSOLUE — ZÉRO NOM DE MARQUE : N'utilise aucun nom de marque, outil ou plateforme commerciale dans tes recommandations. Interdit : Planity, Reservio, Hootsuite, Buffer, Canva, Mailchimp, Brevo, HubSpot, Calendly, WordPress, Webflow, Shopify, Wix, Crisp, Tidio, Intercom, Semrush, Ahrefs, etc. Utilise uniquement des descriptions génériques : "outil de réservation en ligne", "plateforme de gestion des réseaux sociaux", "solution d'email marketing", "logiciel de chat en ligne", "outil de planification éditoriale".
+CHOIX DE L'ANGLE — UN SEUL, le plus douloureux :
 
-MISSION : Rédiger un email de prospection pour "${name}"${city ? ` (${city})` : ''}
+Priorité 1 — INVISIBLE SUR MAPS MALGRÉ BONS AVIS : Si mapsRanking > 10 ET rating >= 4.0
+→ Angle : "Vous avez [X] avis à [Y]/5 mais vous n'apparaissez pas dans le top [Z] Google Maps — Google Ads vous rendrait immédiatement visible."
 
-─── DONNÉES CHIFFRÉES ────────────────────────────────────────
-• Avis Google         : ${reviews} avis | Note : ${rating}/5
-• Avis sans réponse   : ${unanswered}
-• Site web            : ${website ? `Présent (${website})` : 'ABSENT'}
-• Performance mobile  : ${perf !== null ? `${perf}/100` : 'non disponible'}
-• HTTPS               : ${hasHttps === true ? 'Sécurisé ✅' : hasHttps === false ? 'NON sécurisé ❌' : 'inconnu'}
-• Temps chargement    : ${loadTime ?? 'non disponible'}
-• Compatibilité Ads   : ${readinessLabel}${readinessScore !== null ? ` (${readinessScore}/100)` : ''}
-• Concurrence secteur : ${concLabel} (CPC estimé ${concCpc})
-• Budget recommandé   : ${concBudget}
-──────────────────────────────────────────────────────────────
+Priorité 2 — SITE LENT = MAUVAISE CONVERSION ADS : Si perf < 50 ET site présent
+→ Angle : "Chaque euro dépensé en pub Google atterrit sur un site à [X]/100 de performance — la moitié des clics ne convertissent pas."
 
-RÉDIGE un email de prospection orienté ROI et résultats chiffrés.
+Priorité 3 — CPC ÉLEVÉ DANS LE SECTEUR : Si concCpc indique un montant
+→ Angle : "Dans [secteur], le CPC est à [X] — sans stratégie d'enchères, vous payez pour des clics qui ne convertissent pas."
 
-STRUCTURE :
-[ACCROCHE] — 1 phrase percutante qui montre que tu connais leur secteur et leur situation Google Ads (mention de la concurrence et du CPC)
-[PROBLÈME] — 1-2 phrases : ce qu'ils perdent chaque mois sans campagne Ads (clients captés par les concurrents)
-[PREUVE] — 1 phrase avec les données concrètes (note ${rating}/5, ${reviews} avis = potentiel de conversion élevé${perf !== null ? `, site à ${perf}/100 perf mobile` : ''})
-[SOLUTION] — 1-2 phrases : ce que tu proposes concrètement (audit gratuit, ROI cible, budget)
-[CTA] — 1 phrase courte, appel à action
+Priorité par défaut : visibilité payante à activer.
 
-${EMAIL_STATS_NOTE}
+NE JAMAIS COMBINER. Un email = un seul problème.
 
-CONTRAINTES :
-- 150 à 220 mots maximum
-- Pas de markdown, pas de ** ni ##
-- Ton direct, chiffres, ROI — pas émotionnel
-- Pas de "j'espère que ce message vous trouve bien"
-- Introduis-toi comme : "je gère les campagnes publicitaires Google pour les commerces locaux"
-- Ne mentionne aucun outil de gestion ads par son nom
-- Retourne UNIQUEMENT un JSON : {"subject":"...","body":"..."}`
+FORMAT :
 
-  const anthropic = new Anthropic({ apiKey })
-  const message = await anthropic.messages.create({
-    model:      'claude-sonnet-4-6',
-    max_tokens: 600,
-    messages:   [{ role: 'user', content: prompt }],
-  })
+OBJET : [Nom] — reformulation du point de douleur avec un chiffre réel.
+
+BLOC 1 (1-2 lignes) : Le problème avec SES données. Pas de compliment. Utiliser les chiffres directement.
+BLOC 2 (1-2 lignes) : Ce que ça change en une phrase. Pas de feature list.
+BLOC 3 (1 ligne) : Question directe. "15 minutes pour voir si votre secteur vaut une campagne ?"
+
+Signature : [Votre prénom] / Consultant Google Ads — ${city || 'France'} / [Votre numéro]
+
+INTERDIT :
+1. Statistique externe
+2. "J'ai analysé votre site avec [outil]" — ne pas révéler les outils
+3. Nom de marque ou d'outil (Google Ads Editor, Semrush, WordStream)
+4. "Probablement", "peut-être"
+5. Plus de 5 lignes de contenu
+6. Inventer une donnée absente des paramètres
+7. Combiner plusieurs angles
+8. Compliment d'ouverture
+9. Feature list ("je gère les campagnes, les enchères, les extensions...")
+10. Double CTA
+11. Promettre un CPA ou ROAS précis
+
+Retourne UNIQUEMENT un JSON valide :
+{"subject":"...","body":"..."}`
+
+  console.log(`[generateEmailGoogleAds] → appel Anthropic (prompt: ${prompt.length} chars)`)
+
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 600,
+      messages:   [{ role: 'user', content: prompt }],
+    })
+  } catch (err) {
+    console.error('[generateEmailGoogleAds] ✗ Erreur Anthropic:', err.message)
+    throw new Error(`Erreur génération email Google Ads: ${err.message}`)
+  }
+
   console.log(`[generateEmailGoogleAds] ✓ réponse (tokens: ${message.usage?.output_tokens ?? '?'})`)
   const raw = message.content[0].text
   const jsonMatch = raw.match(/\{[\s\S]*\}/)
@@ -2906,4 +2860,100 @@ CONTRAINTES :
   catch { return JSON.parse(jsonMatch[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')) }
 }
 
-module.exports = { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateEmailSocialMedia, generateEmailDesigner, generateEmailWebDev, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot, generateAuditSocialMedia, generateAuditDesigner, generateAuditWebDev, generateAuditEmailMarketing, generateEmailEmailMarketing, generateAuditGoogleAds, generateEmailGoogleAds }
+// ── Email generator — COPYWRITER profile ─────────────────────────────────────
+async function generateEmailCopywriter({ leadData, pagespeedData, reviewsData, googleAudit }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquante')
+
+  const anthropic = new Anthropic({ apiKey })
+
+  const name        = leadData.name        ?? 'ce commerce'
+  const city        = leadData.city        ?? ''
+  const category    = leadData.category    ?? 'ce secteur'
+  const rating      = leadData.rating      ?? null
+  const reviewCount = leadData.reviewCount ?? null
+
+  const rawIndexed   = pagespeedData?.indexedPages
+  const indexedPages = rawIndexed?.indexedPages ?? (typeof rawIndexed === 'number' ? rawIndexed : null)
+  const hasDesc      = !!(googleAudit?.hasDescription)
+  const unanswered   = reviewsData?.unanswered ?? null
+  const reviewThemes = reviewsData?.keywords ?? []
+
+  console.log(`[generateEmailCopywriter] ${name} | indexedPages:${indexedPages ?? '—'} | hasDesc:${hasDesc} | unanswered:${unanswered ?? '—'}`)
+
+  const prompt = `Rédige un email de prospection à froid pour un copywriter / rédacteur web spécialisé dans les commerces locaux. 3 blocs, 5 lignes max.
+
+DONNÉES DU PROSPECT :
+- Nom : ${name}
+- Ville : ${city || '—'}
+- Secteur : ${category}
+- Note Google : ${rating ?? '—'}/5, ${reviewCount ?? '—'} avis
+- Avis sans réponse : ${unanswered ?? 'non mesuré'}
+- Pages indexées sur Google : ${indexedPages ?? 'non mesuré'}
+- Description fiche Google : ${hasDesc ? 'Présente' : 'ABSENTE'}
+- Thèmes récurrents dans les avis : ${reviewThemes.slice(0, 4).join(', ') || '—'}
+
+CHOIX DE L'ANGLE — UN SEUL, le plus douloureux :
+
+Priorité 1 — PEU DE PAGES INDEXÉES : Si indexedPages < 5 ou non mesuré
+→ Angle : "Votre site n'a que [X] pages indexées par Google — vos concurrents avec un blog mensuel captent les recherches que vous ratez."
+
+Priorité 2 — PAS DE DESCRIPTION GOOGLE : Si hasDesc = false
+→ Angle : "Votre fiche Google n'a pas de description — c'est la première chose que Google utilise pour décider qui vous montrer."
+
+Priorité 3 — AVIS SANS RÉPONSE COMME MATIÈRE À CONTENU : Si unansweredReviews > 5 ET thèmes identifiés
+→ Angle : "Vos clients reviennent régulièrement sur [thème 1] et [thème 2] dans leurs avis — ce sont exactement les sujets qui attirent de nouveaux clients quand on en fait du contenu."
+
+Priorité par défaut : contenu à produire pour améliorer la visibilité.
+
+NE JAMAIS COMBINER. Un email = un seul problème.
+
+FORMAT :
+
+OBJET : [Nom] — reformulation du point de douleur avec un chiffre réel.
+
+BLOC 1 (1-2 lignes) : Le problème avec SES données. Pas de compliment. Utiliser les chiffres directement.
+BLOC 2 (1-2 lignes) : Ce que ça change en une phrase. Pas de feature list.
+BLOC 3 (1 ligne) : Question directe. "15 minutes pour voir ce qu'on peut produire ?"
+
+Signature : [Votre prénom] / Copywriter — ${city || 'France'} / [Votre numéro]
+
+INTERDIT :
+1. Statistique externe
+2. "J'ai analysé votre site avec [outil]" — ne pas révéler les outils
+3. Nom de marque ou d'outil (WordPress, Semrush, ChatGPT, SurferSEO)
+4. "Probablement", "peut-être"
+5. Plus de 5 lignes de contenu
+6. Inventer une donnée absente des paramètres
+7. Combiner plusieurs angles
+8. Compliment d'ouverture
+9. Feature list ("je rédige articles, fiches produit, pages de vente...")
+10. Double CTA
+11. Promettre un classement Google ou un trafic précis
+
+Retourne UNIQUEMENT un JSON valide :
+{"subject":"...","body":"..."}`
+
+  console.log(`[generateEmailCopywriter] → appel Anthropic (prompt: ${prompt.length} chars)`)
+
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 600,
+      messages:   [{ role: 'user', content: prompt }],
+    })
+  } catch (err) {
+    console.error('[generateEmailCopywriter] ✗ Erreur Anthropic:', err.message)
+    throw new Error(`Erreur génération email copywriter: ${err.message}`)
+  }
+
+  const raw = message.content[0].text
+  console.log(`[generateEmailCopywriter] ✓ réponse reçue (${raw.length} chars)`)
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error('Réponse invalide — JSON introuvable')
+  try { return JSON.parse(jsonMatch[0]) }
+  catch { return JSON.parse(jsonMatch[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')) }
+}
+
+module.exports = { analyzeWithAI, generateEmailPhotographe, generateEmailSEO, generateEmailChatbot, generateEmailSocialMedia, generateEmailDesigner, generateEmailWebDev, generateAuditSEO, generateAuditPhotographe, generateAuditChatbot, generateAuditSocialMedia, generateAuditDesigner, generateAuditWebDev, generateAuditEmailMarketing, generateEmailEmailMarketing, generateAuditGoogleAds, generateEmailGoogleAds, generateEmailCopywriter }
