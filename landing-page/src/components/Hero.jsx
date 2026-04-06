@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { useClickSound } from '../hooks/useClickSound'
 
-const CITIES = ['Paris', 'Lyon', 'Marseille', 'Bordeaux', 'Toulouse', 'Strasbourg', 'Lille', 'Nantes', 'Nice', 'Montpellier', 'Rennes', 'Grenoble', 'Dijon', 'Metz', 'Rouen']
+const CITIES = ['Paris', 'Lyon', 'Marseille', 'Bordeaux', 'Toulouse', 'Strasbourg', 'Lille', 'Nantes', 'Nice', 'Montpellier', 'Berlin', 'London', 'Dubai', 'Bruxelles', 'Genève', 'Barcelona', 'Amsterdam']
 
 export default function Hero() {
   const playClick = useClickSound()
@@ -31,7 +31,7 @@ export default function Hero() {
     <section id="hero" style={{
       minHeight: '100vh',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      padding: '130px 24px 0',
+      padding: '130px 24px 48px',
       position: 'relative', overflow: 'hidden',
       textAlign: 'center',
     }}>
@@ -45,19 +45,15 @@ export default function Hero() {
       >
 
         {/* Badge */}
-        <motion.div variants={item} style={{ marginBottom: 36 }}>
+        <motion.div variants={item} style={{ marginBottom: 28 }}>
           <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '7px 18px',
-            background: 'rgba(29,110,85,0.15)',
-            border: '1px solid rgba(29,110,85,0.35)',
-            borderRadius: 40,
-            fontSize: 12, fontWeight: 600, color: '#4ade80',
-            letterSpacing: '0.05em',
-            backdropFilter: 'blur(12px)',
+            fontSize: 11, fontWeight: 500,
+            color: 'rgba(245,245,240,0.4)',
+            letterSpacing: '2px',
+            textTransform: 'uppercase',
+            fontFamily: 'DM Sans, system-ui, sans-serif',
           }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 8px #4ade80', flexShrink: 0, animation: 'pulse 2s infinite' }} />
-            Outil de prospection pour freelances
+            Prospection IA pour freelances
           </span>
         </motion.div>
 
@@ -178,20 +174,18 @@ export default function Hero() {
 
       {/* Ticker villes */}
       <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0,
+        width: '100%', overflow: 'hidden',
+        marginTop: 16,
         borderTop: '1px solid rgba(255,255,255,0.06)',
-        background: 'rgba(19,24,21,0.8)',
-        backdropFilter: 'blur(8px)',
-        overflow: 'hidden',
-        padding: '11px 0',
+        paddingTop: 18,
       }}>
-        <div style={{ display: 'inline-flex', whiteSpace: 'nowrap', animation: 'marquee 26s linear infinite' }}>
+        <div style={{ display: 'inline-flex', whiteSpace: 'nowrap', animation: 'marquee 30s linear infinite' }}>
           {[0, 1].map(n => (
-            <span key={n} style={{ display: 'inline-flex', alignItems: 'center', gap: 0 }}>
+            <span key={n} style={{ display: 'inline-flex', alignItems: 'center' }}>
               {CITIES.map((city, i) => (
-                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 0 }}>
-                  <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(245,245,240,0.32)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>{city}</span>
-                  <span style={{ margin: '0 18px', color: 'rgba(29,110,85,0.5)', fontSize: 12 }}>·</span>
+                <span key={i} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <span style={{ fontSize: 14, fontWeight: 400, color: 'rgba(245,245,240,0.3)', fontFamily: 'DM Sans, system-ui, sans-serif' }}>{city}</span>
+                  <span style={{ margin: '0 20px', color: 'rgba(245,245,240,0.2)', fontSize: 14 }}>·</span>
                 </span>
               ))}
             </span>
