@@ -314,11 +314,11 @@ export default function HowItWorks() {
         <div style={{ marginTop: 64, textAlign: 'center' }}>
           <p style={{ maxWidth: 700, margin: '0 auto', color: 'rgba(245,245,240,0.6)', fontSize: 16, lineHeight: 1.8, fontFamily: 'DM Sans, system-ui, sans-serif' }}>
             Imaginez recevoir un email d'un inconnu qui vous dit : votre site met{' '}
-            <strong style={{ color: '#EDFA36', fontWeight: 700 }}>8 secondes</strong>
+            <strong style={{ color: '#2A9D74', fontWeight: 700 }}>8 secondes</strong>
             {' '}à charger, vous n'avez{' '}
-            <strong style={{ color: '#EDFA36', fontWeight: 700 }}>aucune photo pro</strong>
+            <strong style={{ color: '#2A9D74', fontWeight: 700 }}>aucune photo pro</strong>
             , et{' '}
-            <strong style={{ color: '#EDFA36', fontWeight: 700 }}>23 clients</strong>
+            <strong style={{ color: '#2A9D74', fontWeight: 700 }}>23 clients</strong>
             {' '}vous posent la même question dans vos avis.{' '}
             <strong style={{ color: '#FFFFFF', fontWeight: 700 }}>Vous répondriez.</strong>
             {' '}C'est exactement ce que vos prospects reçoivent quand vous utilisez{' '}
@@ -329,13 +329,6 @@ export default function HowItWorks() {
             Offrir un{' '}
             <span style={{ color: '#2A9D74' }}>audit gratuit</span>
             {' '}surpasse toute autre approche de prospection.
-          </p>
-
-          <p style={{ fontSize: 13, color: 'rgba(245,245,240,0.35)', textAlign: 'center', marginTop: 8, fontFamily: 'DM Sans, system-ui, sans-serif' }}>
-            Email froid classique :{' '}
-            <span style={{ color: '#ef4444', fontWeight: 600 }}>1-3%</span>
-            {' '}de réponse. Email avec audit personnalisé : jusqu'à{' '}
-            <span style={{ color: '#2A9D74', fontWeight: 600 }}>25%</span>.
           </p>
         </div>
 
