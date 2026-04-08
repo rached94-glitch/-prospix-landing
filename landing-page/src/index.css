@@ -12,8 +12,9 @@ html {
 
 body {
   font-family: 'DM Sans', system-ui, sans-serif;
-  background: linear-gradient(180deg, #0D1A14 0%, #0A1210 40%, #0D1A14 70%, #0A1210 100%);
-  background-attachment: fixed;
+  background: linear-gradient(-45deg, #0A0F0D, #1D6E55, #0A0F0D, #1a3a2a);
+  background-size: 400% 400%;
+  animation: gradientMove 15s ease infinite;
   color: #F5F5F0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -128,6 +129,12 @@ input, textarea {
 @keyframes marquee {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
+}
+
+@keyframes gradientMove {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 @keyframes gradientMove1 {
