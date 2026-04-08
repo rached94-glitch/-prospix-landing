@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import './index.css'
 import AnimatedBackground from './components/AnimatedBackground'
 import Header from './components/Header'
@@ -12,6 +13,10 @@ import Footer from './components/Footer'
 import StickyButtons from './components/StickyButtons'
 
 export default function App() {
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   return (
     <div style={{
       minHeight: '100vh',
