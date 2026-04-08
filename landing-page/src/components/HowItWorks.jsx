@@ -287,7 +287,7 @@ export default function HowItWorks() {
   }, [])
 
   return (
-    <section id="comment" style={{ padding: '112px 24px' }}>
+    <section id="how-it-works" style={{ padding: '112px 24px' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
         {/* Titre */}

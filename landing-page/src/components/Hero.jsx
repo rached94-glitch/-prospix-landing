@@ -15,7 +15,7 @@ export default function Hero() {
   }
   const scrollToDemo = () => {
     try { playClick() } catch (_) {}
-    document.querySelector('#fonctionnalites')?.scrollIntoView({ behavior: 'smooth' })
+    document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })
   }
 
   const container = {
