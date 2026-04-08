@@ -64,16 +64,28 @@ export default function WaitlistForm() {
     e.target.style.boxShadow = 'none'
   }
 
+  const N8N_WEBHOOK_URL = 'https://kimrach.app.n8n.cloud/webhook/a26655a1-9b69-45f0-893c-de8c1561870e'
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.email.trim() || !form.prenom.trim() || !form.metier || !rgpd) return
     setStatus('loading')
     try {
-      // TODO: envoyer vers Google Sheets API
-      const entries = JSON.parse(localStorage.getItem('prospix_waitlist') || '[]')
-      entries.push({ ...form, rgpd_consent: true, date: new Date().toISOString() })
-      localStorage.setItem('prospix_waitlist', JSON.stringify(entries))
-      await new Promise(r => setTimeout(r, 600))
+      const response = await fetch(N8N_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email,
+          prenom: form.prenom,
+          nom: form.nom,
+          metier: form.metier,
+          ville: form.ville,
+          statut: form.statut,
+          code_parrainage: form.referral,
+          date: new Date().toISOString(),
+        }),
+      })
+      if (!response.ok) throw new Error('HTTP ' + response.status)
       setStatus('success')
     } catch (_) {
       setStatus('error')
