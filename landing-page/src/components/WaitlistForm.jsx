@@ -71,9 +71,10 @@ export default function WaitlistForm() {
     if (!form.email.trim() || !form.prenom.trim() || !form.metier || !rgpd) return
     setStatus('loading')
     try {
-      const response = await fetch(N8N_WEBHOOK_URL, {
+      await fetch(N8N_WEBHOOK_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({
           email: form.email,
           prenom: form.prenom,
@@ -85,7 +86,6 @@ export default function WaitlistForm() {
           date: new Date().toISOString(),
         }),
       })
-      if (!response.ok) throw new Error('HTTP ' + response.status)
       setStatus('success')
     } catch (_) {
       setStatus('error')
