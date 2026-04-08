@@ -12,7 +12,7 @@ html {
 
 body {
   font-family: 'DM Sans', system-ui, sans-serif;
-  background: linear-gradient(-45deg, #0A0F0D, #1D6E55, #0A0F0D, #1a3a2a);
+  background: linear-gradient(-45deg, #1D6E55, #2A9D74, #1a3a2a, #3d5c2e);
   background-size: 400% 400%;
   animation: gradientMove 15s ease infinite;
   color: #F5F5F0;
