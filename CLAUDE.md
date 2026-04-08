@@ -1,4 +1,4 @@
-# CLAUDE.md — LeadGen Pro
+# CLAUDE.md — LeadGen Pro / Prospix
 
 > Lu automatiquement par Claude Code à chaque conversation. Ne pas supprimer.
 
@@ -6,12 +6,15 @@
 
 ## PROJET
 
-**LeadGen Pro** — prospection B2B : recherche d'entreprises locales via Google Maps API, enrichissement multi-sources, scoring par profil métier, génération de pitches email.
+**LeadGen Pro (app) + Prospix (landing page)** — prospection B2B : recherche d'entreprises locales via Google Maps API, enrichissement multi-sources, scoring par profil métier, génération de pitches email.
 
 | Composant | Stack | Port |
 |-----------|-------|------|
 | Backend | Node.js 20 + Express 4 | **3001** |
-| Frontend | React 18 + Vite | **5173** (dev) |
+| Frontend (app) | React 18 + Vite | **5173** (dev) |
+| Landing page | React 18 + Vite + framer-motion | **5174** (dev) |
+
+**GitHub landing page** : `https://github.com/rached94-glitch/-prospix-landing.git` → branche `master`
 
 ### Commandes de lancement
 
@@ -19,8 +22,11 @@
 # Backend
 cd backend && npm run dev        # nodemon — ignore cache/*.json et data/*.json
 
-# Frontend
+# Frontend app
 cd frontend && npm run dev       # http://localhost:5173
+
+# Landing page
+cd landing-page && npm run dev   # http://localhost:5174
 
 # Setup initial
 cp .env.example .env             # puis remplir les clés API
@@ -47,11 +53,11 @@ export default function MyComp() {}         // ✅
 const react = require('react')              // ❌ interdit
 ```
 
-### Inline styles — règle absolue frontend
+### Inline styles — règle absolue frontend (app ET landing page)
 
 **Jamais de Tailwind. Jamais de CSS modules. Jamais de className externe.**
 Tout style va dans `style={{ ... }}` directement sur l'élément JSX.
-Exception : `App.css` pour les design tokens CSS et les `@keyframes`.
+Exception : `App.css` / `index.css` pour les design tokens CSS et les `@keyframes`.
 
 ### Logs backend — préfixe obligatoire
 
@@ -156,14 +162,36 @@ frontend/src/
   App.css                      Design tokens CSS — seul fichier CSS à toucher
   hooks/useLeads.js            Streaming SSE, statuts localStorage, updateLeadData
   hooks/useScoringProfiles.js  12 profils preset + CRUD profils custom
-  components/LeadDetail.jsx    Panel droit complet (~3000 lignes) — toute l'interactivité
+  components/LeadDetail.jsx    Panel droit — interactivité principale (refactorisé)
+  components/AIEmailGenerator.jsx  Générateur email IA (extrait de LeadDetail)
+  components/AuditPanel.jsx        Panel audits IA (extrait de LeadDetail)
+  components/ReviewsSection.jsx    Section avis Google (extrait de LeadDetailReviews)
   components/SidebarSearch.jsx Formulaire de recherche ACTIF (PAS SearchPanel.jsx — inutilisé)
   components/Map.jsx           MapLibre GL, markers couleur-codés, cercle rayon
   components/LeadsList.jsx     Liste triable + LeadCard
   utils/sounds.js              Web Audio API — playClick / playSuccess / playError
   utils/exportPDF.js           jsPDF + html2canvas — 3 pages A4
   utils/exportAuditPDF.js      8 fonctions PDF audit (SEO, Chatbot, Photo, Social, Designer, WebDev, Email, Ads)
+  utils/caches.js              Helpers cache frontend
   vite.config.js               Proxy /api → localhost:3001 (proxyTimeout:0 — intentionnel SSE)
+
+landing-page/src/
+  App.jsx                      Layout principal, useEffect scrollTo(0,0) au montage
+  index.css                    Design tokens, @keyframes (marquee, gradientMove, floatParticle…)
+  components/AnimatedBackground.jsx  Fixed — gradient mesh 3 radials + 35 particules + grain SVG
+  components/Header.jsx        Logo "Prospix" transparent absolu — pas de nav
+  components/Hero.jsx          H1 gradient, stats, ticker villes, boutons waitlist/démo
+  components/ProfilesSection.jsx  10 profils freelance avec glow coloré par profil
+  components/Sectors.jsx       Bandeau défilant marquee — 15 secteurs glassmorphism
+  components/Features.jsx      Grille features (inline styles)
+  components/HowItWorks.jsx    3 étapes alternées L/R + maquettes UI + paragraphe pitch (id="how-it-works")
+  components/Pricing.jsx       4 plans (Essai/Starter/Pro/Business) orientés volume prospects
+  components/WaitlistForm.jsx  7 champs + RGPD + envoi webhook n8n (no-cors)
+  components/CTABanner.jsx     Section waitlist finale (id="cta-waitlist")
+  components/PrivacyModal.jsx  Modal RGPD partagée (WaitlistForm + Footer)
+  components/Footer.jsx        Logo + liens + politique de confidentialité
+  components/StickyButtons.jsx Boutons flottants persistants
+  hooks/useClickSound.js       Son de clic Web Audio
 ```
 
 ---
@@ -241,18 +269,39 @@ const bp = pagespeedData?.bookingPlatform ?? pagespeedData?.siteSignals?.booking
 
 ---
 
+## LANDING PAGE — DÉTAILS TECHNIQUES
+
+### Webhook n8n (WaitlistForm)
+- URL : `https://kimrach.app.n8n.cloud/webhook/a26655a1-9b69-45f0-893c-de8c1561870e`
+- Mode : `no-cors`, `Content-Type: text/plain`, body JSON stringifié
+- Champs envoyés : `email, prenom, nom, metier, ville, statut, code_parrainage, date`
+- Pas de vérification `response.ok` (réponse opaque en no-cors)
+
+### Background animé (index.css + AnimatedBackground.jsx)
+- `body` : `linear-gradient(-45deg, #0d2b1f, #1D6E55, #1a3a2a, #3a5225)` animé via `gradientMove 15s`
+- `AnimatedBackground` : 3 radials ellipses fixes animés (`gradientMove1/2/3`) + 35 particules + grain SVG
+- Keyframes dans `index.css` : `marquee`, `gradientMove`, `gradientMove1/2/3`, `floatParticle`, `badgePulseRing`…
+
+### Navigation interne
+- "Rejoindre la waitlist" → scroll vers `#cta-waitlist`
+- "Voir la démo" → scroll vers `#how-it-works`
+- Section HowItWorks : `id="how-it-works"`
+- Section Pricing : `id="tarifs"`
+
+---
+
 ## PROBLÈMES CONNUS — ne pas corriger sans demande
 
 1. `server.js:13` CORS hardcodé `localhost` → bloque tout déploiement
 2. `scoring.js` `presenceScore()` crash si `social = null` → fix : `social ?? {}`
 3. `LeadDetail.jsx` `aiCache`/`auditCache` illimités → LRU à implémenter
-4. `LeadDetail.jsx` ~3000 lignes → candidats à extraire : AuditPanel, ReviewsSection, AIEmailGenerator
-5. `SearchPanel.jsx` (962 lignes) inutilisé dans `App.jsx` → à supprimer ou brancher
+4. `SearchPanel.jsx` (962 lignes) inutilisé dans `App.jsx` → à supprimer ou brancher
 
 ## Dernières modifications
-- `2026-04-05 20:05:24` — modifié `backend/services/scoring.js`
-- `2026-04-05 20:05:19` — modifié `backend/services/scoring.js`
-- `2026-04-05 20:03:13` — créé/réécrit `backend/.env.example`
-- `2026-04-05 20:03:02` — modifié `backend/server.js`
-- `2026-04-05 19:51:51` — modifié `backend/data/auditStats.json`
+- `2026-04-08` — landing page Prospix complète — GitHub rached94-glitch/-prospix-landing
+- `2026-04-08` — WaitlistForm → webhook n8n (no-cors)
+- `2026-04-08` — background animé gradient vert oscilant sur body
+- `2026-04-08` — bouton "Voir la démo" → scroll #how-it-works
+- `2026-04-07` — mots clés HowItWorks en vert uniforme #2A9D74
+- `2026-04-06` — LeadDetail refactorisé : AIEmailGenerator, AuditPanel, ReviewsSection extraits
 
