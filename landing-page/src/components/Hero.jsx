@@ -183,7 +183,6 @@ export default function Hero() {
       <div style={{
         width: '100%', overflow: 'hidden',
         marginTop: 48,
-        borderTop: '1px solid rgba(255,255,255,0.06)',
         paddingTop: 32,
       }}>
         <div style={{ display: 'inline-flex', whiteSpace: 'nowrap', animation: 'marquee 35s linear infinite' }}>

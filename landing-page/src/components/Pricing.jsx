@@ -155,7 +155,7 @@ export default function Pricing() {
   const inView = useInView(ref, { once: true, margin: '-80px' })
 
   return (
-    <section id="tarifs" style={{ padding: '112px 24px', background: 'rgba(0,0,0,0.15)' }}>
+    <section id="tarifs" style={{ padding: '112px 24px' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
         <motion.div

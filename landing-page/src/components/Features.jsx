@@ -97,7 +97,7 @@ export default function Features() {
   }, [])
 
   return (
-    <section id="fonctionnalites" style={{ padding: '112px 24px', background: 'rgba(0,0,0,0.15)' }}>
+    <section id="fonctionnalites" style={{ padding: '112px 24px' }}>
       <div style={{ maxWidth: 1280, margin: '0 auto' }}>
 
         <div

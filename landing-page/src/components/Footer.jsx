@@ -37,7 +37,6 @@ export default function Footer() {
     <>
     {showPrivacy && <PrivacyModal onClose={() => setShowPrivacy(false)} />}
     <footer style={{
-      borderTop: '1px solid rgba(255,255,255,0.08)',
       padding: '44px 24px 32px',
       marginTop: 'auto',
     }}>
@@ -107,7 +106,6 @@ export default function Footer() {
         {/* Bottom */}
         <div style={{
           paddingTop: 20,
-          borderTop: '1px solid rgba(255,255,255,0.05)',
           display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8,
         }}>
           <span style={{ fontSize: 12, color: 'rgba(245,245,240,0.3)' }}>
