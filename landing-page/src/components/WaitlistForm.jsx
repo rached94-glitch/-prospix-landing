@@ -64,30 +64,31 @@ export default function WaitlistForm() {
     e.target.style.boxShadow = 'none'
   }
 
-  const N8N_WEBHOOK_URL = 'https://kimrach.app.n8n.cloud/webhook/a26655a1-9b69-45f0-893c-de8c1561870e'
-
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.email.trim() || !form.prenom.trim() || !form.metier || !rgpd) return
     setStatus('loading')
+    const { email, prenom, nom, metier, ville, statut } = form
+    const codeParrainage = form.referral
     try {
-      await fetch(N8N_WEBHOOK_URL, {
+      await fetch('https://kimrach.app.n8n.cloud/webhook/a26655a1-9b69-45f0-893c-de8c1561870e', {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({
-          email: form.email,
-          prenom: form.prenom,
-          nom: form.nom,
-          metier: form.metier,
-          ville: form.ville,
-          statut: form.statut,
-          code_parrainage: form.referral,
+          email,
+          prenom,
+          nom,
+          metier,
+          ville,
+          statut,
+          code_parrainage: codeParrainage,
           date: new Date().toISOString(),
         }),
       })
+      // no-cors ne permet pas de lire la réponse, on affiche directement le succès
       setStatus('success')
-    } catch (_) {
+    } catch (err) {
       setStatus('error')
     }
   }
